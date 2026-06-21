@@ -11,7 +11,7 @@ export function patchWeaponRolls() {
 
   const originalRollWeapon = ActorClass.prototype.rollWeapon;
   ActorClass.prototype.rollWeapon = async function tenebreRollWeapon(weapon, ...args) {
-    // Safety cleanup of any previously hung roll state
+    // Reset status anterior de rolagem se houver
     if (game.tenebreResources?.activeWeaponRoll) {
       console.warn("Tenebre Resources | Clearing active roll state left over from a previous hung/incomplete roll.");
       game.tenebreResources.activeWeaponRoll = null;
@@ -23,7 +23,7 @@ export function patchWeaponRolls() {
       return originalRollWeapon.call(this, weapon, ...args);
     }
 
-    // Force target selection: exactly 1 target must be selected for any attack roll when combatAutomation is enabled
+    // Exige seleção de exatamente 1 alvo se a automação de combate estiver ativa
     if (game.settings.get("symbaroum", "combatAutomation")) {
       const targets = Array.from(game.user.targets);
       if (targets.length !== 1) {
@@ -32,14 +32,13 @@ export function patchWeaponRolls() {
       }
     }
 
-    // Verify there is compatible ammo first, otherwise warn and abort
+    // Verifica se possui munição
     const ammoItems = findAmmoItems(this, ammoType);
     if (sumAmmoShots(ammoItems) <= 0) {
       ui.notifications.warn(game.i18n.format("TENEBRE.Ammo.NoCompatibleAmmo", { type: localizeAmmoType(ammoType) }));
       return undefined;
     }
 
-    // Initialize the active weapon roll state
     game.tenebreResources.activeWeaponRoll = {
       actor: this,
       weapon: weapon,
@@ -58,15 +57,13 @@ export function patchWeaponRolls() {
     } finally {
       const chosenAmmo = game.tenebreResources.activeWeaponRoll?.selectedAmmo;
 
-      // Clean up the active roll variables
       game.tenebreResources.activeWeaponRoll = null;
       game.tenebreResources.activeWeaponModifiers = null;
 
-      // If ammo was chosen, consume it
       if (chosenAmmo) {
         await AmmoService.consumeAmmo(this, chosenAmmo, weapon, ammoType);
 
-        // Record hit if attack hit target
+        // Rastreia o acerto se o ataque for bem-sucedido
         const hasHit = result && (
           result.hasSucceed === true ||
           result.hasDamage === true ||

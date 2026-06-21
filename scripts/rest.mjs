@@ -2,15 +2,9 @@ import { FLAG_SCOPE } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { escapeHtml } from "./utils.mjs";
 
-/**
- * RestService — handles player rest dialog and mass GM rest.
- * Triggered by the custom "Descanso" header button.
- */
+// Gerenciamento de descanso de personagens
 export class RestService {
-  /**
-   * Open the rest dialog for a single actor (triggered by the Descanso header button).
-   * @param {Actor} actor
-   */
+  // Abre diálogo de descanso para o ator
   static async openRestDialog(actor) {
     const defaultHealing = Number(TenebreSettings.get("restHealing")) || 1;
 
@@ -50,15 +44,7 @@ export class RestService {
     await RestService.applyRest(actor, result.days, result.healing);
   }
 
-  /**
-   * Apply rest effects to an actor.
-   * - Heals Toughness by (healingPerDay × days)
-   * - Clears temporary corruption if days >= 1
-   * - Resets nbrOfFailedDeathRoll to 0
-   * @param {Actor} actor
-   * @param {number} days
-   * @param {number|null} healingPerDay
-   */
+  // Aplica efeitos de descanso (recuperação de vitalidade, remoção de corrupção temporária e resets de morte)
   static async applyRest(actor, days = 1, healingPerDay = null) {
     const updates = {};
     const results = { days, actorName: actor.name, healed: 0, corruptionCleared: 0 };
@@ -96,10 +82,7 @@ export class RestService {
     await RestService.#postRestMessage(actor, results);
   }
 
-  /**
-   * Post a chat message summarizing the rest result.
-   * @private
-   */
+  // Envia mensagem de chat resumindo descanso
   static async #postRestMessage(actor, results) {
     const lines = [];
     if (results.healed > 0) {

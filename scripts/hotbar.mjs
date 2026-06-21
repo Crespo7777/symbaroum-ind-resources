@@ -4,10 +4,7 @@ import { escapeHtml } from "./utils.mjs";
 
 const BREAD_BTN_ID = "tenebre-bread-btn";
 
-/**
- * HotbarService — renders a clickable bread icon anchored to the left of the
- * Foundry hotbar. Appears automatically when the user's character has Pão de Viagem.
- */
+// Renderiza o atalho de Pão de Viagem ao lado da barra de macros (hotbar)
 export class HotbarService {
   static register() {
     Hooks.on("renderHotbar", HotbarService.#onRenderHotbar);
@@ -18,7 +15,6 @@ export class HotbarService {
   }
 
   static #onRenderHotbar(_app, _html) {
-    // Small delay so hotbar is fully positioned in the DOM
     setTimeout(() => HotbarService.refresh(), 50);
   }
 
@@ -40,9 +36,7 @@ export class HotbarService {
     return HotbarService.#isMyCharacter(actor);
   }
 
-  /**
-   * Rebuild (or remove) the bread button based on the current actor state.
-   */
+  // Atualiza ou remove o botão de atalho baseado na quantidade de rações
   static refresh() {
     // Always remove and rebuild to get fresh state
     document.getElementById(BREAD_BTN_ID)?.remove();
@@ -56,7 +50,6 @@ export class HotbarService {
     try { state = RationService.getState(actor); } catch { return; }
     if (state.quantity <= 0) return;
 
-    // Anchor to the hotbar so we can position relative to it
     const hotbar = document.getElementById("hotbar");
     if (!hotbar) return;
 
@@ -94,7 +87,6 @@ export class HotbarService {
       if (ev.key === "Enter" || ev.key === " ") btn.click();
     });
 
-    // Insert into the same container as the hotbar, immediately before it
     const parent = hotbar.parentElement ?? document.body;
     parent.insertBefore(btn, hotbar);
   }
