@@ -335,11 +335,86 @@ function onRenderTemplate(path, data, html) {
 }
 
 function onRenderDialog(dialog, html, data) {
-  const activeRoll = game.tenebreResources?.activeWeaponRoll;
-  if (!activeRoll) return;
-
   const el = getRoot(html);
   if (!el) return;
+
+  const isWeaponRoll = Boolean(el.querySelector("input[id^='weapondamage-']"));
+  if (isWeaponRoll) {
+    // 1. If there's a target attribute dropdown, and it currently defaults to "custom"
+    //    let's change it to "defense" automatically so that the attack actually rolls against the target's defense!
+    const targetAttrSelect = el.querySelector("select[id^='targetAttribute-']");
+    if (targetAttrSelect && targetAttrSelect.value === "custom") {
+      const hasDefense = Array.from(targetAttrSelect.options).some(opt => opt.value === "defense");
+      if (hasDefense) {
+        targetAttrSelect.value = "defense";
+      }
+    }
+
+    // 2. Wrap the roll button callback to prevent any TypeError with html[0]
+    if (dialog.data?.buttons?.roll) {
+      const originalCallback = dialog.data.buttons.roll.callback;
+      if (originalCallback && !originalCallback._tenebreWrapped) {
+        dialog.data.buttons.roll.callback = async function(htmlElement, event) {
+          const htmlParam = (htmlElement && !(0 in htmlElement)) ? [htmlElement] : htmlElement;
+          
+          // For active weapon rolls (ranged with ammo selector), we also inject ammo modifiers
+          const activeRoll = game.tenebreResources?.activeWeaponRoll;
+          if (activeRoll) {
+            try {
+              const selectedId = el.querySelector("#tenebre-ammo-select")?.value;
+              const chosenAmmo = activeRoll.actor.items.get(selectedId);
+              if (chosenAmmo) {
+                activeRoll.selectedAmmo = chosenAmmo;
+
+                const ammoMods = getAmmoModifiers(chosenAmmo);
+                const weaponModifiers = game.tenebreResources.activeWeaponModifiers;
+                if (weaponModifiers && ammoMods.length > 0) {
+                  if (!weaponModifiers.package) {
+                    weaponModifiers.package = [{
+                      label: "Default",
+                      type: "default",
+                      member: []
+                    }];
+                  }
+                  let defaultPackage = weaponModifiers.package.find(
+                    p => p.type === "default" || p.type === game.symbaroum.config.PACK_DEFAULT
+                  );
+                  if (!defaultPackage) {
+                    defaultPackage = {
+                      label: "Default",
+                      type: "default",
+                      member: []
+                    };
+                    weaponModifiers.package.push(defaultPackage);
+                  }
+                  for (const mod of ammoMods) {
+                    if (!defaultPackage.member.some(m => m.id === mod.id && m.type === mod.type)) {
+                      defaultPackage.member.push(mod);
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Tenebre Resources | Error preparing ammo modifiers:", err);
+              ui.notifications.error("Error preparing ammo modifiers: " + err.message);
+            }
+          }
+
+          try {
+            return await originalCallback.call(this, htmlParam, event);
+          } catch (err) {
+            console.error("Tenebre Resources | Error in original roll callback:", err);
+            throw err;
+          }
+        };
+        dialog.data.buttons.roll.callback._tenebreWrapped = true;
+      }
+    }
+  }
+
+  // 3. Ranged ammo selector injection (only runs for activeRoll)
+  const activeRoll = game.tenebreResources?.activeWeaponRoll;
+  if (!activeRoll) return;
 
   const damModInput = el.querySelector("input[id^='dammodifier-']");
   if (!damModInput) return;
@@ -390,57 +465,6 @@ function onRenderDialog(dialog, html, data) {
     win.style.height = "auto";
   }
   dialog.setPosition({ height: "auto" });
-
-  if (dialog.data?.buttons?.roll) {
-    const originalCallback = dialog.data.buttons.roll.callback;
-    dialog.data.buttons.roll.callback = async function(htmlElement, event) {
-      try {
-        const selectedId = el.querySelector("#tenebre-ammo-select")?.value;
-        const chosenAmmo = actor.items.get(selectedId);
-        if (chosenAmmo) {
-          activeRoll.selectedAmmo = chosenAmmo;
-
-          const ammoMods = getAmmoModifiers(chosenAmmo);
-          const weaponModifiers = game.tenebreResources.activeWeaponModifiers;
-          if (weaponModifiers && ammoMods.length > 0) {
-            if (!weaponModifiers.package) {
-              weaponModifiers.package = [{
-                label: "Default",
-                type: "default",
-                member: []
-              }];
-            }
-            let defaultPackage = weaponModifiers.package.find(
-              p => p.type === "default" || p.type === game.symbaroum.config.PACK_DEFAULT
-            );
-            if (!defaultPackage) {
-              defaultPackage = {
-                label: "Default",
-                type: "default",
-                member: []
-              };
-              weaponModifiers.package.push(defaultPackage);
-            }
-            for (const mod of ammoMods) {
-              if (!defaultPackage.member.some(m => m.id === mod.id && m.type === mod.type)) {
-                defaultPackage.member.push(mod);
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Tenebre Resources | Error preparing ammo modifiers:", err);
-        ui.notifications.error("Error preparing ammo modifiers: " + err.message);
-      }
-
-      try {
-        return await originalCallback.call(this, htmlElement, event);
-      } catch (err) {
-        console.error("Tenebre Resources | Error in original roll callback:", err);
-        throw err;
-      }
-    };
-  }
 }
 
 function onCloseDialog(dialog, html) {
