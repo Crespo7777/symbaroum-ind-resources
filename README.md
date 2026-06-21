@@ -52,7 +52,7 @@ Se você hospedar o projeto no GitHub ou em outro servidor web, poderá instalá
 1. Vá na tela principal do Foundry VTT (Setup) na aba **Add-on Modules**.
 2. Clique em **Install Module**.
 3. No campo **Manifest URL** na parte inferior da tela, cole o link para o `module.json` bruto. Exemplo:
-   `https://raw.githubusercontent.com/<SeuUsuario>/symbaroum-ind-resources/main/module.json`
+   `https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module.json`
 4. Clique em **Install**.
 
 ---

@@ -3,6 +3,8 @@
   "title": "Symbaroum Ind Resources",
   "description": "Lightweight Symbaroum resource automation for travel bread, arrows, bolts, ammunition recovery, and rest healing.",
   "version": "0.2.0",
+  "manifest": "https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module.json",
+  "download": "https://github.com/Crespo7777/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip",
   "authors": [
     {
       "name": "Tenebre"
