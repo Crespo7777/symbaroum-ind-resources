@@ -128,7 +128,11 @@ export function getAmmoModifiers(ammo) {
       damagePerRoundNPC: 2,
       duration: "1d4",
       durationNPC: 2,
-      effectIcon: CONFIG.statusEffects.find((e) => e.id === "burning")
+      effectIcon: CONFIG.statusEffects?.find((e) => e.id === "burning") ?? {
+        id: "burning",
+        name: "Burning",
+        icon: "icons/svg/fire.svg"
+      }
     });
   }
 

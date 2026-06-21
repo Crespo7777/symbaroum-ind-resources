@@ -359,14 +359,20 @@ function onRenderDialog(dialog, html, data) {
               member: []
             }];
           }
-          const defaultPackage = weaponModifiers.package.find(
+          let defaultPackage = weaponModifiers.package.find(
             p => p.type === "default" || p.type === game.symbaroum.config.PACK_DEFAULT
           );
-          if (defaultPackage) {
-            for (const mod of ammoMods) {
-              if (!defaultPackage.member.some(m => m.id === mod.id && m.type === mod.type)) {
-                defaultPackage.member.push(mod);
-              }
+          if (!defaultPackage) {
+            defaultPackage = {
+              label: "Default",
+              type: "default",
+              member: []
+            };
+            weaponModifiers.package.push(defaultPackage);
+          }
+          for (const mod of ammoMods) {
+            if (!defaultPackage.member.some(m => m.id === mod.id && m.type === mod.type)) {
+              defaultPackage.member.push(mod);
             }
           }
         }
