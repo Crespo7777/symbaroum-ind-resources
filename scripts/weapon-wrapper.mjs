@@ -11,6 +11,13 @@ export function patchWeaponRolls() {
 
   const originalRollWeapon = ActorClass.prototype.rollWeapon;
   ActorClass.prototype.rollWeapon = async function tenebreRollWeapon(weapon, ...args) {
+    // Safety cleanup of any previously hung roll state
+    if (game.tenebreResources?.activeWeaponRoll) {
+      console.warn("Tenebre Resources | Clearing active roll state left over from a previous hung/incomplete roll.");
+      game.tenebreResources.activeWeaponRoll = null;
+      game.tenebreResources.activeWeaponModifiers = null;
+    }
+
     const ammoType = getWeaponAmmoType(weapon);
     if (!ammoType || !TenebreSettings.get("enableAmmoConsumption")) {
       return originalRollWeapon.call(this, weapon, ...args);

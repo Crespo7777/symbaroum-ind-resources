@@ -38,6 +38,7 @@ export function registerSheetHooks() {
   for (const hook of ITEM_SHEET_HOOKS) Hooks.on(hook, renderItemFlags);
   Hooks.on("renderDialog", onRenderDialog);
   Hooks.on("renderTemplate", onRenderTemplate);
+  Hooks.on("closeDialog", onCloseDialog);
   patchContextMenu();
 }
 
@@ -277,7 +278,7 @@ function getRoot(html) {
 // ── Dialog Hooks ─────────────────────────────────────────────────────────────
 
 function onRenderTemplate(path, data, html) {
-  if (path === "systems/symbaroum/template/chat/dialog.hbs") {
+  if (path && path.includes("systems/symbaroum/template/chat/dialog.hbs")) {
     if (game.tenebreResources?.activeWeaponRoll) {
       game.tenebreResources.activeWeaponModifiers = data.weaponModifiers;
     }
@@ -344,41 +345,64 @@ function onRenderDialog(dialog, html, data) {
   if (dialog.data?.buttons?.roll) {
     const originalCallback = dialog.data.buttons.roll.callback;
     dialog.data.buttons.roll.callback = async function(htmlElement, event) {
-      const selectedId = el.querySelector("#tenebre-ammo-select")?.value;
-      const chosenAmmo = actor.items.get(selectedId);
-      if (chosenAmmo) {
-        activeRoll.selectedAmmo = chosenAmmo;
+      try {
+        const selectedId = el.querySelector("#tenebre-ammo-select")?.value;
+        const chosenAmmo = actor.items.get(selectedId);
+        if (chosenAmmo) {
+          activeRoll.selectedAmmo = chosenAmmo;
 
-        const ammoMods = getAmmoModifiers(chosenAmmo);
-        const weaponModifiers = game.tenebreResources.activeWeaponModifiers;
-        if (weaponModifiers && ammoMods.length > 0) {
-          if (!weaponModifiers.package) {
-            weaponModifiers.package = [{
-              label: "Default",
-              type: "default",
-              member: []
-            }];
-          }
-          let defaultPackage = weaponModifiers.package.find(
-            p => p.type === "default" || p.type === game.symbaroum.config.PACK_DEFAULT
-          );
-          if (!defaultPackage) {
-            defaultPackage = {
-              label: "Default",
-              type: "default",
-              member: []
-            };
-            weaponModifiers.package.push(defaultPackage);
-          }
-          for (const mod of ammoMods) {
-            if (!defaultPackage.member.some(m => m.id === mod.id && m.type === mod.type)) {
-              defaultPackage.member.push(mod);
+          const ammoMods = getAmmoModifiers(chosenAmmo);
+          const weaponModifiers = game.tenebreResources.activeWeaponModifiers;
+          if (weaponModifiers && ammoMods.length > 0) {
+            if (!weaponModifiers.package) {
+              weaponModifiers.package = [{
+                label: "Default",
+                type: "default",
+                member: []
+              }];
+            }
+            let defaultPackage = weaponModifiers.package.find(
+              p => p.type === "default" || p.type === game.symbaroum.config.PACK_DEFAULT
+            );
+            if (!defaultPackage) {
+              defaultPackage = {
+                label: "Default",
+                type: "default",
+                member: []
+              };
+              weaponModifiers.package.push(defaultPackage);
+            }
+            for (const mod of ammoMods) {
+              if (!defaultPackage.member.some(m => m.id === mod.id && m.type === mod.type)) {
+                defaultPackage.member.push(mod);
+              }
             }
           }
         }
+      } catch (err) {
+        console.error("Tenebre Resources | Error preparing ammo modifiers:", err);
+        ui.notifications.error("Error preparing ammo modifiers: " + err.message);
       }
 
-      return originalCallback.call(this, htmlElement, event);
+      try {
+        return await originalCallback.call(this, htmlElement, event);
+      } catch (err) {
+        console.error("Tenebre Resources | Error in original roll callback:", err);
+        throw err;
+      }
     };
   }
 }
+
+function onCloseDialog(dialog, html) {
+  if (game.tenebreResources?.activeWeaponRoll) {
+    // Delay slightly to allow the submit callback to complete execution and read active rolls
+    setTimeout(() => {
+      if (game.tenebreResources) {
+        game.tenebreResources.activeWeaponRoll = null;
+        game.tenebreResources.activeWeaponModifiers = null;
+      }
+    }, 100);
+  }
+}
+
