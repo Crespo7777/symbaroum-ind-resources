@@ -1,0 +1,45 @@
+{
+  "id": "symbaroum-ind-resources",
+  "title": "Symbaroum Ind Resources",
+  "description": "Lightweight Symbaroum resource automation for travel bread, arrows, bolts, ammunition recovery, and rest healing.",
+  "version": "0.2.0",
+  "authors": [
+    {
+      "name": "Tenebre"
+    }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13.999"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "symbaroum",
+        "type": "system",
+        "compatibility": {
+          "minimum": "6.1.6",
+          "verified": "6.1.6"
+        }
+      }
+    ]
+  },
+  "esmodules": [
+    "scripts/init.mjs"
+  ],
+  "styles": [
+    "styles/symbaroum-ind-resources.css"
+  ],
+  "languages": [
+    {
+      "lang": "pt-BR",
+      "name": "Portugues do Brasil",
+      "path": "languages/pt-BR.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "languages/en.json"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+<div class="tenebre-settings">
+
+
+  <h2>{{localize "TENEBRE.Settings.RationsGroup"}}</h2>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableRations"}}</span>
+    <input type="checkbox" name="enableRations" {{checked settings.enableRations}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.RationUses"}}</span>
+    <input type="number" name="rationUses" value="{{settings.rationUses}}" min="1">
+  </label>
+
+  <h2>{{localize "TENEBRE.Settings.AmmoGroup"}}</h2>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableAmmoConsumption"}}</span>
+    <input type="checkbox" name="enableAmmoConsumption" {{checked settings.enableAmmoConsumption}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableHitTracking"}}</span>
+    <input type="checkbox" name="enableHitTracking" {{checked settings.enableHitTracking}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableAmmoRecovery"}}</span>
+    <input type="checkbox" name="enableAmmoRecovery" {{checked settings.enableAmmoRecovery}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.ShowSpecialAmmoInChat"}}</span>
+    <input type="checkbox" name="showSpecialAmmoInChat" {{checked settings.showSpecialAmmoInChat}}>
+  </label>
+
+  <h2>{{localize "TENEBRE.Settings.RecoveryGroup"}}</h2>
+  <label>
+    <span>{{localize "TENEBRE.Settings.RecoveryAttribute"}}</span>
+    <select name="recoveryAttribute">
+      {{selectOptions attributes selected=settings.recoveryAttribute}}
+    </select>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.RecoveryFailure"}}</span>
+    <input type="number" name="recoveryFailure" value="{{settings.recoveryFailure}}" min="0" max="100">
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.RecoverySuccess"}}</span>
+    <input type="number" name="recoverySuccess" value="{{settings.recoverySuccess}}" min="0" max="100">
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.RecoveryCritical"}}</span>
+    <input type="number" name="recoveryCritical" value="{{settings.recoveryCritical}}" min="0" max="100">
+  </label>
+
+  <h2>{{localize "TENEBRE.Settings.RestGroup"}}</h2>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableRestHealing"}}</span>
+    <input type="checkbox" name="enableRestHealing" {{checked settings.enableRestHealing}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.RestHealing"}}</span>
+    <input type="number" name="restHealing" value="{{settings.restHealing}}" min="0">
+  </label>
+
+  <footer class="sheet-footer flexrow">
+    <button type="submit"><i class="fas fa-save"></i> {{localize "TENEBRE.Common.Save"}}</button>
+  </footer>
+</div>

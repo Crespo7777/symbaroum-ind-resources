@@ -1,0 +1,234 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Tenebre Resources — Stylesheet v2
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Item flag section (equipment / weapon sheets) ─────────────────── */
+
+.tenebre-item-flags {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px;
+}
+
+.tenebre-item-flags h1 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.tenebre-item-flags label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tenebre-item-flags label span { flex: 1; }
+
+.tenebre-item-flags select { flex: 0 0 180px; }
+
+.tenebre-check { justify-content: flex-start !important; }
+.tenebre-check input { flex: 0 0 auto; }
+
+/* ── Settings form ──────────────────────────────────────────────────── */
+
+.tenebre-settings {
+  display: grid;
+  gap: 8px;
+}
+
+.tenebre-settings h2 {
+  margin: 8px 0 0;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--color-border-light-primary);
+  font-size: 16px;
+}
+
+.tenebre-settings label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tenebre-settings label span { flex: 1; }
+
+.tenebre-settings select,
+.tenebre-settings input[type="number"] { flex: 0 0 180px; }
+
+/* ── Rest dialog ────────────────────────────────────────────────────── */
+
+.tenebre-rest-dialog {
+  padding: 4px 0 8px;
+  display: grid;
+  gap: 10px;
+}
+
+.tenebre-rest-actor {
+  font-size: 1.05em;
+  color: var(--color-text-dark-primary);
+}
+
+.tenebre-rest-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tenebre-rest-row label { flex: 1; }
+.tenebre-rest-row input { width: 70px; }
+
+.tenebre-rest-preview,
+.tenebre-rest-corruption {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.tenebre-rest-preview {
+  background: rgba(80, 160, 80, 0.12);
+  border-left: 3px solid #4a9a4a;
+  color: var(--color-text-dark-primary);
+}
+
+.tenebre-rest-corruption {
+  background: rgba(160, 60, 60, 0.12);
+  border-left: 3px solid #9a3a3a;
+  color: var(--color-text-dark-primary);
+}
+
+/* ── Hotbar bread button ────────────────────────────────────────────── */
+
+#tenebre-bread-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  /* Match the hotbar height so it aligns in #ui-bottom flex row */
+  align-self: stretch;
+  flex: 0 0 52px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  z-index: 100;
+}
+
+#tenebre-bread-btn:hover {
+  transform: scale(1.1);
+  filter: brightness(1.2);
+}
+
+#tenebre-bread-btn:active {
+  transform: scale(0.95);
+}
+
+.tenebre-bread-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #3d2b1a 0%, #5c3e1f 100%);
+  border: 2px solid #8a6a3a;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.tenebre-bread-icon {
+  font-size: 20px;
+  color: #d4a25a;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+.tenebre-bread-count {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  background: #8a4a1a;
+  border: 1px solid #c07030;
+  border-radius: 9px;
+  color: #f0d090;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* ── Ammo badge on weapon rows ──────────────────────────────────────── */
+
+.tenebre-ammo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(200, 160, 80, 0.4);
+  border-radius: 10px;
+  font-size: 10px;
+  cursor: pointer;
+  color: #c8a050;
+  transition: background 0.12s;
+  white-space: nowrap;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.tenebre-ammo-badge:hover {
+  background: rgba(80, 40, 0, 0.55);
+  border-color: rgba(200, 160, 80, 0.8);
+}
+
+.tenebre-ammo-stock { font-weight: bold; }
+
+.tenebre-ammo-hits {
+  color: #e08060;
+  font-size: 9px;
+}
+
+
+
+
+/* ── Ammo selection dialog ──────────────────────────────────────────── */
+
+.tenebre-ammo-list {
+  display: grid;
+  gap: 6px;
+}
+
+.tenebre-ammo-option {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Chat cards ─────────────────────────────────────────────────────── */
+
+.tenebre-chat-card h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.tenebre-chat-card ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.tenebre-chat-item {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.tenebre-chat-item img {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border: none;
+}
