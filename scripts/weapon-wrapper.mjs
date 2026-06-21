@@ -18,16 +18,18 @@ export function patchWeaponRolls() {
       game.tenebreResources.activeWeaponModifiers = null;
     }
 
-    // Force target selection: exactly 1 target must be selected for any attack roll
-    const targets = Array.from(game.user.targets);
-    if (targets.length !== 1) {
-      ui.notifications.warn(game.i18n.localize("ABILITY_ERROR.TARGET"));
-      return undefined;
-    }
-
     const ammoType = getWeaponAmmoType(weapon);
     if (!ammoType || !TenebreSettings.get("enableAmmoConsumption")) {
       return originalRollWeapon.call(this, weapon, ...args);
+    }
+
+    // Force target selection: exactly 1 target must be selected for any attack roll when combatAutomation is enabled
+    if (game.settings.get("symbaroum", "combatAutomation")) {
+      const targets = Array.from(game.user.targets);
+      if (targets.length !== 1) {
+        ui.notifications.warn(game.i18n.localize("ABILITY_ERROR.TARGET"));
+        return undefined;
+      }
     }
 
     // Verify there is compatible ammo first, otherwise warn and abort
