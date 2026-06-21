@@ -8,14 +8,16 @@
 
 ### 1. 🍞 Pão de Viagem (Travel Bread / Waybread)
 * **Consumo na Ficha:** Clique com o **botão direito** sobre o item de Pão de Viagem (ou *Waybread*) no inventário do personagem e selecione **"Consumir Pão de Viagem"** para gastar 1 uso.
+* **Quantidade e Usos:** A quantidade no inventário exibe quantos usos restam no formato `Unidades (UsosRestantes/MaxUsos)` (ex: `1 (7/7)`).
+* **Notificação no Chat:** Consumir um pão de viagem publica uma mensagem detalhada no Chat informando os usos e unidades restantes.
 * **Ícone de Atalho na Hotbar:** Para o jogador ativo, um ícone de pão de viagem aparece automaticamente no canto esquerdo da Hotbar (barra de macros). Clicar nele consome um uso sem precisar abrir a ficha.
 * **Cálculo Cumulativo:** O controle de usos calcula perfeitamente o valor total acumulado de todos os pães de viagem que o jogador possui no inventário (onde cada pão equivale a 7 usos. Ex: 1 pão = 7 usos, 2 pães = 14 usos).
 
-### 2. 🛏️ Descanso Avançado (botão "Recuperar")
-* **Integração Nativa:** Intercepta o botão nativo **Recuperar** (coração vermelho) na parte superior (topbar) da ficha do PJ.
+### 2. 🛏️ Descanso Avançado (botão "Descanso")
+* **Integração Nativa:** Adiciona um botão dedicado **Descanso** (cama) na barra de cabeçalho da ficha do PJ. O botão nativo **Recuperar** (coração vermelho) permanece intocado no padrão do Symbaroum.
 * **Opções de Descanso:** Abre uma tela onde é possível configurar a quantidade de **Dias de descanso** e a taxa de **Cura por dia** (que vem por padrão baseada nas configurações do módulo).
 * **Efeitos do Descanso:**
-  * Restaura Toughness (HP) baseado em `Dias x Cura por dia`.
+  * Restaura Vitalidade baseado em `Dias x Cura por dia`.
   * Zera os testes de morte falhos (`nbrOfFailedDeathRoll`).
   * Zera toda a **Corrupção Temporária** do personagem caso descanse 1 dia ou mais.
   * Publica um resumo do descanso formatado diretamente no Chat.

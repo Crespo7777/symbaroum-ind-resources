@@ -40,6 +40,7 @@ export function registerSheetHooks() {
   Hooks.on("renderTemplate", onRenderTemplate);
   Hooks.on("closeDialog", onCloseDialog);
   patchContextMenu();
+  patchPlayerSheetHeaderButtons();
 }
 
 function getActorFromDom(elem) {
@@ -147,37 +148,85 @@ function patchContextMenu() {
 
 /**
  * Called on every PlayerSheet render.
- * 1. Intercepts the system "Recuperar" header button to open our rest dialog.
- * 2. Injects ammo badges into ranged weapon rows.
+ * 1. Injects ration uses details in quantity column.
  */
 function onRenderActorSheet(app, html) {
   const actor = app.actor ?? app.document;
   if (!actor || actor.type !== "player" || !actor.isOwner) return;
 
-  interceptRecoverButton(app, actor);
+  updateRationQuantityDisplay(app, html, actor);
 }
 
 /**
- * Intercepts the system "Recuperar" (recover-death-roll) button in the sheet header
- * and replaces it with our rest dialog. Only patches once per button element.
+ * Appends travel bread uses (uses/max) inside the quantity column.
  */
-function interceptRecoverButton(app, actor) {
-  // The button lives in the window frame, NOT inside the sheet's html content.
-  // app.element is the window jQuery object in ApplicationV1.
-  const win = app.element instanceof HTMLElement ? app.element : app.element?.[0];
-  if (!win) return;
+function updateRationQuantityDisplay(app, html, actor) {
+  if (!TenebreSettings.get("enableRations")) return;
 
-  const btn = win.querySelector(".recover-death-roll");
-  if (!btn || btn.dataset.tenebrePatched) return;
+  const el = getRoot(html);
+  if (!el) return;
 
-  btn.dataset.tenebrePatched = "1";
+  const rationState = RationService.getState(actor);
+  if (rationState.quantity <= 0) return;
 
-  // Use capture phase to fire before the system's onclick handler
-  btn.addEventListener("click", async (ev) => {
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
-    await RestService.openRestDialog(actor);
-  }, { capture: true });
+  for (const item of rationState.items) {
+    const row = el.querySelector(`.item[data-item-id="${item.id}"]`);
+    if (!row) continue;
+
+    const qtyDiv = row.querySelector(".quantity");
+    if (!qtyDiv) continue;
+
+    const qty = itemQuantity(item);
+    if (qty > 0) {
+      qtyDiv.textContent = `${qty} (${rationState.usesRemaining}/${rationState.usesPerUnit})`;
+    }
+  }
+}
+
+/**
+ * Patches the PlayerSheet class to add our custom "Descanso" button in the window header.
+ */
+function patchPlayerSheetHeaderButtons() {
+  const PlayerSheetClass = CONFIG.Actor.sheetClasses.player["symbaroum.PlayerSheet"]?.cls
+    || Object.values(CONFIG.Actor.sheetClasses.player || {}).find(s => s.cls?.name === "PlayerSheet")?.cls;
+
+  if (!PlayerSheetClass) {
+    console.warn("Tenebre Resources | Could not find symbaroum.PlayerSheet in CONFIG.Actor.sheetClasses.player");
+    return;
+  }
+
+  const handler = function(wrapped) {
+    const buttons = wrapped.call(this);
+    if (this.actor?.isOwner) {
+      buttons.unshift({
+        label: game.i18n.localize("TENEBRE.Rest.DialogTitle") || "Descanso",
+        class: "tenebre-rest",
+        icon: "fas fa-bed",
+        onclick: async (ev) => {
+          ev.preventDefault();
+          await RestService.openRestDialog(this.actor);
+        }
+      });
+    }
+    return buttons;
+  };
+
+  if (game.modules.get("libWrapper")?.active) {
+    libWrapper.register(
+      MODULE_ID,
+      "CONFIG.Actor.sheetClasses.player.symbaroum.PlayerSheet.cls.prototype._getHeaderButtons",
+      function(wrapped) {
+        return handler.call(this, wrapped);
+      },
+      "WRAPPER"
+    );
+  } else {
+    const original = PlayerSheetClass.prototype._getHeaderButtons;
+    PlayerSheetClass.prototype._getHeaderButtons = function() {
+      const wrapped = () => original.call(this);
+      return handler.call(this, wrapped);
+    };
+  }
 }
 
 // ── Item sheet ────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
-    id: "tenebre-resources-settings",
+    id: "symbaroum-ind-resources-settings",
     tag: "form",
     form: {
       handler: TenebreSettingsForm.#onSubmit,
@@ -22,7 +22,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
 
   static PARTS = {
     form: {
-      template: "modules/tenebre-resources/templates/settings.hbs"
+      template: "modules/symbaroum-ind-resources/templates/settings.hbs"
     }
   };
 

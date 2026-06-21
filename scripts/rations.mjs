@@ -33,24 +33,53 @@ export class RationService {
       return;
     }
 
+    let nextUsesRemaining = state.usesRemaining;
+    let nextQuantity = state.quantity;
+
     if (state.usesRemaining > 1) {
+      nextUsesRemaining = state.usesRemaining - 1;
       await actor.setFlag(FLAG_SCOPE, "rations", {
         quantity: state.quantity,
-        usesRemaining: state.usesRemaining - 1
+        usesRemaining: nextUsesRemaining
       });
-      ui.notifications.info(game.i18n.format("TENEBRE.Rations.ConsumedUse", { uses: state.usesRemaining - 1 }));
-      return;
+      ui.notifications.info(game.i18n.format("TENEBRE.Rations.ConsumedUse", { uses: nextUsesRemaining }));
+    } else {
+      const item = state.items.find((entry) => itemQuantity(entry) > 0);
+      if (!item) return;
+
+      await changeItemQuantity(item, -1);
+      nextQuantity = Math.max(0, state.quantity - 1);
+      nextUsesRemaining = nextQuantity > 0 ? state.usesPerUnit : 0;
+      await actor.setFlag(FLAG_SCOPE, "rations", {
+        quantity: nextQuantity,
+        usesRemaining: nextUsesRemaining
+      });
+      ui.notifications.info(game.i18n.format("TENEBRE.Rations.ConsumedUnit", { quantity: nextQuantity }));
     }
 
-    const item = state.items.find((entry) => itemQuantity(entry) > 0);
-    if (!item) return;
-
-    await changeItemQuantity(item, -1);
-    const nextQuantity = Math.max(0, state.quantity - 1);
-    await actor.setFlag(FLAG_SCOPE, "rations", {
+    await this.#postRationChat(actor, {
       quantity: nextQuantity,
-      usesRemaining: nextQuantity > 0 ? state.usesPerUnit : 0
+      usesRemaining: nextUsesRemaining,
+      usesPerUnit: state.usesPerUnit
     });
-    ui.notifications.info(game.i18n.format("TENEBRE.Rations.ConsumedUnit", { quantity: nextQuantity }));
+  }
+
+  static async #postRationChat(actor, newState) {
+    const title = game.i18n.format("TENEBRE.Rations.ChatTitle", { actor: actor.name });
+    const content = game.i18n.format("TENEBRE.Rations.ChatContent", {
+      uses: newState.usesRemaining,
+      max: newState.usesPerUnit,
+      quantity: newState.quantity
+    });
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `
+        <div class="tenebre-chat-card">
+          <h3>${title}</h3>
+          ${content}
+        </div>
+      `
+    });
   }
 }

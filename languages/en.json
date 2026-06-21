@@ -43,6 +43,8 @@
   "TENEBRE.Rations.NoRations": "This character has no Travel Bread.",
   "TENEBRE.Rations.ConsumedUse": "Day consumed. {uses} uses remain in the current bread.",
   "TENEBRE.Rations.ConsumedUnit": "One Travel Bread unit was consumed. {quantity} remain.",
+  "TENEBRE.Rations.ChatTitle": "{actor} consumed Travel Bread",
+  "TENEBRE.Rations.ChatContent": "<ul><li><b>Uses in current bread:</b> {uses}/{max}</li><li><b>Units remaining:</b> {quantity}</li></ul>",
   "TENEBRE.Ammo.Ammo": "Ammunition",
   "TENEBRE.Ammo.Arrow": "Arrow",
   "TENEBRE.Ammo.Bolt": "Bolt",

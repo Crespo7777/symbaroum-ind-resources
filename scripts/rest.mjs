@@ -4,11 +4,11 @@ import { escapeHtml } from "./utils.mjs";
 
 /**
  * RestService — handles player rest dialog and mass GM rest.
- * Intercepts the system's "Recuperar" header button click.
+ * Triggered by the custom "Descanso" header button.
  */
 export class RestService {
   /**
-   * Open the rest dialog for a single actor (triggered by the Recuperar topbar button).
+   * Open the rest dialog for a single actor (triggered by the Descanso header button).
    * @param {Actor} actor
    */
   static async openRestDialog(actor) {
