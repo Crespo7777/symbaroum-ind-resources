@@ -30,6 +30,14 @@
   "esmodules": [
     "scripts/init.mjs"
   ],
+  "packs": [
+    {
+      "name": "symbaroum-ind-resources",
+      "label": "Symbaroum Ind Resources",
+      "path": "packs/symbaroum-ind-resources.db",
+      "entity": "Adventure"
+    }
+  ],
   "styles": [
     "styles/symbaroum-ind-resources.css"
   ],
