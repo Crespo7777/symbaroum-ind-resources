@@ -1,7 +1,7 @@
 import { AMMO_TYPES, FLAG_SCOPE } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver } from "./item-flags.mjs";
-import { getAmmoDescription } from "./special-ammo.mjs";
+import { getAmmoDescription, getSpecialAmmo } from "./special-ammo.mjs";
 import { escapeHtml } from "./utils.mjs";
 
 export class AmmoService {
@@ -18,20 +18,35 @@ export class AmmoService {
 
   static async consumeAmmo(actor, ammo, weapon, ammoType) {
     if (isQuiver(ammo)) {
-      const qty = itemQuantity(ammo);
-      let usesRemaining = ammo.getFlag(FLAG_SCOPE, "usesRemaining");
-      if (usesRemaining === undefined || usesRemaining === null) {
-        usesRemaining = 12;
-      }
-      
-      if (usesRemaining > 1) {
-        await ammo.setFlag(FLAG_SCOPE, "usesRemaining", usesRemaining - 1);
-        ui.notifications.info(`Gastou 1 projétil da aljava. Restam ${usesRemaining - 1} nesta aljava.`);
+      const looseAmmoItems = actorItems(actor).filter(
+        (item) => isAmmo(item) &&
+                  getAmmoType(item) === ammoType &&
+                  !isQuiver(item) &&
+                  !getSpecialAmmo(item) &&
+                  itemQuantity(item) > 0
+      );
+
+      if (looseAmmoItems.length > 0) {
+        const looseItem = looseAmmoItems[0];
+        await changeItemQuantity(looseItem, -1);
+        const looseName = ammoType === AMMO_TYPES.ARROW ? "flecha avulsa" : "virote avulso";
+        ui.notifications.info(`Gastou 1 projétil da aljava (consumiu 1 ${looseName} do inventário).`);
       } else {
-        await changeItemQuantity(ammo, -1);
-        const nextQty = Math.max(0, qty - 1);
-        await ammo.setFlag(FLAG_SCOPE, "usesRemaining", nextQty > 0 ? 12 : 0);
-        ui.notifications.info(`Uma aljava foi esvaziada. Restam ${nextQty} aljava(s).`);
+        const qty = itemQuantity(ammo);
+        let usesRemaining = ammo.getFlag(FLAG_SCOPE, "usesRemaining");
+        if (usesRemaining === undefined || usesRemaining === null) {
+          usesRemaining = 12;
+        }
+        
+        if (usesRemaining > 1) {
+          await ammo.setFlag(FLAG_SCOPE, "usesRemaining", usesRemaining - 1);
+          ui.notifications.info(`Gastou 1 projétil da aljava. Restam ${usesRemaining - 1} nesta aljava.`);
+        } else {
+          await changeItemQuantity(ammo, -1);
+          const nextQty = Math.max(0, qty - 1);
+          await ammo.setFlag(FLAG_SCOPE, "usesRemaining", nextQty > 0 ? 12 : 0);
+          ui.notifications.info(`Uma aljava foi esvaziada. Restam ${nextQty} aljava(s).`);
+        }
       }
     } else {
       await changeItemQuantity(ammo, -1);
@@ -83,6 +98,10 @@ export class AmmoService {
 
   static async recordHit(actor, ammo) {
     if (!TenebreSettings.get("enableHitTracking") || !ammo) return;
+
+    // Registra acertos apenas se o personagem estiver em um combate iniciado
+    const inCombat = game.combat?.started && game.combat.combatants.some(c => c.actorId === actor.id);
+    if (!inCombat) return;
 
     const ammoType = getAmmoType(ammo);
     const current = actor.getFlag(FLAG_SCOPE, "combat") ?? {};

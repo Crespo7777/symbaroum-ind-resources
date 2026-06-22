@@ -3,7 +3,7 @@ import { AmmoService } from "./ammo.mjs";
 import { RestService } from "./rest.mjs";
 import { RationService } from "./rations.mjs";
 import { TenebreSettings } from "./settings.mjs";
-import { getAmmoModifiers } from "./special-ammo.mjs";
+import { getAmmoModifiers, getSpecialAmmo } from "./special-ammo.mjs";
 import {
   findAmmoItems,
   getAmmoType,
@@ -13,7 +13,8 @@ import {
   isRation,
   sumItemQuantities,
   itemQuantity,
-  getAmmoShots
+  getAmmoShots,
+  isQuiver
 } from "./item-flags.mjs";
 
 // Listas de hooks
@@ -421,12 +422,39 @@ function onRenderDialog(dialog, html, data) {
   const select = document.createElement("select");
   select.id = "tenebre-ammo-select";
 
-  for (const item of ammoItems) {
-    const qty = getAmmoShots(item);
-    const option = document.createElement("option");
-    option.value = item.id;
-    option.innerText = `${item.name} (${qty})`;
-    select.appendChild(option);
+  const quiver = ammoItems.find(isQuiver);
+  const hasQuiver = !!quiver;
+
+  if (hasQuiver) {
+    const looseAmmo = ammoItems.filter(item => !isQuiver(item) && !getSpecialAmmo(item));
+    const looseShots = looseAmmo.reduce((sum, item) => sum + itemQuantity(item), 0);
+
+    for (const item of ammoItems) {
+      if (isQuiver(item)) {
+        const qty = getAmmoShots(item) + looseShots;
+        const option = document.createElement("option");
+        option.value = item.id;
+        const labelText = item.name.toLowerCase().includes("virote") || item.name.toLowerCase().includes("bolt")
+          ? `${item.name} (com Virotes) (${qty})`
+          : `${item.name} (com Flechas) (${qty})`;
+        option.innerText = labelText;
+        select.appendChild(option);
+      } else if (getSpecialAmmo(item)) {
+        const qty = getAmmoShots(item);
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.innerText = `${item.name} (${qty})`;
+        select.appendChild(option);
+      }
+    }
+  } else {
+    for (const item of ammoItems) {
+      const qty = getAmmoShots(item);
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.innerText = `${item.name} (${qty})`;
+      select.appendChild(option);
+    }
   }
 
   selectDiv.appendChild(label);
