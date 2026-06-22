@@ -43,9 +43,12 @@ Hooks.once("dragRuler.ready", (SpeedProvider) => {
     }
   }
 
-  if (window.dragRuler) {
-    window.dragRuler.registerModule(MODULE_ID, SymbaroumSpeedProvider);
-  } else if (typeof dragRuler !== "undefined") {
-    dragRuler.registerModule(MODULE_ID, SymbaroumSpeedProvider);
+  const moduleIds = ["symbaroum-ind-resources", "symbaroum-ruler", "drag-ruler-integration-for-symbaroum"];
+  for (const id of moduleIds) {
+    if (window.dragRuler) {
+      window.dragRuler.registerModule(id, SymbaroumSpeedProvider);
+    } else if (typeof dragRuler !== "undefined") {
+      dragRuler.registerModule(id, SymbaroumSpeedProvider);
+    }
   }
 });
