@@ -34,7 +34,7 @@
     {
       "name": "symbaroum-ind-resources",
       "label": "Symbaroum Ind Resources",
-      "type": "adventure",
+      "type": "Adventure",
       "path": "packs/symbaroum-ind-resources",
       "system": "symbaroum",
       "ownership": {
