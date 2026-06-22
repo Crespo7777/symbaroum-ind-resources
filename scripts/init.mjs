@@ -7,6 +7,7 @@ import { AmmoService } from "./ammo.mjs";
 import { RestService } from "./rest.mjs";
 import { HotbarService } from "./hotbar.mjs";
 import { findAmmoItems, isAmmo, isRation, sumItemQuantities } from "./item-flags.mjs";
+import { VerseService } from "./verses.mjs"; // <-- ADICIONADO
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -33,6 +34,10 @@ Hooks.once("ready", () => {
     rations: RationService,
     ammo: AmmoService,
     rest: RestService,
+
+    // ADIÇÃO (sem mexer no resto)
+    verses: VerseService,
+
     inspectActorResources,
     diagnostics: {
       version: game.modules.get(MODULE_ID)?.version ?? null
