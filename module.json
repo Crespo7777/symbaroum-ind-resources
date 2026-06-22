@@ -34,8 +34,9 @@
     {
       "name": "symbaroum-ind-resources",
       "label": "Symbaroum Ind Resources",
-      "path": "packs/symbaroum-ind-resources.db",
-      "entity": "Adventure"
+      "type": "adventure",
+      "path": "packs/symbaroum-ind-resources",
+      "system": "symbaroum"
     }
   ],
   "styles": [
