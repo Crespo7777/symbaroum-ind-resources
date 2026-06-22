@@ -93,5 +93,7 @@
   "TENEBRE.ItemFlags.NoAmmo": "Nenhuma",
   "TENEBRE.ItemFlags.Bow": "Arco",
   "TENEBRE.ItemFlags.Crossbow": "Besta",
-  "TENEBRE.ItemFlags.CompatibleAmmo": "Municao compativel disponivel: {quantity}"
+  "TENEBRE.ItemFlags.CompatibleAmmo": "Municao compativel disponivel: {quantity}",
+  "ABILITY.ROLL_RESULT": "Rolagem: ",
+  "ABILITY.SECOND_ROLL_RESULT": "Confirmação de Crítico: "
 }

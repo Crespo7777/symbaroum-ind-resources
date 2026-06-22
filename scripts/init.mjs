@@ -19,6 +19,12 @@ Hooks.once("ready", () => {
     return;
   }
 
+  // Automatically enable Symbaroum Combat Automation (Melhoria de combate) if disabled
+  if (game.user.isGM && !game.settings.get("symbaroum", "combatAutomation")) {
+    console.log(`${MODULE_ID} | Automatically enabling Symbaroum Combat Automation.`);
+    game.settings.set("symbaroum", "combatAutomation", true);
+  }
+
   patchWeaponRolls();
   registerSheetHooks();
   HotbarService.register();

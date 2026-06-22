@@ -93,5 +93,7 @@
   "TENEBRE.ItemFlags.NoAmmo": "None",
   "TENEBRE.ItemFlags.Bow": "Bow",
   "TENEBRE.ItemFlags.Crossbow": "Crossbow",
-  "TENEBRE.ItemFlags.CompatibleAmmo": "Compatible ammunition available: {quantity}"
+  "TENEBRE.ItemFlags.CompatibleAmmo": "Compatible ammunition available: {quantity}",
+  "ABILITY.ROLL_RESULT": "Result: ",
+  "ABILITY.SECOND_ROLL_RESULT": "Critical Confirmation: "
 }

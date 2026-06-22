@@ -3,7 +3,7 @@ import { AmmoService } from "./ammo.mjs";
 import { RestService } from "./rest.mjs";
 import { RationService } from "./rations.mjs";
 import { TenebreSettings } from "./settings.mjs";
-import { getAmmoModifiers } from "./special-ammo.mjs";
+import { getAmmoModifiers, getSpecialAmmo } from "./special-ammo.mjs";
 import {
   findAmmoItems,
   getAmmoType,
@@ -13,11 +13,11 @@ import {
   isRation,
   sumItemQuantities,
   itemQuantity,
-  getAmmoShots
+  getAmmoShots,
+  isQuiver
 } from "./item-flags.mjs";
 
-// ── Hook lists ────────────────────────────────────────────────────────────────
-
+// Listas de hooks
 const ACTOR_SHEET_HOOKS = [
   "renderPlayerSheet",
   "renderSymbaroumActorSheet",
@@ -31,7 +31,7 @@ const ITEM_SHEET_HOOKS = [
   "renderItemSheet"
 ];
 
-// ── Registration ──────────────────────────────────────────────────────────────
+// Registro de hooks
 
 export function registerSheetHooks() {
   for (const hook of ACTOR_SHEET_HOOKS) Hooks.on(hook, onRenderActorSheet);
@@ -144,12 +144,7 @@ function patchContextMenu() {
 }
 
 
-// ── Actor sheet ───────────────────────────────────────────────────────────────
-
-/**
- * Called on every PlayerSheet render.
- * 1. Injects ration uses details in quantity column.
- */
+// Renderização da ficha de ator
 function onRenderActorSheet(app, html) {
   const actor = app.actor ?? app.document;
   if (!actor || actor.type !== "player" || !actor.isOwner) return;
@@ -157,9 +152,7 @@ function onRenderActorSheet(app, html) {
   updateRationQuantityDisplay(app, html, actor);
 }
 
-/**
- * Appends travel bread uses (uses/max) inside the quantity column.
- */
+// Injeta quantidade e usos de rações na ficha
 function updateRationQuantityDisplay(app, html, actor) {
   if (!TenebreSettings.get("enableRations")) return;
 
@@ -183,9 +176,7 @@ function updateRationQuantityDisplay(app, html, actor) {
   }
 }
 
-/**
- * Patches the PlayerSheet class to add our custom "Descanso" button in the window header.
- */
+// Adiciona botão "Descanso" no cabeçalho da ficha do jogador
 function patchPlayerSheetHeaderButtons() {
   const PlayerSheetClass = CONFIG.Actor.sheetClasses.player["symbaroum.PlayerSheet"]?.cls
     || Object.values(CONFIG.Actor.sheetClasses.player || {}).find(s => s.cls?.name === "PlayerSheet")?.cls;
@@ -229,12 +220,7 @@ function patchPlayerSheetHeaderButtons() {
   }
 }
 
-// ── Item sheet ────────────────────────────────────────────────────────────────
-
-/**
- * Appends Tenebre flags section (isRation, isAmmo, weaponAmmoType) to item sheets.
- * GM-only.
- */
+// Renderização de flags na ficha do item (GM-only)
 function renderItemFlags(app, html) {
   const item = app.item ?? app.document ?? app.object;
   if (!game.user.isGM) return;
@@ -268,7 +254,7 @@ function renderItemFlags(app, html) {
   });
 }
 
-// ── Flag HTML builders ────────────────────────────────────────────────────────
+// Construtores HTML das flags
 
 function equipmentFlagHtml(item) {
   const itemIsAmmo = isAmmo(item);
@@ -316,7 +302,7 @@ function weaponFlagHtml(item) {
   `;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Funções auxiliares
 
 function getRoot(html) {
   if (html instanceof HTMLElement) return html;
@@ -324,7 +310,7 @@ function getRoot(html) {
   return null;
 }
 
-// ── Dialog Hooks ─────────────────────────────────────────────────────────────
+// Hooks do diálogo de rolagem
 
 function onRenderTemplate(path, data, html) {
   if (path && path.includes("systems/symbaroum/template/chat/dialog.hbs")) {
@@ -340,8 +326,7 @@ function onRenderDialog(dialog, html, data) {
 
   const isWeaponRoll = Boolean(el.querySelector("input[id^='weapondamage-']"));
   if (isWeaponRoll) {
-    // 1. If there's a target attribute dropdown, and it currently defaults to "custom"
-    //    let's change it to "defense" automatically so that the attack actually rolls against the target's defense!
+    // Altera atributo alvo para defesa por padrão
     const targetAttrSelect = el.querySelector("select[id^='targetAttribute-']");
     if (targetAttrSelect && targetAttrSelect.value === "custom") {
       const hasDefense = Array.from(targetAttrSelect.options).some(opt => opt.value === "defense");
@@ -350,14 +335,13 @@ function onRenderDialog(dialog, html, data) {
       }
     }
 
-    // 2. Wrap the roll button callback to prevent any TypeError with html[0]
+    // Envolve callback de rolagem
     if (dialog.data?.buttons?.roll) {
       const originalCallback = dialog.data.buttons.roll.callback;
       if (originalCallback && !originalCallback._tenebreWrapped) {
         dialog.data.buttons.roll.callback = async function(htmlElement, event) {
           const htmlParam = (htmlElement && !(0 in htmlElement)) ? [htmlElement] : htmlElement;
           
-          // For active weapon rolls (ranged with ammo selector), we also inject ammo modifiers
           const activeRoll = game.tenebreResources?.activeWeaponRoll;
           if (activeRoll) {
             try {
@@ -412,7 +396,7 @@ function onRenderDialog(dialog, html, data) {
     }
   }
 
-  // 3. Ranged ammo selector injection (only runs for activeRoll)
+  // Injeta seletor de munição para ataques à distância
   const activeRoll = game.tenebreResources?.activeWeaponRoll;
   if (!activeRoll) return;
 
@@ -438,12 +422,39 @@ function onRenderDialog(dialog, html, data) {
   const select = document.createElement("select");
   select.id = "tenebre-ammo-select";
 
-  for (const item of ammoItems) {
-    const qty = getAmmoShots(item);
-    const option = document.createElement("option");
-    option.value = item.id;
-    option.innerText = `${item.name} (${qty})`;
-    select.appendChild(option);
+  const quiver = ammoItems.find(isQuiver);
+  const hasQuiver = !!quiver;
+
+  if (hasQuiver) {
+    const looseAmmo = ammoItems.filter(item => !isQuiver(item) && !getSpecialAmmo(item));
+    const looseShots = looseAmmo.reduce((sum, item) => sum + itemQuantity(item), 0);
+
+    for (const item of ammoItems) {
+      if (isQuiver(item)) {
+        const qty = getAmmoShots(item) + looseShots;
+        const option = document.createElement("option");
+        option.value = item.id;
+        const labelText = item.name.toLowerCase().includes("virote") || item.name.toLowerCase().includes("bolt")
+          ? `${item.name} (com Virotes) (${qty})`
+          : `${item.name} (com Flechas) (${qty})`;
+        option.innerText = labelText;
+        select.appendChild(option);
+      } else if (getSpecialAmmo(item)) {
+        const qty = getAmmoShots(item);
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.innerText = `${item.name} (${qty})`;
+        select.appendChild(option);
+      }
+    }
+  } else {
+    for (const item of ammoItems) {
+      const qty = getAmmoShots(item);
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.innerText = `${item.name} (${qty})`;
+      select.appendChild(option);
+    }
   }
 
   selectDiv.appendChild(label);
@@ -451,7 +462,6 @@ function onRenderDialog(dialog, html, data) {
 
   damModDiv.after(selectDiv);
 
-  // Auto-adjust dialog window size and prevent scrollbars
   el.style.overflow = "visible";
   el.style.height = "auto";
   const form = el.closest("form");
@@ -469,7 +479,6 @@ function onRenderDialog(dialog, html, data) {
 
 function onCloseDialog(dialog, html) {
   if (game.tenebreResources?.activeWeaponRoll) {
-    // Delay slightly to allow the submit callback to complete execution and read active rolls
     setTimeout(() => {
       if (game.tenebreResources) {
         game.tenebreResources.activeWeaponRoll = null;

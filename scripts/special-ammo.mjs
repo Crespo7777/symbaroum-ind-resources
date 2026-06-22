@@ -25,7 +25,7 @@ const SPECIAL_AMMO = [
   {
     names: ["cabeca de martelo", "hammer head", "hammerhead arrow", "hammerhead bolt", "blunt arrow", "blunt bolt"],
     ammoType: null,
-    description: "<p>Após um acerto, role o dano normalmente, mas use o resultado para testar se o alvo fica atordoado: <strong>[Vigoroso - Dano]</strong>. Se falhar, o alvo não executa ações no próximo turno.</p>"
+    description: "<p>Após um acerto, role o dano normalmente, mas use o resultado para testar se o alvo fica atordoado: <strong>[Vigoroso - Dano]</strong>. Teste de Resistência do alvo: [[/r 1d20]] contra seu Vigoroso modificado pelo dano. Se falhar, o alvo não executa ações no próximo turno.</p>"
   },
   {
     names: ["cauda de andorinha", "swallowtail arrow", "swallowtail bolt", "swallow-tail arrow", "swallow-tail bolt"],
@@ -45,7 +45,7 @@ const SPECIAL_AMMO = [
   {
     names: ["flecha de laco", "laço", "laco", "ensnaring arrow", "ensnaring bolt", "snare arrow", "snare bolt"],
     ammoType: null,
-    description: "<p>Uma ponta farpada e um fio de seda prendem o alvo. Retirar exige uma Ação de Movimento e Teste de <strong>[Vigoroso - Dano]</strong>; em sucesso, sofre 1D4 de dano e remove. Mover-se com a flecha presa causa 1 de dano por turno, ignorando Armadura.</p>"
+    description: "<p>Uma ponta farpada e um fio de seda prendem o alvo. Retirar exige uma Ação de Movimento e Teste de <strong>[Vigoroso - Dano]</strong>: [[/r 1d20]] contra seu Vigoroso modificado pelo dano. Se for bem-sucedido, sofre [[/r 1d4[Dano]]] de dano e a remove. Mover-se com a flecha presa causa 1 ponto de dano por turno, ignorando Armadura.</p>"
   },
   {
     names: ["flecha certeira", "true arrow"],
@@ -55,7 +55,7 @@ const SPECIAL_AMMO = [
   {
     names: ["raio atordoante", "stun bolt", "stunning bolt"],
     ammoType: AMMO_TYPES.BOLT,
-    description: "<p>Virote coberto com relaxante muscular. A criatura atingida deve passar em <strong>[Vigoroso - Dano]</strong> ou cai no chão. Robusto concede +2 em Vigoroso por nível neste Teste.</p>"
+    description: "<p>Virote coberto com relaxante muscular. A criatura atingida deve passar em <strong>[Vigoroso - Dano]</strong>: [[/r 1d20]] contra seu Vigoroso modificado pelo dano, ou cai no chão (ficando caida). Robusto concede +2 em Vigoroso por nível neste Teste.</p>"
   }
 ];
 
