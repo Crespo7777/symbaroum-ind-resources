@@ -45,32 +45,31 @@ export function isAmmo(item) {
 
 export function getAmmoType(item) {
   const type = getFlag(item, "ammoType", "");
-  if (Object.values(AMMO_TYPES).includes(type)) return type;
+  if (type === "ammo") return "ammo";
+  if (getFlag(item, "isAmmo", false)) return "ammo";
   const specialType = getSpecialAmmoType(item);
-  if (specialType) return specialType;
+  if (specialType) return "ammo";
   
   const name = normalize(item?.name);
 
   // Quiver / Aljava detection
   if (name.includes("aljava") || name.includes("quiver")) {
-    const isBoltTerm = ["virote", "bolt", "besta", "crossbow", "quarrel"].some(t => name.includes(t));
-    return isBoltTerm ? AMMO_TYPES.BOLT : AMMO_TYPES.ARROW;
+    return "ammo";
   }
 
   const isBoltName = hasAlias(name, BOLT_ALIASES);
   const isArrowName = hasAlias(name, ARROW_ALIASES);
-  if (isBoltName && !isArrowName) return AMMO_TYPES.BOLT;
-  if (isArrowName && !isBoltName) return AMMO_TYPES.ARROW;
+  if (isBoltName || isArrowName || name.includes("municao") || name.includes("ammunition") || name.includes("projectile") || name.includes("projetil")) {
+    return "ammo";
+  }
   return "";
 }
 
 export function getWeaponAmmoType(weapon) {
   const weaponType = getFlag(weapon, "weaponAmmoType", WEAPON_AMMO_TYPES.NONE);
-  if (weaponType === WEAPON_AMMO_TYPES.BOW) return AMMO_TYPES.ARROW;
-  if (weaponType === WEAPON_AMMO_TYPES.CROSSBOW) return AMMO_TYPES.BOLT;
+  if (weaponType === WEAPON_AMMO_TYPES.BOW || weaponType === WEAPON_AMMO_TYPES.CROSSBOW) return "ammo";
   const name = normalize(weapon?.name);
-  if (hasAlias(name, CROSSBOW_ALIASES)) return AMMO_TYPES.BOLT;
-  if (hasAlias(name, BOW_ALIASES)) return AMMO_TYPES.ARROW;
+  if (hasAlias(name, CROSSBOW_ALIASES) || hasAlias(name, BOW_ALIASES)) return "ammo";
   return "";
 }
 
@@ -120,8 +119,6 @@ export function sumAmmoShots(items) {
 }
 
 export function localizeAmmoType(ammoType) {
-  if (ammoType === AMMO_TYPES.ARROW) return game.i18n.localize("TENEBRE.Ammo.Arrows");
-  if (ammoType === AMMO_TYPES.BOLT) return game.i18n.localize("TENEBRE.Ammo.Bolts");
   return game.i18n.localize("TENEBRE.Ammo.Ammo");
 }
 

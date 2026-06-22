@@ -95,5 +95,10 @@
   "TENEBRE.ItemFlags.Crossbow": "Besta",
   "TENEBRE.ItemFlags.CompatibleAmmo": "Municao compativel disponivel: {quantity}",
   "ABILITY.ROLL_RESULT": "Rolagem: ",
-  "ABILITY.SECOND_ROLL_RESULT": "Confirmação de Crítico: "
+  "ABILITY.SECOND_ROLL_RESULT": "Confirmação de Crítico: ",
+  "TENEBRE.Settings.DragRulerGroup": "symbaroum-ruler",
+  "TENEBRE.Settings.SymbaroumMovementSpeed": "A velocidade de movimento para 1 ação no mapa de batalha",
+  "TENEBRE.Settings.SymbaroumMovementSpeedHint": "Nota: isso apenas considera o valor de distância da grade (grid), ignorando a unidade de medida.",
+  "TENEBRE.Speeds.Walk": "1 ação de movimento",
+  "TENEBRE.Speeds.Run": "2 ações de movimento"
 }

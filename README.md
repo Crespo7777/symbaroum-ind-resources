@@ -9,7 +9,7 @@
 ### 1. 🍞 Pão de Viagem (Travel Bread / Waybread)
 * **Consumo na Ficha:** Clique com o **botão direito** sobre o item de Pão de Viagem (ou *Waybread*) no inventário do personagem e selecione **"Consumir Pão de Viagem"** para gastar 1 uso.
 * **Quantidade e Usos:** A quantidade no inventário exibe quantos usos restam no formato `Unidades (UsosRestantes/MaxUsos)` (ex: `1 (7/7)`).
-* **Notificação no Chat:** Consumir um pão de viagem publica uma mensagem detalhada no Chat informando os usos e unidades restantes.
+* **Notificação no Chat:** Consumir um pão de viagem publica uma mensagem detalhada no Chat contendo o retrato do personagem à esquerda e as informações de uso do pão organizadas à direita.
 * **Ícone de Atalho na Hotbar:** Para o jogador ativo, um ícone de pão de viagem aparece automaticamente no canto esquerdo da Hotbar (barra de macros). Clicar nele consome um uso sem precisar abrir a ficha.
 * **Cálculo Cumulativo:** O controle de usos calcula perfeitamente o valor total acumulado de todos os pães de viagem que o jogador possui no inventário (onde cada pão equivale a 7 usos. Ex: 1 pão = 7 usos, 2 pães = 14 usos).
 
@@ -23,17 +23,38 @@
   * Publica um resumo do descanso formatado diretamente no Chat.
 
 ### 3. 🏹 Seleção de Munição e Modificadores Alquímicos
-* **Dropdown no Modal NATIVO:** Ao atacar com uma arma à distância (como Arcos ou Bestas), a antiga janela preta foi removida. Em vez disso, um dropdown com todas as munições compatíveis disponíveis no inventário aparece diretamente dentro do modal de ataque oficial do Foundry/Symbaroum, logo abaixo de **"Outro mod. de dano"**.
+* **Dropdown no Modal NATIVO:** Ao atacar com uma arma à distância, a antiga janela preta foi removida. Em vez disso, um dropdown com as munições compatíveis disponíveis no inventário aparece diretamente dentro do modal de ataque oficial do Foundry/Symbaroum, logo abaixo de **"Outro mod. de dano"**.
+* **Unificação de Munição:** Flechas e virotes foram unificados no tipo mecânico `"ammo"`. O sistema consome munições soltas antes de gastar uses de aljavas e não exige mais diferenciar tipos de munição nas fichas.
 * **Efeitos de Munições Especiais (Revisados de acordo com o Livro Básico e Livro Avançado):** Ao escolher e disparar uma munição especial no dropdown, os seus efeitos e qualidades são aplicados automaticamente na rolagem:
-  * **Flechas/Virotes de Precisão:** Injeta +1 de bônus no teste de ataque (qualidade *Precisa*).
-  * **Flechas/Virotes Perfurantes / Bodkin:** Injeta +1 no modificador de dano (qualidade *Impacto Profundo*).
-  * **Flechas/Virotes Flamejantes:** Injeta a condição de Queimando (DoT de 1d4 de dano persistente).
-* **Consumo Automático:** Disparar desconta 1 uso da munição no inventário e contabiliza acertos para posterior recuperação.
+  * **Munição de Precisão:** Injeta +1 de bônus no teste de ataque (qualidade *Precisa*).
+  * **Munição Perfurante / Bodkin:** Injeta +1 no modificador de dano (qualidade *Impacto Profundo*).
+  * **Munição Flamejante:** Injeta a condição de Queimando (DoT de 1d4 de dano persistente).
+  * **Munição de Laço (Ensnaring):** Envia um card no chat com botões de rolagens interativas para o teste de fuga de `[Vigoroso - Dano]` e o dano de remoção de `1d4`.
+  * **Raio Atordoante (Stun):** Envia um card de chat com rolagem interativa para o teste de queda (`[[/r 1d20]]`).
+* **Consumo Automático:** Disparar desconta 1 uso da munição no inventário e contabiliza acertos para posterior recuperação unificada.
 
 ### 4. 🎒 Suporte Avançado para Aljavas (Quivers)
 * O módulo reconhece automaticamente itens de equipamento contendo **"Aljava"** ou **"Quiver"** em inglês ou português.
-* O sistema identifica se a aljava é para Besta (Virotes) ou Arco (Flechas) buscando palavras-chaves (como *virote, besta, bolt, crossbow, quarrel*).
-* Atacar consome a quantidade interna da própria aljava (representando as flechas/virotes guardados dentro dela).
+* Atacar consome a quantidade interna da própria aljava (representando os projéteis guardados dentro dela).
+
+### 5. 📏 Sistema de Régua e Movimento Dinâmico (symbaroum-ruler)
+As funcionalidades do módulo **symbaroum-ruler** foram totalmente integradas de forma nativa neste módulo. Ao arrastar um token pelo mapa durante um combate ou exploração com o módulo **Drag Ruler** ativo, o Foundry exibirá faixas coloridas indicando a distância exata que o personagem pode percorrer com base em suas ações do turno.
+
+#### 🚀 Como Funciona a Régua
+* **Faixa Verde (1 Ação de Movimento - Caminhar):** Mostra a distância que o personagem percorre gastando 1 ação de movimento padrão.
+* **Faixa Laranja (2 Ações de Movimento - Correr):** Mostra a distância total que o personagem alcança se decidir gastar ambas as ações do turno em movimento (correndo ou abdicando de sua ação de combate). Equivale a **2x a Velocidade Base**.
+
+#### 🧠 Leitura e Cálculo Dinâmico de Atributos/Mecânicas
+O módulo analisa em tempo real os itens e habilidades da ficha do personagem e calcula dinamicamente seu deslocamento:
+* **Dádiva: Pés Leves (Fleet-footed):** Caso o personagem possua esta dádiva registrada em sua ficha (detecta termos como *Pés Leves*, *Pes Leves*, *Fleet-footed* ou *Fleet footed*), o deslocamento padrão de 1 ação é expandido automaticamente de 10m para **13 metros** (de acordo com as regras oficiais do *Guia Avançado*, p. 93).
+* **Fardo: Lento (Slow):** Caso o personagem possua esta desvantagem/fardo (detecta termos como *Lento* ou *Slow*), o deslocamento padrão de 1 ação é reduzido automaticamente para **7 metros** (conforme regras oficiais do *Guia Avançado*, p. 100).
+* **Velocidade Padrão:** Caso o personagem não possua nenhuma dessas condições, o sistema utiliza a velocidade padrão configurada (padrão de **10 metros**).
+
+#### ⚙️ Configurações e Customização
+* **Ajuste Global de Velocidade:** O mestre (GM) pode alterar o deslocamento base padrão de 10 metros para qualquer outro valor nas configurações do módulo, sob a seção **symbaroum-ruler**. Caso alterado, este valor será usado como a velocidade para todos os personagens normais (enquanto os com *Pés Leves* e *Lento* continuam obedecendo seus respectivos modificadores dinâmicos de 13m e 7m).
+* **Ativação:** Requer que o módulo auxiliar **Drag Ruler** esteja instalado e ativado no mundo do Foundry VTT. O `symbaroum-ind-resources` registra automaticamente o `SymbaroumSpeedProvider` ao carregar o jogo.
+
+
 
 ---
 

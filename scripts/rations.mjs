@@ -76,8 +76,13 @@ export class RationService {
       speaker: ChatMessage.getSpeaker({ actor }),
       content: `
         <div class="tenebre-chat-card">
-          <h3>${title}</h3>
-          ${content}
+          <div class="tenebre-chat-item">
+            <img src="${actor.img}" alt="${actor.name}">
+            <div>
+              <h3>${title}</h3>
+              ${content}
+            </div>
+          </div>
         </div>
       `
     });
