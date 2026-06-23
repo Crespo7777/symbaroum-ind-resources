@@ -7,7 +7,8 @@ import { AmmoService } from "./ammo.mjs";
 import { RestService } from "./rest.mjs";
 import { HotbarService } from "./hotbar.mjs";
 import { findAmmoItems, isAmmo, isRation, sumItemQuantities } from "./item-flags.mjs";
-import { VerseService } from "./verses.mjs"; // <-- ADICIONADO
+import "./drag-ruler.mjs";
+import { VerseService } from "./verses.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -64,8 +65,7 @@ function inspectActorResources(actorOrId) {
       usesPerUnit: rations.usesPerUnit
     },
     ammo: {
-      arrows: sumItemQuantities(findAmmoItems(actor, AMMO_TYPES.ARROW)),
-      bolts: sumItemQuantities(findAmmoItems(actor, AMMO_TYPES.BOLT)),
+      quantity: sumItemQuantities(findAmmoItems(actor, "ammo")),
       hits
     },
     detectedItems: Array.from(actor.items.values())

@@ -2,8 +2,8 @@ export const MODULE_ID = "symbaroum-ind-resources";
 export const FLAG_SCOPE = "symbaroum-ind-resources";
 
 export const AMMO_TYPES = {
-  ARROW: "arrow",
-  BOLT: "bolt"
+  ARROW: "ammo",
+  BOLT: "ammo"
 };
 
 export const WEAPON_AMMO_TYPES = {
@@ -29,5 +29,6 @@ export const DEFAULTS = {
   recoveryFailure: 25,
   recoverySuccess: 50,
   recoveryCritical: 75,
-  recoveryAttribute: "vigilant"
+  recoveryAttribute: "vigilant",
+  symbaroumMovementSpeed: 10
 };

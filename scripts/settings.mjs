@@ -68,7 +68,8 @@ const NUMBER_SETTINGS = [
   "restHealing",
   "recoveryFailure",
   "recoverySuccess",
-  "recoveryCritical"
+  "recoveryCritical",
+  "symbaroumMovementSpeed"
 ];
 
 export class TenebreSettings {
@@ -106,6 +107,7 @@ export class TenebreSettings {
     register("recoveryFailure", Number, DEFAULTS.recoveryFailure, "TENEBRE.Settings.RecoveryFailure", "TENEBRE.Settings.RecoveryFailureHint");
     register("recoverySuccess", Number, DEFAULTS.recoverySuccess, "TENEBRE.Settings.RecoverySuccess", "TENEBRE.Settings.RecoverySuccessHint");
     register("recoveryCritical", Number, DEFAULTS.recoveryCritical, "TENEBRE.Settings.RecoveryCritical", "TENEBRE.Settings.RecoveryCriticalHint");
+    register("symbaroumMovementSpeed", Number, DEFAULTS.symbaroumMovementSpeed, "TENEBRE.Settings.SymbaroumMovementSpeed", "TENEBRE.Settings.SymbaroumMovementSpeedHint");
   }
 
   static get(key) {

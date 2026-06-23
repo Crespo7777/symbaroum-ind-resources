@@ -29,7 +29,7 @@ export class AmmoService {
       if (looseAmmoItems.length > 0) {
         const looseItem = looseAmmoItems[0];
         await changeItemQuantity(looseItem, -1);
-        const looseName = ammoType === AMMO_TYPES.ARROW ? "flecha avulsa" : "virote avulso";
+        const looseName = looseItem.name.toLowerCase().includes("virote") || looseItem.name.toLowerCase().includes("bolt") ? "virote avulso" : "flecha avulsa";
         ui.notifications.info(`Gastou 1 projétil da aljava (consumiu 1 ${looseName} do inventário).`);
       } else {
         const qty = itemQuantity(ammo);
@@ -114,17 +114,18 @@ export class AmmoService {
     ammoHits[ammo.id] = entry;
 
     await actor.setFlag(FLAG_SCOPE, "combat", {
-      arrowsHit: (current.arrowsHit ?? 0) + (ammoType === AMMO_TYPES.ARROW ? 1 : 0),
-      boltsHit: (current.boltsHit ?? 0) + (ammoType === AMMO_TYPES.BOLT ? 1 : 0),
+      ammoHit: (current.ammoHit ?? 0) + 1,
       ammoHits
     });
   }
 
   static getTrackedHits(actor) {
     const combat = actor.getFlag(FLAG_SCOPE, "combat") ?? {};
+    const ammoHit = combat.ammoHit !== undefined
+      ? Number(combat.ammoHit ?? 0)
+      : (Number(combat.arrowsHit ?? 0) + Number(combat.boltsHit ?? 0));
     return {
-      arrowsHit: Number(combat.arrowsHit ?? 0),
-      boltsHit: Number(combat.boltsHit ?? 0),
+      ammoHit,
       ammoHits: combat.ammoHits ?? {}
     };
   }
@@ -133,7 +134,7 @@ export class AmmoService {
     if (!TenebreSettings.get("enableAmmoRecovery")) return;
 
     const hits = this.getTrackedHits(actor);
-    const totalHits = hits.arrowsHit + hits.boltsHit;
+    const totalHits = hits.ammoHit;
     if (totalHits <= 0) {
       ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
       return;
@@ -163,6 +164,7 @@ export class AmmoService {
     await actor.setFlag(FLAG_SCOPE, "combat", {
       arrowsHit: 0,
       boltsHit: 0,
+      ammoHit: 0,
       ammoHits: {}
     });
 

@@ -84,8 +84,7 @@ function patchContextMenu() {
             const actor = item.parent;
             if (!actor) return false;
             const hits = AmmoService.getTrackedHits(actor);
-            return (ammoType === AMMO_TYPES.ARROW && hits.arrowsHit > 0) ||
-                   (ammoType === AMMO_TYPES.BOLT && hits.boltsHit > 0);
+            return hits.ammoHit > 0;
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);
@@ -259,7 +258,6 @@ function renderItemFlags(app, html) {
 function equipmentFlagHtml(item) {
   const itemIsAmmo = isAmmo(item);
   const itemIsRation = isRation(item);
-  const ammoType = getAmmoType(item) || AMMO_TYPES.ARROW;
 
   return `
     <h1>${game.i18n.localize("TENEBRE.ItemFlags.Title")}</h1>
@@ -270,13 +268,6 @@ function equipmentFlagHtml(item) {
     <label class="tenebre-check">
       <input type="checkbox" data-flag="isAmmo" ${itemIsAmmo ? "checked" : ""}>
       <span>${game.i18n.localize("TENEBRE.ItemFlags.IsAmmo")}</span>
-    </label>
-    <label>
-      <span>${game.i18n.localize("TENEBRE.ItemFlags.AmmoType")}</span>
-      <select data-flag="ammoType">
-        <option value="${AMMO_TYPES.ARROW}" ${ammoType === AMMO_TYPES.ARROW ? "selected" : ""}>${game.i18n.localize("TENEBRE.Ammo.Arrow")}</option>
-        <option value="${AMMO_TYPES.BOLT}"  ${ammoType === AMMO_TYPES.BOLT  ? "selected" : ""}>${game.i18n.localize("TENEBRE.Ammo.Bolt")}</option>
-      </select>
     </label>
   `;
 }
@@ -293,9 +284,8 @@ function weaponFlagHtml(item) {
     <label>
       <span>${game.i18n.localize("TENEBRE.ItemFlags.WeaponAmmoType")}</span>
       <select data-flag="weaponAmmoType">
-        <option value="${WEAPON_AMMO_TYPES.NONE}"      ${selected === WEAPON_AMMO_TYPES.NONE      ? "selected" : ""}>${game.i18n.localize("TENEBRE.ItemFlags.NoAmmo")}</option>
-        <option value="${WEAPON_AMMO_TYPES.BOW}"       ${selected === WEAPON_AMMO_TYPES.BOW       ? "selected" : ""}>${game.i18n.localize("TENEBRE.ItemFlags.Bow")}</option>
-        <option value="${WEAPON_AMMO_TYPES.CROSSBOW}"  ${selected === WEAPON_AMMO_TYPES.CROSSBOW  ? "selected" : ""}>${game.i18n.localize("TENEBRE.ItemFlags.Crossbow")}</option>
+        <option value="${WEAPON_AMMO_TYPES.NONE}" ${selected === WEAPON_AMMO_TYPES.NONE ? "selected" : ""}>Não</option>
+        <option value="${WEAPON_AMMO_TYPES.BOW}"  ${selected !== WEAPON_AMMO_TYPES.NONE ? "selected" : ""}>Sim</option>
       </select>
     </label>
     ${compatibleAmmo ? `<p>${game.i18n.format("TENEBRE.ItemFlags.CompatibleAmmo", { quantity: available })}</p>` : ""}
@@ -434,10 +424,7 @@ function onRenderDialog(dialog, html, data) {
         const qty = getAmmoShots(item) + looseShots;
         const option = document.createElement("option");
         option.value = item.id;
-        const labelText = item.name.toLowerCase().includes("virote") || item.name.toLowerCase().includes("bolt")
-          ? `${item.name} (com Virotes) (${qty})`
-          : `${item.name} (com Flechas) (${qty})`;
-        option.innerText = labelText;
+        option.innerText = `${item.name} (${qty})`;
         select.appendChild(option);
       } else if (getSpecialAmmo(item)) {
         const qty = getAmmoShots(item);

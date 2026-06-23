@@ -95,5 +95,10 @@
   "TENEBRE.ItemFlags.Crossbow": "Crossbow",
   "TENEBRE.ItemFlags.CompatibleAmmo": "Compatible ammunition available: {quantity}",
   "ABILITY.ROLL_RESULT": "Result: ",
-  "ABILITY.SECOND_ROLL_RESULT": "Critical Confirmation: "
+  "ABILITY.SECOND_ROLL_RESULT": "Critical Confirmation: ",
+  "TENEBRE.Settings.DragRulerGroup": "symbaroum-ruler",
+  "TENEBRE.Settings.SymbaroumMovementSpeed": "The rate of movement for 1 action on the battlemap",
+  "TENEBRE.Settings.SymbaroumMovementSpeedHint": "Note that it only cares about the distance value of the grid, not the units",
+  "TENEBRE.Speeds.Walk": "1 movement action",
+  "TENEBRE.Speeds.Run": "2 movement actions"
 }
