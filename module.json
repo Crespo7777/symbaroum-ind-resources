@@ -29,7 +29,8 @@
     "requires": [
       {
         "id": "drag-ruler",
-        "type": "module"
+        "type": "module",
+        "manifest": "https://raw.githubusercontent.com/manuelVo/foundryvtt-drag-ruler/master/module.json"
       }
     ]
   },
