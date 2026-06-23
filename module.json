@@ -25,6 +25,12 @@
           "verified": "6.1.6"
         }
       }
+    ],
+    "requires": [
+      {
+        "id": "drag-ruler",
+        "type": "module"
+      }
     ]
   },
   "esmodules": [
