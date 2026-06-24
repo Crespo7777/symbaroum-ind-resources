@@ -102,14 +102,38 @@ export function sumItemQuantities(items) {
 export function isQuiver(item) {
   if (!item || item.type !== "equipment") return false;
   const name = item.name?.toLowerCase() || "";
-  return name.includes("aljava") || name.includes("quiver");
+  return name.includes("aljava") || name.includes("quiver") || name.includes("estojo") || name.includes("case");
+}
+
+export function getQuiverLoadedAmmo(quiverItem) {
+  if (!quiverItem) return [];
+  let loadedAmmo = quiverItem.getFlag(FLAG_SCOPE, "loadedAmmo");
+  if (!loadedAmmo || !loadedAmmo.length) {
+    const legacyUses = quiverItem.getFlag(FLAG_SCOPE, "usesRemaining");
+    if (legacyUses !== undefined && legacyUses !== null) {
+      loadedAmmo = [{
+        name: "Flechas/Virotes - Regulares",
+        quantity: legacyUses,
+        img: "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp",
+        id: "legacy"
+      }];
+    } else {
+      loadedAmmo = [];
+    }
+  }
+  return loadedAmmo;
+}
+
+export function getQuiverLoadedTotal(quiverItem) {
+  const loadedAmmo = getQuiverLoadedAmmo(quiverItem);
+  return loadedAmmo.reduce((sum, entry) => sum + (Number(entry.quantity) || 0), 0);
 }
 
 export function getAmmoShots(item) {
   const qty = itemQuantity(item);
   if (isQuiver(item)) {
-    const usesRemaining = item.getFlag(FLAG_SCOPE, "usesRemaining") ?? 12;
-    return qty > 0 ? (qty - 1) * 12 + usesRemaining : 0;
+    const loaded = getQuiverLoadedTotal(item);
+    return qty > 0 ? (qty - 1) * 12 + loaded : 0;
   }
   return qty;
 }

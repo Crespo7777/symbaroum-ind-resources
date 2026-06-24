@@ -29,6 +29,5 @@ export const DEFAULTS = {
   recoveryFailure: 25,
   recoverySuccess: 50,
   recoveryCritical: 75,
-  recoveryAttribute: "vigilant",
-  symbaroumMovementSpeed: 10
+  recoveryAttribute: "vigilant"
 };

@@ -34,17 +34,34 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
     };
   }
 
-
-
   static async #onSubmit(_event, _form, formData) {
     const data = foundry.utils.expandObject(formData.object);
 
-    for (const key of BOOLEAN_SETTINGS) {
+    const booleans = [
+      "enableRations",
+      "enableAmmoConsumption",
+      "enableHitTracking",
+      "enableAmmoRecovery",
+      "showSpecialAmmoInChat",
+      "enableRestHealing"
+    ];
+
+    const numbers = [
+      "rationUses",
+      "recoveryFailure",
+      "recoverySuccess",
+      "recoveryCritical",
+      "restHealing"
+    ];
+
+    for (const key of booleans) {
       data[key] = Boolean(data[key]);
     }
 
-    for (const key of NUMBER_SETTINGS) {
-      data[key] = Number(data[key]);
+    for (const key of numbers) {
+      if (key in data) {
+        data[key] = Number(data[key]);
+      }
     }
 
     for (const [key, value] of Object.entries(data)) {
@@ -54,23 +71,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
   }
 }
 
-const BOOLEAN_SETTINGS = [
-  "enableRations",
-  "enableAmmoConsumption",
-  "enableHitTracking",
-  "enableAmmoRecovery",
-  "showSpecialAmmoInChat",
-  "enableRestHealing"
-];
-
-const NUMBER_SETTINGS = [
-  "rationUses",
-  "restHealing",
-  "recoveryFailure",
-  "recoverySuccess",
-  "recoveryCritical",
-  "symbaroumMovementSpeed"
-];
 
 export class TenebreSettings {
   static register() {
@@ -107,7 +107,7 @@ export class TenebreSettings {
     register("recoveryFailure", Number, DEFAULTS.recoveryFailure, "TENEBRE.Settings.RecoveryFailure", "TENEBRE.Settings.RecoveryFailureHint");
     register("recoverySuccess", Number, DEFAULTS.recoverySuccess, "TENEBRE.Settings.RecoverySuccess", "TENEBRE.Settings.RecoverySuccessHint");
     register("recoveryCritical", Number, DEFAULTS.recoveryCritical, "TENEBRE.Settings.RecoveryCritical", "TENEBRE.Settings.RecoveryCriticalHint");
-    register("symbaroumMovementSpeed", Number, DEFAULTS.symbaroumMovementSpeed, "TENEBRE.Settings.SymbaroumMovementSpeed", "TENEBRE.Settings.SymbaroumMovementSpeedHint");
+
   }
 
   static get(key) {

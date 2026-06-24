@@ -9,71 +9,54 @@
 ### 1. 🍞 Pão de Viagem (Travel Bread / Waybread)
 * **Consumo na Ficha:** Clique com o **botão direito** sobre o item de Pão de Viagem (ou *Waybread*) no inventário do personagem e selecione **"Consumir Pão de Viagem"** para gastar 1 uso.
 * **Quantidade e Usos:** A quantidade no inventário exibe quantos usos restam no formato `Unidades (UsosRestantes/MaxUsos)` (ex: `1 (7/7)`).
-* **Notificação no Chat:** Consumir um pão de viagem publica uma mensagem detalhada no Chat contendo o retrato do personagem à esquerda e as informações de uso do pão organizadas à direita.
-* **Ícone de Atalho na Hotbar:** Para o jogador ativo, um ícone de pão de viagem aparece automaticamente no canto esquerdo da Hotbar (barra de macros). Clicar nele consome um uso sem precisar abrir a ficha.
-* **Cálculo Cumulativo:** O controle de usos calcula perfeitamente o valor total acumulado de todos os pães de viagem que o jogador possui no inventário (onde cada pão equivale a 7 usos. Ex: 1 pão = 7 usos, 2 pães = 14 usos).
+* **Notificação no Chat:** Consumir um pão de viagem publica uma mensagem detalhada no Chat contendo o retrato do personagem e as informações de uso do pão.
+* **Ícone de Atalho na Hotbar:** Para o jogador ativo, um ícone de pão de viagem aparece automaticamente no canto esquerdo da Hotbar. Clicar nele consome um uso sem precisar abrir a ficha.
+* **Cálculo Cumulativo:** O controle de usos calcula perfeitamente o valor total acumulado de todos os pães de viagem que o jogador possui no inventário (onde cada pão equivale a 7 usos).
 
-### 2. 🛏️ Descanso Avançado (botão "Descanso")
-* **Integração Nativa:** Adiciona um botão dedicado **Descanso** (cama) na barra de cabeçalho da ficha do PJ. O botão nativo **Recuperar** (coração vermelho) permanece intocado no padrão do Symbaroum.
-* **Opções de Descanso:** Abre uma tela onde é possível configurar a quantidade de **Dias de descanso** e a taxa de **Cura por dia** (que vem por padrão baseada nas configurações do módulo).
-* **Efeitos do Descanso:**
-  * Restaura Vitalidade baseado em `Dias x Cura por dia`.
-  * Zera os testes de morte falhos (`nbrOfFailedDeathRoll`).
-  * Zera toda a **Corrupção Temporária** do personagem caso descanse 1 dia ou mais.
-  * Publica um resumo do descanso formatado diretamente no Chat.
+### 2. 🎒 Sistema de Aljava e Recarga de Munições
+* **Ação de Recarga:**
+  * O jogador não dispara projéteis avulsos diretamente da mochila. É necessário equipar e recarregar uma aljava ou estojo de virotes (limite de 12 flechas/virotes no total).
+  * Clique com o **botão direito** em um item de aljava/estojo no inventário e selecione **"Recarregar Aljava/Estojo"**.
+  * Abre um diálogo que permite escolher qual munição avulsa do inventário carregar e a quantidade (limitado dinamicamente pela capacidade restante da aljava e quantidade disponível no inventário).
+  * Uma mensagem detalhada é enviada ao chat com o retrato do personagem, ícone e quantidade da munição carregada, e o status da aljava de destino.
+* **Exibição na Ficha:** O display das aljavas no inventário é atualizado dinamicamente no formato `Quantidade (Carregadas/12)` (ex: `1 (10/12)`).
+* **Dropdown no Modal de Ataque:** Ao realizar um ataque com arma à distância, o dropdown de munições listará apenas os tipos de projéteis específicos que estão *carregados* nas aljavas equipadas do personagem (ex: `Aljava: Flecha - Precisão (2/12)`).
 
-### 3. 🏹 Seleção de Munição e Modificadores Alquímicos
-* **Dropdown no Modal NATIVO:** Ao atacar com uma arma à distância, a antiga janela preta foi removida. Em vez disso, um dropdown com as munições compatíveis disponíveis no inventário aparece diretamente dentro do modal de ataque oficial do Foundry/Symbaroum, logo abaixo de **"Outro mod. de dano"**.
-* **Unificação de Munição:** Flechas e virotes foram unificados no tipo mecânico `"ammo"`. O sistema consome munições soltas antes de gastar uses de aljavas e não exige mais diferenciar tipos de munição nas fichas.
-* **Efeitos de Munições Especiais (Revisados de acordo com o Livro Básico e Livro Avançado):** Ao escolher e disparar uma munição especial no dropdown, os seus efeitos e qualidades são aplicados automaticamente na rolagem:
-  * **Munição de Precisão:** Injeta +1 de bônus no teste de ataque (qualidade *Precisa*).
-  * **Munição Perfurante / Bodkin:** Injeta +1 no modificador de dano (qualidade *Impacto Profundo*).
-  * **Munição Flamejante:** Injeta a condição de Queimando (DoT de 1d4 de dano persistente).
-  * **Munição de Laço (Ensnaring):** Envia um card no chat com botões de rolagens interativas para o teste de fuga de `[Vigoroso - Dano]` e o dano de remoção de `1d4`.
-  * **Raio Atordoante (Stun):** Envia um card de chat com rolagem interativa para o teste de queda (`[[/r 1d20]]`).
-* **Consumo Automático:** Disparar desconta 1 uso da munição no inventário e contabiliza acertos para posterior recuperação unificada.
+### 3. 🏹 Projéteis Especiais e Qualidades Alquímicas
+O módulo oferece suporte mecânico completo para todos os projéteis especiais descritos no Livro Básico e Guia Avançado do Jogador. Ao selecionar e disparar do dropdown:
+* **Flecha de Precisão:** Injeta +1 no teste de ataque (qualidade *Precisa*).
+* **Ponta Perfurante de Armadura / Bodkin:** Injeta +1 no modificador de dano (qualidade *Impacto Profundo*).
+* **Flecha Flamejante:** Injeta a condição de Queimando (DoT de 1d4 de dano persistente).
+* **Flecha de Laço:** Envia um card no chat com testes interativos de fuga de `[Vigoroso - Dano]` e dano de remoção de `1d4`.
+* **Outros Projéteis Oficiais:** Suporte narrativo e mecânico integrado para *Flecha Sibilante, Arpéu, Cabeça de Martelo, Cauda de Andorinha, Cortador de Corda, Flecha Certeira (Alquímica)* e *Raio Atordoante*.
 
-### 4. 🎒 Suporte Avançado para Aljavas (Quivers)
-* O módulo reconhece automaticamente itens de equipamento contendo **"Aljava"** ou **"Quiver"** em inglês ou português.
-* Atacar consome a quantidade interna da própria aljava (representando os projéteis guardados dentro dela).
+### 4. 🎲 Recuperação Oficial por Projétil (Individual d20)
+O sistema antigo de porcentagem estática foi substituído pela regra oficial de recuperação individual por d20:
+* Ao clicar em "Recuperar Munição" após o combate, o sistema faz uma rolagem de d20 para cada flecha ou virote disparado para saber se ele quebrou:
+  * **Projétil Comum (sem qualidades):** Recupera se rolar **10 ou menos** (`d20 <= 10`).
+  * **Projétil com Qualidade (Precisa, Flamejante, etc.):** Recupera se rolar **15 ou menos** (`d20 <= 15`).
+  * **Projétil Místico/Alquímico (Certeira, Atordoante):** Recupera se rolar **17 ou menos** (`d20 <= 17`).
+* Exibe no chat os dados individuais de cada d20 com destaque colorido (**Verde** para sucesso, **Vermelho e Riscado** para falha/quebra), trazendo suspense e clareza para a mesa.
 
-### 5. 📏 Sistema de Régua e Movimento Dinâmico (symbaroum-ruler)
-As funcionalidades do módulo **symbaroum-ruler** foram totalmente integradas de forma nativa neste módulo. Ao arrastar um token pelo mapa durante um combate ou exploração com o módulo **Drag Ruler** ativo, o Foundry exibirá faixas coloridas indicando a distância exata que o personagem pode percorrer com base em suas ações do turno.
+### 5. 🍲 Regra Opcional de Fome (Hunger)
+* **Status Effect HUD:** Adiciona o status **Fome** (ícone de prato de comida) na paleta de efeitos de status do Token no HUD do Foundry.
+* **Sem Cura Natural:** Personagens sob o efeito de Fome não recuperam vitalidade ao descansar (cura forçada a 0).
+* **Desvantagem Constante:** Qualquer rolagem de atributo ou teste feito sob o efeito de Fome é executado com desvantagem (rola 2d20 e escolhe o pior resultado/maior d20).
+* **Testes Diários de Inanição:** Durante o descanso de um personagem com Fome, para cada dia passado, o sistema rola automaticamente um teste de **Vigoroso** (Strong) com desvantagem. Se falhar, o atributo base Vigoroso diminui em **-1**. Chegar a 0 significa morte por inanição.
 
-#### 🚀 Como Funciona a Régua
-* **Faixa Verde (1 Ação de Movimento - Caminhar):** Mostra a distância que o personagem percorre gastando 1 ação de movimento padrão.
-* **Faixa Laranja (2 Ações de Movimento - Correr):** Mostra a distância total que o personagem alcança se decidir gastar ambas as ações do turno em movimento (correndo ou abdicando de sua ação de combate). Equivale a **2x a Velocidade Base**.
-
-#### 🧠 Leitura e Cálculo Dinâmico de Atributos/Mecânicas
-O módulo analisa em tempo real os itens e habilidades da ficha do personagem e calcula dinamicamente seu deslocamento:
-* **Dádiva: Pés Leves (Fleet-footed):** Caso o personagem possua esta dádiva registrada em sua ficha (detecta termos como *Pés Leves*, *Pes Leves*, *Fleet-footed* ou *Fleet footed*), o deslocamento padrão de 1 ação é expandido automaticamente de 10m para **13 metros** (de acordo com as regras oficiais do *Guia Avançado*, p. 93).
-* **Fardo: Lento (Slow):** Caso o personagem possua esta desvantagem/fardo (detecta termos como *Lento* ou *Slow*), o deslocamento padrão de 1 ação é reduzido automaticamente para **7 metros** (conforme regras oficiais do *Guia Avançado*, p. 100).
-* **Velocidade Padrão:** Caso o personagem não possua nenhuma dessas condições, o sistema utiliza a velocidade padrão configurada (padrão de **10 metros**).
-
-#### ⚙️ Configurações e Customização
-* **Ajuste Global de Velocidade:** O mestre (GM) pode alterar o deslocamento base padrão de 10 metros para qualquer outro valor nas configurações do módulo, sob a seção **symbaroum-ruler**. Caso alterado, este valor será usado como a velocidade para todos os personagens normais (enquanto os com *Pés Leves* e *Lento* continuam obedecendo seus respectivos modificadores dinâmicos de 13m e 7m).
-* **Ativação:** Requer que o módulo auxiliar **Drag Ruler** esteja instalado e ativado no mundo do Foundry VTT. O `symbaroum-ind-resources` registra automaticamente o `SymbaroumSpeedProvider` ao carregar o jogo.
-
-
+### 6. 🛏️ Descanso Avançado (botão "Descanso")
+* Adiciona um botão dedicado **Descanso** na barra de cabeçalho da ficha do PJ.
+* Permite configurar a quantidade de **Dias de descanso** e a taxa de **Cura por dia**.
+* Zera os testes de morte falhos e remove a **Corrupção Temporária** (caso o personagem sobreviva aos testes de inanição).
 
 ---
 
 ## 💾 Instalação
 
-Copie os links abaixo diretamente para instalar no seu Foundry VTT:
-
-### Link do Manifesto (Instalação via Foundry)
-Copie o link abaixo para colar no campo **Manifest URL** dentro da aba *Add-on Modules* do Foundry VTT:
+Copie o link abaixo e cole no campo **Manifest URL** dentro da aba *Add-on Modules* do Foundry VTT:
 
 ```text
 https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module.json
-```
-
-### Link de Download Direto
-Caso queira baixar o módulo manualmente em arquivo ZIP:
-
-```text
-https://github.com/Crespo7777/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip
 ```
 
 ---
@@ -83,10 +66,8 @@ https://github.com/Crespo7777/symbaroum-ind-resources/releases/latest/download/s
 ### Configurações de Sobrevivência e Automáticas
 1. No menu lateral direito do Foundry VTT, vá na aba **Configurações de Jogo** (ícone de engrenagem).
 2. Clique em **Configurar Ajustes** (Configure Settings).
-3. Na aba **Ajustes do Sistema** (System Settings), clique em **Symbaroum Ind Resources** (ou localize a seção dedicada no menu).
-4. Aqui você poderá ativar/desativar o consumo de munição, rastreamento de acertos, atributo de recuperação e valores de cura padrão por dia de descanso.
+3. Na aba **Ajustes do Sistema** (System Settings), clique em **Symbaroum Ind Resources**.
+4. Configure opções como rastreamento de acertos, recuperação automática e valores padrão de descanso.
 
 ### Atalhos de Teclado (Keybindings)
-1. Vá em **Configurar Controles** (Configure Controls) no menu de configurações do Foundry.
-2. Na aba **Symbaroum Ind Resources**, você encontrará e poderá redefinir os seguintes atalhos:
-   * **Abrir Diálogo de Descanso** (para o PJ controlado — padrão: `Ctrl + Shift + R`).
+* **Abrir Diálogo de Descanso** (para o PJ controlado — padrão: `Ctrl + Shift + R`).

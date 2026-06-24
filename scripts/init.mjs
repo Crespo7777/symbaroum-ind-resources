@@ -7,12 +7,19 @@ import { AmmoService } from "./ammo.mjs";
 import { RestService } from "./rest.mjs";
 import { HotbarService } from "./hotbar.mjs";
 import { findAmmoItems, isAmmo, isRation, sumItemQuantities } from "./item-flags.mjs";
-import "./drag-ruler.mjs";
 import { VerseService } from "./verses.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
   registerKeybindings();
+
+  // Status de Fome
+  CONFIG.statusEffects.push({
+    id: "hunger",
+    name: "Fome",
+    icon: "icons/consumables/food/bowl-stew-brown.webp",
+    statuses: ["hunger", "fome"]
+  });
 });
 
 Hooks.once("ready", () => {
@@ -21,7 +28,7 @@ Hooks.once("ready", () => {
     return;
   }
 
-  // Automatically enable Symbaroum Combat Automation (Melhoria de combate) if disabled
+  // Ativa automação de combate do sistema se necessário
   if (game.user.isGM && !game.settings.get("symbaroum", "combatAutomation")) {
     console.log(`${MODULE_ID} | Automatically enabling Symbaroum Combat Automation.`);
     game.settings.set("symbaroum", "combatAutomation", true);
@@ -31,12 +38,22 @@ Hooks.once("ready", () => {
   registerSheetHooks();
   HotbarService.register();
 
+  // Aplica desvantagem nos testes se estiver com Fome
+  if (game.symbaroum?.api?.rollAttribute) {
+    const originalRollAttribute = game.symbaroum.api.rollAttribute;
+    game.symbaroum.api.rollAttribute = function(actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier) {
+      const hasHunger = actor?.effects?.some(e => e.statuses?.has?.("hunger") || e.statuses?.has?.("fome") || e.name === "Fome" || e.name === "Hunger");
+      if (hasHunger) {
+        favour = -1;
+      }
+      return originalRollAttribute.call(this, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier);
+    };
+  }
+
   game.tenebreResources = {
     rations: RationService,
     ammo: AmmoService,
     rest: RestService,
-
-    // ADIÇÃO (sem mexer no resto)
     verses: VerseService,
 
     inspectActorResources,

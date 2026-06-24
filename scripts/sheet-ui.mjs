@@ -14,7 +14,9 @@ import {
   sumItemQuantities,
   itemQuantity,
   getAmmoShots,
-  isQuiver
+  isQuiver,
+  getQuiverLoadedAmmo,
+  getQuiverLoadedTotal
 } from "./item-flags.mjs";
 
 // Listas de hooks
@@ -110,6 +112,22 @@ function patchContextMenu() {
           }
         });
 
+        this.originalMenuItems.push({
+          name: "TENEBRE.Ammo.ReloadQuiverContextMenu",
+          icon: `<i class="fas fa-redo" style="color: currentColor;"></i>`,
+          isVisible: (item) => {
+            return isQuiver(item) && itemQuantity(item) > 0;
+          },
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
+            if (actor && item) {
+              AmmoService.reloadQuiverPrompt(actor, item);
+            }
+          }
+        });
+
         // Re-filter this.menuItems immediately so the newly added options are rendered on the first click
         let item = null;
         if (html.dataset.itemId == game.symbaroum.config.noArmorID) {
@@ -149,6 +167,28 @@ function onRenderActorSheet(app, html) {
   if (!actor || actor.type !== "player" || !actor.isOwner) return;
 
   updateRationQuantityDisplay(app, html, actor);
+  updateQuiverQuantityDisplay(app, html, actor);
+}
+
+// Injeta quantidade e usos de aljavas na ficha
+function updateQuiverQuantityDisplay(app, html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  const quivers = actor.items.filter(isQuiver);
+  for (const quiver of quivers) {
+    const row = el.querySelector(`.item[data-item-id="${quiver.id}"]`);
+    if (!row) continue;
+
+    const qtyDiv = row.querySelector(".quantity");
+    if (!qtyDiv) continue;
+
+    const qty = itemQuantity(quiver);
+    if (qty > 0) {
+      const loaded = getQuiverLoadedTotal(quiver);
+      qtyDiv.textContent = `${qty} (${loaded}/12)`;
+    }
+  }
 }
 
 // Injeta quantidade e usos de rações na ficha
@@ -335,8 +375,38 @@ function onRenderDialog(dialog, html, data) {
           const activeRoll = game.tenebreResources?.activeWeaponRoll;
           if (activeRoll) {
             try {
-              const selectedId = el.querySelector("#tenebre-ammo-select")?.value;
-              const chosenAmmo = activeRoll.actor.items.get(selectedId);
+              const selectedValue = el.querySelector("#tenebre-ammo-select")?.value;
+              let chosenAmmo = null;
+              if (selectedValue && selectedValue.startsWith("quiver|")) {
+                const parts = selectedValue.split("|");
+                const quiverId = parts[1];
+                const entryName = parts[2];
+                const quiver = activeRoll.actor.items.get(quiverId);
+                if (quiver) {
+                  const loaded = getQuiverLoadedAmmo(quiver);
+                  const entry = loaded.find(e => e.name === entryName);
+                  if (entry) {
+                    const originalItem = activeRoll.actor.items.find(i => i.name === entry.name && isAmmo(i) && !isQuiver(i));
+                    chosenAmmo = {
+                      isVirtual: true,
+                      id: entry.id || (originalItem ? originalItem.id : entryName),
+                      name: entry.name,
+                      img: entry.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp",
+                      quiverId: quiver.id,
+                      loadedEntryId: entry.id || entryName,
+                      type: "equipment",
+                      system: originalItem ? foundry.utils.deepClone(originalItem.system) : { description: "" },
+                      getFlag: (scope, key) => {
+                        if (originalItem) return originalItem.getFlag(scope, key);
+                        return undefined;
+                      }
+                    };
+                  }
+                }
+              } else if (selectedValue) {
+                chosenAmmo = activeRoll.actor.items.get(selectedValue);
+              }
+
               if (chosenAmmo) {
                 activeRoll.selectedAmmo = chosenAmmo;
 
@@ -412,35 +482,36 @@ function onRenderDialog(dialog, html, data) {
   const select = document.createElement("select");
   select.id = "tenebre-ammo-select";
 
-  const quiver = ammoItems.find(isQuiver);
-  const hasQuiver = !!quiver;
-
-  if (hasQuiver) {
-    const looseAmmo = ammoItems.filter(item => !isQuiver(item) && !getSpecialAmmo(item));
-    const looseShots = looseAmmo.reduce((sum, item) => sum + itemQuantity(item), 0);
-
+  const quivers = ammoItems.filter(isQuiver);
+  if (quivers.length > 0) {
+    for (const q of quivers) {
+      const loaded = getQuiverLoadedAmmo(q);
+      for (const entry of loaded) {
+        if (entry.quantity > 0) {
+          const option = document.createElement("option");
+          option.value = `quiver|${q.id}|${entry.name}`;
+          option.innerText = `${q.name}: ${entry.name} (${entry.quantity}/12)`;
+          select.appendChild(option);
+        }
+      }
+    }
+    if (select.options.length === 0) {
+      const option = document.createElement("option");
+      option.disabled = true;
+      option.selected = true;
+      option.value = "";
+      option.innerText = game.i18n.localize("TENEBRE.Ammo.NoAmmoLoaded");
+      select.appendChild(option);
+    }
+  } else {
     for (const item of ammoItems) {
-      if (isQuiver(item)) {
-        const qty = getAmmoShots(item) + looseShots;
-        const option = document.createElement("option");
-        option.value = item.id;
-        option.innerText = `${item.name} (${qty})`;
-        select.appendChild(option);
-      } else if (getSpecialAmmo(item)) {
-        const qty = getAmmoShots(item);
+      const qty = getAmmoShots(item);
+      if (qty > 0) {
         const option = document.createElement("option");
         option.value = item.id;
         option.innerText = `${item.name} (${qty})`;
         select.appendChild(option);
       }
-    }
-  } else {
-    for (const item of ammoItems) {
-      const qty = getAmmoShots(item);
-      const option = document.createElement("option");
-      option.value = item.id;
-      option.innerText = `${item.name} (${qty})`;
-      select.appendChild(option);
     }
   }
 

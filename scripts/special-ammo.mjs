@@ -139,3 +139,42 @@ export function getAmmoModifiers(ammo) {
   return members;
 }
 
+/**
+ * Determines the d20 break threshold for a given ammunition name.
+ * - Common: <= 10 (breaks on > 10)
+ * - Quality: <= 15 (breaks on > 15)
+ * - Mystical/Alchemical: <= 17 (breaks on > 17)
+ * @param {string|object} itemOrName
+ * @returns {number} threshold
+ */
+export function getAmmoRecoveryThreshold(itemOrName) {
+  const name = typeof itemOrName === "string" ? itemOrName : itemOrName?.name;
+  if (!name) return 10;
+
+  const norm = normalize(name);
+
+  // Mystical/Alchemical: True Arrow, Stun Bolt
+  const mysticalNames = ["certeira", "true arrow", "atordoante", "stun bolt", "stunning bolt"];
+  if (mysticalNames.some(m => norm.includes(normalize(m)))) {
+    return 17;
+  }
+
+  // Quality: Precision, Armor Piercing/Bodkin, Whistler, Grappling, Hammerhead, Swallowtail, Rope Cutter, Flaming, Ensnaring
+  const qualityNames = [
+    "precisao", "precision", "precise",
+    "perfurante", "piercing", "bodkin",
+    "sibilante", "whistler", "whistling",
+    "arpeu", "grappling", "grapple",
+    "martelo", "hammerhead", "hammer head", "blunt",
+    "andorinha", "swallowtail", "swallow-tail",
+    "cortador", "rope cutter", "rope-cutter",
+    "flamejante", "flaming", "burning",
+    "laco", "ensnaring", "snare"
+  ];
+  if (qualityNames.some(q => norm.includes(normalize(q)))) {
+    return 15;
+  }
+
+  return 10;
+}
+
