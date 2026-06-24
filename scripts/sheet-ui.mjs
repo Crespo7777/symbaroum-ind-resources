@@ -134,11 +134,7 @@ function patchContextMenu() {
           isVisible: (item) => {
             if (item?.type !== "weapon") return false;
             const ammoType = getWeaponAmmoType(item);
-            if (!ammoType) return false;
-            const actor = item.parent;
-            if (!actor) return false;
-            const hits = AmmoService.getTrackedHits(actor);
-            return hits.ammoHit > 0;
+            return Boolean(ammoType);
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);
@@ -339,7 +335,7 @@ async function injectItemWeightField(app, html, item) {
 
   root.querySelectorAll(".tenebre-weight-row").forEach((row) => row.remove());
 
-  const slots = EncumbranceService.getItemSlots(item);
+  const slots = getDisplayedItemWeight(item);
   const editable = Boolean(app.isEditable && item.isOwner);
   const row = createWeightRow(slots, editable, numberRow.style);
 
@@ -573,85 +569,32 @@ function onRenderDialog(dialog, html, data) {
       if (originalCallback && !originalCallback._tenebreWrapped) {
         dialog.data.buttons.roll.callback = async function(htmlElement, event) {
           const htmlParam = (htmlElement && !(0 in htmlElement)) ? [htmlElement] : htmlElement;
-          
-          const activeRoll = game.tenebreResources?.activeWeaponRoll;
+          const activeRoll = dialog._tenebreWeaponRoll ?? game.tenebreResources?.activeWeaponRoll;
+          let chosenAmmo = null;
+
           if (activeRoll) {
             try {
-              const selectedValue = el.querySelector("#tenebre-ammo-select")?.value;
-              let chosenAmmo = null;
-              if (selectedValue && selectedValue.startsWith("quiver|")) {
-                const parts = selectedValue.split("|");
-                const quiverId = parts[1];
-                const entryName = parts[2];
-                const quiver = activeRoll.actor.items.get(quiverId);
-                if (quiver) {
-                  const loaded = getQuiverLoadedAmmo(quiver);
-                  const entry = loaded.find(e => e.name === entryName);
-                  if (entry) {
-                    const originalItem = activeRoll.actor.items.find(i => i.name === entry.name && isAmmo(i) && !isQuiver(i));
-                    chosenAmmo = {
-                      isVirtual: true,
-                      id: entry.id || (originalItem ? originalItem.id : entryName),
-                      name: entry.name,
-                      img: entry.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp",
-                      quiverId: quiver.id,
-                      loadedEntryId: entry.id || entryName,
-                      type: "equipment",
-                      system: originalItem ? foundry.utils.deepClone(originalItem.system) : { description: "" },
-                      getFlag: (scope, key) => {
-                        if (originalItem) return originalItem.getFlag(scope, key);
-                        return undefined;
-                      }
-                    };
-                  }
-                }
-              } else if (selectedValue) {
-                chosenAmmo = activeRoll.actor.items.get(selectedValue);
-              }
-
-              if (chosenAmmo) {
-                activeRoll.selectedAmmo = chosenAmmo;
-
-                const ammoMods = getAmmoModifiers(chosenAmmo);
-                const weaponModifiers = game.tenebreResources.activeWeaponModifiers;
-                if (weaponModifiers && ammoMods.length > 0) {
-                  if (!weaponModifiers.package) {
-                    weaponModifiers.package = [{
-                      label: "Default",
-                      type: "default",
-                      member: []
-                    }];
-                  }
-                  let defaultPackage = weaponModifiers.package.find(
-                    p => p.type === "default" || p.type === game.symbaroum.config.PACK_DEFAULT
-                  );
-                  if (!defaultPackage) {
-                    defaultPackage = {
-                      label: "Default",
-                      type: "default",
-                      member: []
-                    };
-                    weaponModifiers.package.push(defaultPackage);
-                  }
-                  for (const mod of ammoMods) {
-                    if (!defaultPackage.member.some(m => m.id === mod.id && m.type === mod.type)) {
-                      defaultPackage.member.push(mod);
-                    }
-                  }
-                }
-              }
+              chosenAmmo = prepareSelectedAmmoForRoll(el, activeRoll);
             } catch (err) {
               console.error("Tenebre Resources | Error preparing ammo modifiers:", err);
               ui.notifications.error("Error preparing ammo modifiers: " + err.message);
             }
           }
 
+          let result;
           try {
-            return await originalCallback.call(this, htmlParam, event);
+            result = await originalCallback.call(this, htmlParam, event);
           } catch (err) {
             console.error("Tenebre Resources | Error in original roll callback:", err);
             throw err;
           }
+
+          if (activeRoll && chosenAmmo && !activeRoll.consumed) {
+            activeRoll.consumed = true;
+            await AmmoService.consumeAmmo(activeRoll.actor, chosenAmmo, activeRoll.weapon, activeRoll.ammoType);
+          }
+
+          return result;
         };
         dialog.data.buttons.roll.callback._tenebreWrapped = true;
       }
@@ -661,6 +604,7 @@ function onRenderDialog(dialog, html, data) {
   // Injeta seletor de munição para ataques à distância
   const activeRoll = game.tenebreResources?.activeWeaponRoll;
   if (!activeRoll) return;
+  dialog._tenebreWeaponRoll = activeRoll;
 
   const damModInput = el.querySelector("input[id^='dammodifier-']");
   if (!damModInput) return;
@@ -700,6 +644,8 @@ function onRenderDialog(dialog, html, data) {
   selectDiv.appendChild(select);
 
   damModDiv.after(selectDiv);
+  updateSelectedAmmoForRoll(el, activeRoll);
+  select.addEventListener("change", () => updateSelectedAmmoForRoll(el, activeRoll));
 
   el.style.overflow = "visible";
   el.style.height = "auto";
@@ -714,15 +660,143 @@ function onRenderDialog(dialog, html, data) {
     win.style.height = "auto";
   }
   dialog.setPosition({ height: "auto" });
+  attachAmmoRollButtonCapture(dialog, el, activeRoll);
+}
+
+function getDisplayedItemWeight(item) {
+  const load = EncumbranceService.getItemLoad(item);
+  return load.quantity > 1 && load.totalSlots !== load.slotsPerUnit
+    ? load.totalSlots
+    : load.slotsPerUnit;
+}
+
+function attachAmmoRollButtonCapture(dialog, contentEl, activeRoll) {
+  if (!dialog || dialog._tenebreAmmoRollCapturePatched) return;
+
+  const dialogRoot = getRoot(dialog.element) ?? contentEl.closest(".app, .window-app") ?? contentEl;
+  const rollButtons = dialogRoot.querySelectorAll(
+    'button[data-button="roll"], .dialog-button[data-button="roll"], button.dialog-button'
+  );
+
+  for (const button of rollButtons) {
+    const buttonKey = button.dataset?.button ?? "";
+    const text = normalize(button.textContent || "");
+    if (buttonKey !== "roll" && !text.includes("rolar") && !text.includes("roll")) continue;
+
+    button.addEventListener("click", () => {
+      try {
+        prepareSelectedAmmoForRoll(contentEl, activeRoll);
+      } catch (err) {
+        console.error("Tenebre Resources | Error capturing selected ammo:", err);
+      }
+    }, { capture: true });
+    dialog._tenebreAmmoRollCapturePatched = true;
+  }
+
+  if (!dialog._tenebreAmmoRollCapturePatched && (dialog._tenebreAmmoRollCaptureAttempts ?? 0) < 5) {
+    dialog._tenebreAmmoRollCaptureAttempts = (dialog._tenebreAmmoRollCaptureAttempts ?? 0) + 1;
+    setTimeout(() => attachAmmoRollButtonCapture(dialog, contentEl, activeRoll), 0);
+  }
+}
+
+function prepareSelectedAmmoForRoll(el, activeRoll) {
+  if (!activeRoll) return null;
+
+  const chosenAmmo = getSelectedAmmoFromDialog(el, activeRoll);
+  if (!chosenAmmo) return null;
+
+  activeRoll.chosenAmmo = chosenAmmo;
+  applyAmmoModifiers(chosenAmmo);
+  return chosenAmmo;
+}
+
+function updateSelectedAmmoForRoll(el, activeRoll) {
+  if (!activeRoll) return null;
+  const chosenAmmo = getSelectedAmmoFromDialog(el, activeRoll);
+  if (chosenAmmo) activeRoll.chosenAmmo = chosenAmmo;
+  return chosenAmmo;
+}
+
+function getSelectedAmmoFromDialog(el, activeRoll) {
+  const selectedValue = el.querySelector("#tenebre-ammo-select")?.value;
+  if (!selectedValue) return null;
+
+  if (selectedValue.startsWith("quiver|")) {
+    const [, quiverId, entryName] = selectedValue.split("|");
+    const quiver = activeRoll.actor.items.get(quiverId);
+    if (!quiver) return null;
+
+    const loaded = getQuiverLoadedAmmo(quiver);
+    const entry = loaded.find(e => e.name === entryName || e.id === entryName);
+    if (!entry) return null;
+
+    const originalItem = activeRoll.actor.items.find(i => i.name === entry.name && isAmmo(i) && !isQuiver(i));
+    return {
+      isVirtual: true,
+      id: entry.id || (originalItem ? originalItem.id : entryName),
+      recoveryKey: originalItem?.id ?? entry.id ?? entryName,
+      recoveryItemId: originalItem?.id ?? entry.id ?? entryName,
+      recoveryName: entry.name,
+      name: entry.name,
+      img: entry.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp",
+      quiverId: quiver.id,
+      loadedEntryId: entry.id || entryName,
+      type: "equipment",
+      system: originalItem ? foundry.utils.deepClone(originalItem.system) : { description: "" },
+      getFlag: (scope, key) => {
+        if (originalItem) return originalItem.getFlag(scope, key);
+        return undefined;
+      }
+    };
+  }
+
+  return activeRoll.actor.items.get(selectedValue) ?? null;
+}
+
+function applyAmmoModifiers(chosenAmmo) {
+  const ammoMods = getAmmoModifiers(chosenAmmo);
+  const weaponModifiers = game.tenebreResources.activeWeaponModifiers;
+  if (!weaponModifiers || ammoMods.length <= 0) return;
+
+  if (!weaponModifiers.package) {
+    weaponModifiers.package = [{
+      label: "Default",
+      type: "default",
+      member: []
+    }];
+  }
+
+  let defaultPackage = weaponModifiers.package.find(
+    p => p.type === "default" || p.type === game.symbaroum.config.PACK_DEFAULT
+  );
+  if (!defaultPackage) {
+    defaultPackage = {
+      label: "Default",
+      type: "default",
+      member: []
+    };
+    weaponModifiers.package.push(defaultPackage);
+  }
+
+  for (const mod of ammoMods) {
+    if (!defaultPackage.member.some(m => m.id === mod.id && m.type === mod.type)) {
+      defaultPackage.member.push(mod);
+    }
+  }
 }
 
 function onCloseDialog(dialog, html) {
   if (game.tenebreResources?.activeWeaponRoll) {
     setTimeout(() => {
-      if (game.tenebreResources) {
-        game.tenebreResources.activeWeaponRoll = null;
-        game.tenebreResources.activeWeaponModifiers = null;
-      }
+      clearActiveWeaponRoll(dialog._tenebreWeaponRoll);
     }, 100);
+  }
+}
+
+function clearActiveWeaponRoll(activeRoll) {
+  if (!game.tenebreResources) return;
+  if (!activeRoll || game.tenebreResources.activeWeaponRoll === activeRoll) {
+    game.tenebreResources.activeWeaponRoll = null;
+    game.tenebreResources.activeWeaponModifiers = null;
   }
 }

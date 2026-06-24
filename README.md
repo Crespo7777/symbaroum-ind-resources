@@ -32,11 +32,11 @@ O módulo oferece suporte mecânico completo para todos os projéteis especiais 
 
 ### 4. 🎲 Recuperação Oficial por Projétil (Individual d20)
 O sistema antigo de porcentagem estática foi substituído pela regra oficial de recuperação individual por d20:
-* Ao clicar em "Recuperar Munição" após o combate, o sistema faz uma rolagem de d20 para cada flecha ou virote disparado para saber se ele quebrou:
+* Ao clicar em "Recuperar Munição" após o combate, o sistema resolve **um projétil por clique**. Se 7 ataques acertaram, há 7 testes pendentes; cada clique rola 1d20 para uma flecha ou virote e deixa os demais para os próximos cliques:
   * **Projétil Comum (sem qualidades):** Recupera se rolar **10 ou menos** (`d20 <= 10`).
   * **Projétil com Qualidade (Precisa, Flamejante, etc.):** Recupera se rolar **15 ou menos** (`d20 <= 15`).
   * **Projétil Místico/Alquímico (Certeira, Atordoante):** Recupera se rolar **17 ou menos** (`d20 <= 17`).
-* Exibe no chat os dados individuais de cada d20 com destaque colorido (**Verde** para sucesso, **Vermelho e Riscado** para falha/quebra), trazendo suspense e clareza para a mesa.
+* Exibe no chat o d20 daquele projétil, informa se foi recuperado ou quebrou e mostra quantos testes ainda faltam, mantendo o suspense a cada clique.
 
 ### 5. 🍲 Regra Opcional de Fome (Hunger)
 * **Status Effect HUD:** Adiciona o status **Fome** (ícone monocromático próprio) na paleta de efeitos de status do Token no HUD do Foundry.

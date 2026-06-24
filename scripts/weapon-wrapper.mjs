@@ -39,44 +39,53 @@ export function patchWeaponRolls() {
       return undefined;
     }
 
-    game.tenebreResources.activeWeaponRoll = {
+    const rollState = {
       actor: this,
       weapon: weapon,
-      ammoType: ammoType,
-      selectedAmmo: null
+      ammoType: ammoType
     };
+    game.tenebreResources.activeWeaponRoll = rollState;
 
-    let result;
     try {
-      result = await originalRollWeapon.call(this, weapon, ...args);
+      const result = await originalRollWeapon.call(this, weapon, ...args);
+      const chosenAmmo = rollState.chosenAmmo;
+
+      if (chosenAmmo) {
+        if (!rollState.consumed) {
+          rollState.consumed = true;
+          await AmmoService.consumeAmmo(this, chosenAmmo, weapon, ammoType);
+        }
+
+        if (!rollState.hitRecorded && isSuccessfulWeaponResult(result)) {
+          rollState.hitRecorded = true;
+          await AmmoService.recordHit(this, chosenAmmo);
+        }
+      }
+
+      return result;
     } catch (err) {
       if (err === "Cancelled") {
         return undefined;
       }
       throw err;
     } finally {
-      const chosenAmmo = game.tenebreResources.activeWeaponRoll?.selectedAmmo;
-
-      game.tenebreResources.activeWeaponRoll = null;
-      game.tenebreResources.activeWeaponModifiers = null;
-
-      if (chosenAmmo) {
-        await AmmoService.consumeAmmo(this, chosenAmmo, weapon, ammoType);
-
-        // Rastreia o acerto se o ataque for bem-sucedido
-        const hasHit = result && (
-          result.hasSucceed === true ||
-          result.hasDamage === true ||
-          (result.rollData && result.rollData.some(r => r.trueActorSucceeded))
-        );
-        if (hasHit) {
-          await AmmoService.recordHit(this, chosenAmmo);
+      setTimeout(() => {
+        if (game.tenebreResources?.activeWeaponRoll?.actor === this) {
+          game.tenebreResources.activeWeaponRoll = null;
+          game.tenebreResources.activeWeaponModifiers = null;
         }
-      }
+      }, 60000);
     }
-
-    return result;
   };
 
   patched = true;
+}
+
+function isSuccessfulWeaponResult(result) {
+  if (!result) return false;
+  if (result.hasSucceed === true || result.hasDamage === true) return true;
+  if (Array.isArray(result.rollData)) {
+    return result.rollData.some((roll) => roll?.trueActorSucceeded === true || roll?.hasDamage === true);
+  }
+  return false;
 }

@@ -181,6 +181,15 @@
 
 /* ── Chat cards ─────────────────────────────────────────────────────── */
 
+#chat-log .dice-tooltip,
+#chat-log .dice-tooltip-collapser,
+.chat-message .dice-tooltip,
+.chat-message .dice-tooltip-collapser,
+body .dice-tooltip,
+body .dice-tooltip-collapser {
+  display: none !important;
+}
+
 .tenebre-chat-card h3 {
   margin: 0 0 6px;
   font-size: 14px;

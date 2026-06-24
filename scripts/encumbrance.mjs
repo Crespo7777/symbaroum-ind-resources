@@ -11,8 +11,113 @@ import {
   upsertDynamicSlotRule,
   ENC_SLOTS
 } from "./encumbrance-db.mjs";
+import { normalize } from "./utils.mjs";
 
 const GEAR_ITEM_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
+
+const HEAVY_WEAPON_TERMS = [
+  "arma pesada",
+  "heavy weapon",
+  "duas maos",
+  "duas mãos",
+  "two handed",
+  "two-handed",
+  "montante",
+  "greatsword",
+  "great sword",
+  "espada bastarda",
+  "bastard sword",
+  "espada do executor",
+  "executioner sword",
+  "executioner's sword",
+  "machado do executor",
+  "executioner axe",
+  "executioner's axe",
+  "machado duplo",
+  "double axe",
+  "machado com gancho",
+  "hook axe",
+  "machado de batalha",
+  "battleaxe",
+  "battle axe",
+  "greataxe",
+  "great axe",
+  "acha-de-armas",
+  "acha de armas",
+  "pole axe",
+  "poleaxe",
+  "mangual de batalha",
+  "battle flail",
+  "mangual pesado",
+  "heavy flail",
+  "martelo de guerra",
+  "warhammer",
+  "war hammer",
+  "martelo longo",
+  "long hammer",
+  "martelo de duas maos",
+  "martelo de duas mãos",
+  "maul"
+];
+
+const LIGHT_ARMOR_TERMS = [
+  "leve",
+  "light armor",
+  "couro",
+  "leather",
+  "manto da ordem",
+  "order cloak",
+  "robe abencoado",
+  "robe abençoado",
+  "blessed robe",
+  "seda tecida",
+  "woven silk",
+  "toga de bruxa",
+  "witch gown",
+  "pele de lobo",
+  "wolf skin",
+  "armadura ocultada",
+  "concealed armor",
+  "couraca de escaldo",
+  "couraça de escaldo",
+  "scaldo cuirass"
+];
+
+const MEDIUM_ARMOR_TERMS = [
+  "media",
+  "média",
+  "medium armor",
+  "brunea",
+  "chainmail",
+  "chain mail",
+  "cota de malha",
+  "cota de malha dupla",
+  "armadura laminada",
+  "laminated armor",
+  "couraca de seda envernizada",
+  "couraça de seda envernizada",
+  "lacquered silk armor",
+  "armadura de corvo",
+  "crow armor"
+];
+
+const HEAVY_ARMOR_TERMS = [
+  "pesada",
+  "heavy armor",
+  "armadura completa",
+  "full plate",
+  "armadura da ira",
+  "armor of wrath",
+  "armadura de campo",
+  "field armor",
+  "pansares",
+  "placas completa",
+  "placas completas",
+  "templarios",
+  "templários",
+  "plate armor",
+  "armadura de placas"
+];
 
 let dynamicWeightFileFingerprint = null;
 let dynamicWeightFileWatcher = null;
@@ -126,13 +231,16 @@ export class EncumbranceService {
     const isManual = item.getFlag?.(FLAG_SCOPE, "encumbranceManual") === true;
     const manualSlots = sanitizeSlots(manual, null);
 
-    if (item.type === "weapon" && hasMassiveQuality(item)) return ENC_SLOTS.TWO;
+    if (item.type === "weapon") {
+      return isManual && manualSlots !== null ? manualSlots : weaponCarriedSlots(item);
+    }
 
     if (item.type === "armor") {
       return isManual && manualSlots !== null ? manualSlots : armorCarriedSlots(item);
     }
 
     if (isManual && manualSlots !== null) return manualSlots;
+    if (getStackBundleRule(item.name)) return ENC_SLOTS.ZERO;
 
     return detectEncumbranceSlots(item.name);
   }
@@ -169,7 +277,20 @@ export class EncumbranceService {
       };
     }
 
-    if (isWeightlessState(item)) {
+    const quantity = encumbranceQuantity(item);
+    const bundleRule = getStackBundleRule(item?.name);
+    if (isProjectileBundleRule(bundleRule)) {
+      const totalSlots = calculateStackedSlots(item, slotsPerUnit, quantity);
+      return {
+        slotsPerUnit,
+        quantity,
+        totalSlots,
+        state,
+        counted: totalSlots > 0
+      };
+    }
+
+    if ((item.type === "weapon" || item.type === "armor") && isActiveGearState(item)) {
       return {
         slotsPerUnit,
         quantity: 0,
@@ -179,7 +300,6 @@ export class EncumbranceService {
       };
     }
 
-    const quantity = encumbranceQuantity(item);
     const totalSlots = calculateStackedSlots(item, slotsPerUnit, quantity);
 
     return {
@@ -320,12 +440,8 @@ function isTrackedGear(item) {
   return Boolean(item && (item.system?.isGear || GEAR_ITEM_TYPES.has(item.type)));
 }
 
-function isWeightlessState(item) {
-  const state = item?.system?.state;
-  if (!state) return false;
-  return item?.system?.isActive === true
-    || state === "active"
-    || state === "other";
+function isActiveGearState(item) {
+  return item?.system?.isActive === true || item?.system?.state === "active";
 }
 
 function encumbranceQuantity(item) {
@@ -339,21 +455,63 @@ function calculateStackedSlots(item, slotsPerUnit, quantity) {
   return slotsPerUnit * quantity;
 }
 
+function isProjectileBundleRule(rule) {
+  return Boolean(rule && Number(rule.bundleSize) === 10);
+}
+
 function armorCarriedSlots(item) {
-  const derived = Number(item?.impeding);
-  if (Number.isFinite(derived)) return Math.max(0, derived);
-
   const system = item?.system ?? {};
-  const direct = Number(system.impeding);
-  if (Number.isFinite(direct)) return Math.max(0, direct);
+  const name = normalize(item?.name ?? "");
+  const baseProtection = normalize(system.baseProtection ?? system.protection ?? "");
 
-  if (system.baseProtection === "0" || system.baseProtection === "1d0") return ENC_SLOTS.ZERO;
-  if (system.baseProtection === "1d4") return 2;
-  if (system.baseProtection === "1d6") return 3;
-  if (system.baseProtection === "1d8") return 4;
-  if (system.baseProtection === "1d10" || system.baseProtection === "1d12") return 4;
+  if (isNoArmorName(name) || baseProtection === "0" || baseProtection === "1d0") return ENC_SLOTS.ZERO;
+  if (isHeavyArmorName(name) || baseProtection.includes("1d8") || baseProtection.includes("1d10") || baseProtection.includes("1d12")) return 4;
+  if (isMediumArmorName(name) || baseProtection.includes("1d6")) return 3;
+  if (isLightArmorName(name) || baseProtection.includes("1d4")) return 2;
+
+  const derived = Number(item?.impeding);
+  if (Number.isFinite(derived) && derived > 0) return Math.max(0, derived);
+
+  const direct = Number(system.impeding);
+  if (Number.isFinite(direct) && direct > 0) return Math.max(0, direct);
 
   return ENC_SLOTS.ONE;
+}
+
+function weaponCarriedSlots(item) {
+  return isHeavyWeapon(item) ? ENC_SLOTS.TWO : ENC_SLOTS.ONE;
+}
+
+function isHeavyWeapon(item) {
+  if (hasMassiveQuality(item)) return true;
+
+  const name = normalize(item?.name ?? "");
+  const reference = normalize(item?.system?.reference ?? "");
+  const quality = normalize(item?.system?.quality ?? "");
+  const qualities = normalize(typeof item?.system?.qualities === "string" ? item.system.qualities : "");
+
+  if (["heavy", "heavyweapon", "heavy weapon", "pesada", "arma pesada"].some((term) => reference.includes(normalize(term)))) {
+    return true;
+  }
+
+  const combined = `${name} ${reference} ${quality} ${qualities}`;
+  return HEAVY_WEAPON_TERMS.some((term) => combined.includes(normalize(term)));
+}
+
+function isNoArmorName(name) {
+  return ["sem armadura", "no armor", "unarmored"].some((term) => name.includes(normalize(term)));
+}
+
+function isLightArmorName(name) {
+  return LIGHT_ARMOR_TERMS.some((term) => name.includes(normalize(term)));
+}
+
+function isMediumArmorName(name) {
+  return MEDIUM_ARMOR_TERMS.some((term) => name.includes(normalize(term)));
+}
+
+function isHeavyArmorName(name) {
+  return HEAVY_ARMOR_TERMS.some((term) => name.includes(normalize(term)));
 }
 
 function defaultLoadResult() {
