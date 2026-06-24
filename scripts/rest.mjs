@@ -49,7 +49,7 @@ export class RestService {
   // Aplica efeitos de descanso (recuperação de vitalidade, remoção de corrupção temporária e resets de morte)
   static async applyRest(actor, days = 1, healingPerDay = null) {
     const updates = {};
-    const results = { days, actorName: actor.name, healed: 0, corruptionCleared: 0, hungerResults: [] };
+    const results = { days, actorName: actor.name, healed: 0, corruptionCleared: 0, hungerResults: [], hungerStrongRecovered: 0 };
 
     // Zera os testes de morte falhos
     updates["system.nbrOfFailedDeathRoll"] = 0;
@@ -124,6 +124,21 @@ export class RestService {
       }
 
       Object.assign(updates, pendingPenaltyUpdates);
+    } else {
+      const hungerPenalty = HungerService.getStrongPenalty(actor);
+      if (hungerPenalty < 0) {
+        const recovered = Math.min(days, Math.abs(hungerPenalty));
+        const nextPenalty = hungerPenalty + recovered;
+        const currentTemporaryMod = Number(actor.system?.attributes?.strong?.temporaryMod ?? 0) || 0;
+
+        updates["system.attributes.strong.temporaryMod"] = currentTemporaryMod + recovered;
+        if (nextPenalty < 0) {
+          updates[`flags.${MODULE_ID}.hungerStrongPenalty`] = nextPenalty;
+        } else {
+          updates[`flags.${MODULE_ID}.-=hungerStrongPenalty`] = null;
+        }
+        results.hungerStrongRecovered = recovered;
+      }
     }
 
     // Limpa corrupção temporária se sobreviveu
@@ -151,6 +166,9 @@ export class RestService {
     }
     if (results.corruptionCleared > 0) {
       lines.push(game.i18n.format("TENEBRE.Rest.ChatCorruptionCleared", { amount: results.corruptionCleared }));
+    }
+    if (results.hungerStrongRecovered > 0) {
+      lines.push(game.i18n.format("TENEBRE.Hunger.NaturalRecovery", { amount: results.hungerStrongRecovered }));
     }
 
     if (results.hungerResults && results.hungerResults.length > 0) {

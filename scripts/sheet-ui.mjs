@@ -8,12 +8,11 @@ import { EncumbranceService } from "./encumbrance.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
 import { normalize } from "./utils.mjs";
 import {
-  findAmmoItems,
+  findLoadedQuiverItems,
   getWeaponAmmoType,
   isAmmo,
   isRation,
   itemQuantity,
-  getAmmoShots,
   isQuiver,
   getQuiverLoadedAmmo,
   getQuiverLoadedTotal
@@ -672,8 +671,8 @@ function onRenderDialog(dialog, html, data) {
   if (el.querySelector("#tenebre-ammo-select")) return;
 
   const { actor, ammoType } = activeRoll;
-  const ammoItems = findAmmoItems(actor, ammoType);
-  if (!ammoItems.length) return;
+  const quivers = findLoadedQuiverItems(actor, ammoType);
+  if (!quivers.length) return;
 
   const selectDiv = document.createElement("div");
   selectDiv.className = "bonus";
@@ -685,34 +684,13 @@ function onRenderDialog(dialog, html, data) {
   const select = document.createElement("select");
   select.id = "tenebre-ammo-select";
 
-  const quivers = ammoItems.filter(isQuiver);
-  if (quivers.length > 0) {
-    for (const q of quivers) {
-      const loaded = getQuiverLoadedAmmo(q);
-      for (const entry of loaded) {
-        if (entry.quantity > 0) {
-          const option = document.createElement("option");
-          option.value = `quiver|${q.id}|${entry.name}`;
-          option.innerText = `${q.name}: ${entry.name} (${entry.quantity}/12)`;
-          select.appendChild(option);
-        }
-      }
-    }
-    if (select.options.length === 0) {
-      const option = document.createElement("option");
-      option.disabled = true;
-      option.selected = true;
-      option.value = "";
-      option.innerText = game.i18n.localize("TENEBRE.Ammo.NoAmmoLoaded");
-      select.appendChild(option);
-    }
-  } else {
-    for (const item of ammoItems) {
-      const qty = getAmmoShots(item);
-      if (qty > 0) {
+  for (const q of quivers) {
+    const loaded = getQuiverLoadedAmmo(q);
+    for (const entry of loaded) {
+      if (entry.quantity > 0) {
         const option = document.createElement("option");
-        option.value = item.id;
-        option.innerText = `${item.name} (${qty})`;
+        option.value = `quiver|${q.id}|${entry.name}`;
+        option.innerText = `${q.name}: ${entry.name} (${entry.quantity}/12)`;
         select.appendChild(option);
       }
     }

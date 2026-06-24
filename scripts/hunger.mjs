@@ -78,7 +78,7 @@ export class HungerService {
       if (!HungerService.isHungerEffect(effect)) return;
       const actor = effect.parent;
       if (!actor || actor.documentName !== "Actor") return;
-      await HungerService.clearStrongPenalty(actor);
+      await HungerService.postRemovedMessage(actor);
     });
   }
 
@@ -145,6 +145,36 @@ export class HungerService {
     });
   }
 
+  static async recoverStrongPenalty(actor, amount = 1, { source = "" } = {}) {
+    if (!actor || amount <= 0) return 0;
+    if (HungerService.hasHunger(actor)) {
+      ui.notifications.warn(game.i18n.localize("TENEBRE.Hunger.RecoveryBlocked"));
+      return 0;
+    }
+
+    const penalty = HungerService.getStrongPenalty(actor);
+    if (penalty >= 0) return 0;
+
+    const recovered = Math.min(Math.floor(Number(amount) || 0), Math.abs(penalty));
+    if (recovered <= 0) return 0;
+
+    const currentTemporaryMod = Number(actor.system?.attributes?.strong?.temporaryMod ?? 0) || 0;
+    const nextPenalty = penalty + recovered;
+    const updates = {
+      "system.attributes.strong.temporaryMod": currentTemporaryMod + recovered
+    };
+
+    if (nextPenalty < 0) {
+      updates[`flags.${MODULE_ID}.${STRONG_PENALTY_FLAG}`] = nextPenalty;
+    } else {
+      updates[`flags.${MODULE_ID}.-=${STRONG_PENALTY_FLAG}`] = null;
+    }
+
+    await actor.update(updates);
+    await HungerService.postRecoveryMessage(actor, recovered, source);
+    return recovered;
+  }
+
   static async postAppliedMessage(actor) {
     const actorName = escapeHtml(actor?.name ?? game.i18n.localize("TOKEN.Actor"));
     const actorImg = escapeHtml(actor?.img ?? "icons/svg/mystery-man.svg");
@@ -165,6 +195,37 @@ export class HungerService {
               </div>
             </div>
           </div>
+        </div>
+      `
+    });
+  }
+
+  static async postRemovedMessage(actor) {
+    const penalty = HungerService.getStrongPenalty(actor);
+    if (!penalty) return;
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `
+        <div class="tenebre-chat-card tenebre-hunger-card">
+          <h3>${game.i18n.format("TENEBRE.Hunger.RemovedTitle", { actor: escapeHtml(actor.name) })}</h3>
+          <p>${game.i18n.format("TENEBRE.Hunger.RemovedBody", { penalty: Math.abs(penalty) })}</p>
+        </div>
+      `
+    });
+  }
+
+  static async postRecoveryMessage(actor, amount, source = "") {
+    const sourceText = String(source || "").trim();
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content: `
+        <div class="tenebre-chat-card tenebre-hunger-card">
+          <h3>${game.i18n.format("TENEBRE.Hunger.RecoveryTitle", { actor: escapeHtml(actor.name) })}</h3>
+          <p>${game.i18n.format("TENEBRE.Hunger.RecoveryBody", {
+            amount,
+            source: escapeHtml(sourceText || game.i18n.localize("TENEBRE.Hunger.RecoverySourceGeneric"))
+          })}</p>
         </div>
       `
     });

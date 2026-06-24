@@ -43,7 +43,8 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 * **Aviso no Chat:** Quando o efeito Fome é aplicado, o chat recebe uma notificação com imagem e nome do personagem afetado.
 * **Sem Cura Natural:** Personagens sob o efeito de Fome não recuperam vitalidade ao descansar (cura forçada a 0).
 * **Desvantagem Constante:** Qualquer rolagem de atributo ou teste feito sob o efeito de Fome é executado com desvantagem (rola 2d20 e escolhe o pior resultado/maior d20).
-* **Testes Diários de Inanição:** Durante o descanso de um personagem com Fome, para cada dia passado, o sistema rola automaticamente um teste de **Vigoroso** (Strong) com desvantagem. Se falhar, o modificador temporário de Vigoroso recebe **-1**. Chegar a Vigoroso total 0 marca o personagem como morto, zera a Vitalidade e registra a morte por inanição no chat. Ao remover Fome, a penalidade aplicada por inanição é removida.
+* **Testes Diários de Inanição:** Durante o descanso de um personagem com Fome, para cada dia passado, o sistema rola automaticamente um teste de **Vigoroso** (Strong) com desvantagem. Se falhar, o modificador temporário de Vigoroso recebe **-1**. Chegar a Vigoroso total 0 marca o personagem como morto, zera a Vitalidade e registra a morte por inanição no chat.
+* **Recuperação de Vigoroso:** Remover Fome representa o personagem voltando a se alimentar, mas não apaga imediatamente o dano de inanição. Depois que a Fome acaba, o botão **Descanso** recupera naturalmente 1 ponto de Vigoroso perdido por dia. Curas herbais e poderes podem recuperar essa penalidade pela API `game.tenebreResources.hunger.recoverStrongPenalty(actor, amount, { source })`, como se fossem pontos de Vitalidade.
 
 ### 6. ⚖️ Sistema de Sobrecarga Opcional (Encumbrance)
 * **Regra do Guia Avançado do Jogador:** Implementa a regra opcional de sobrecarga baseada no atributo **Vigoroso** (Strong).
