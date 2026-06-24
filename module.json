@@ -30,19 +30,6 @@
   "esmodules": [
     "scripts/init.mjs"
   ],
-  "packs": [
-    {
-      "name": "symbaroum-ind-resources",
-      "label": "Symbaroum Ind Resources",
-      "type": "Adventure",
-      "path": "packs/symbaroum-ind-resources",
-      "system": "symbaroum",
-      "ownership": {
-        "PLAYER": "OBSERVER",
-        "ASSISTANT": "OWNER"
-      }
-    }
-  ],
   "styles": [
     "styles/symbaroum-ind-resources.css"
   ],

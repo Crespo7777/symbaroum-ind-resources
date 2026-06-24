@@ -1,17 +1,17 @@
-import { AMMO_TYPES, FLAG_SCOPE, WEAPON_AMMO_TYPES, MODULE_ID } from "./constants.mjs";
+import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { AmmoService } from "./ammo.mjs";
 import { RestService } from "./rest.mjs";
 import { RationService } from "./rations.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { getAmmoModifiers, getSpecialAmmo } from "./special-ammo.mjs";
+import { EncumbranceService } from "./encumbrance.mjs";
+import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
+import { normalize } from "./utils.mjs";
 import {
   findAmmoItems,
-  getAmmoType,
-  getFlag,
   getWeaponAmmoType,
   isAmmo,
   isRation,
-  sumItemQuantities,
   itemQuantity,
   getAmmoShots,
   isQuiver,
@@ -29,6 +29,7 @@ const ACTOR_SHEET_HOOKS = [
 const ITEM_SHEET_HOOKS = [
   "renderEquipmentSheet",
   "renderWeaponSheet",
+  "renderArmorSheet",
   "renderSymbaroumItemSheet",
   "renderItemSheet"
 ];
@@ -36,13 +37,65 @@ const ITEM_SHEET_HOOKS = [
 // Registro de hooks
 
 export function registerSheetHooks() {
+  patchSymbaroumSheetListeners();
   for (const hook of ACTOR_SHEET_HOOKS) Hooks.on(hook, onRenderActorSheet);
-  for (const hook of ITEM_SHEET_HOOKS) Hooks.on(hook, renderItemFlags);
+  for (const hook of ITEM_SHEET_HOOKS) {
+    Hooks.on(hook, onRenderItemSheet);
+  }
+  Hooks.on("renderApplication", onRenderApplication);
   Hooks.on("renderDialog", onRenderDialog);
   Hooks.on("renderTemplate", onRenderTemplate);
   Hooks.on("closeDialog", onCloseDialog);
   patchContextMenu();
   patchPlayerSheetHeaderButtons();
+}
+
+/**
+ * Foundry v13: injeta UI via activateListeners (sempre executado ao renderizar a ficha).
+ * Hooks legados como renderActorSheet não existem mais no core.
+ */
+function patchSymbaroumSheetListeners() {
+  for (const SheetClass of getSymbaroumSheetClasses("Actor", "player")) {
+    patchSheetActivateListeners(SheetClass, (app, html) => onRenderActorSheet(app, html));
+  }
+
+  for (const type of ["equipment", "weapon", "armor"]) {
+    for (const SheetClass of getSymbaroumSheetClasses("Item", type)) {
+      patchSheetActivateListeners(SheetClass, (app, html) => onRenderItemSheet(app, html));
+    }
+  }
+}
+
+function getSymbaroumSheetClasses(documentName, subType) {
+  const entries = CONFIG[documentName]?.sheetClasses?.[subType] ?? {};
+  return Object.values(entries)
+    .filter((entry) => entry.id?.startsWith("symbaroum."))
+    .map((entry) => entry.cls)
+    .filter(Boolean);
+}
+
+function patchSheetActivateListeners(SheetClass, callback) {
+  if (!SheetClass?.prototype || SheetClass.prototype._tenebreActivatePatched) return;
+  SheetClass.prototype._tenebreActivatePatched = true;
+
+  const original = SheetClass.prototype.activateListeners;
+  SheetClass.prototype.activateListeners = function tenebreActivateListeners(html) {
+    original.call(this, html);
+    try {
+      callback(this, html);
+    } catch (err) {
+      console.error(`${MODULE_ID} | Sheet UI injection failed (${SheetClass.name}):`, err);
+    }
+  };
+}
+
+function onRenderApplication(app, html) {
+  const name = app.constructor?.name;
+  if (name === "PlayerSheet") {
+    onRenderActorSheet(app, html);
+  } else if (["EquipmentSheet", "WeaponSheet", "ArmorSheet"].includes(name)) {
+    onRenderItemSheet(app, html);
+  }
 }
 
 function getActorFromDom(elem) {
@@ -92,22 +145,6 @@ function patchContextMenu() {
             const actor = getActorFromDom(elem);
             if (actor) {
               AmmoService.recover(actor);
-            }
-          }
-        });
-
-        this.originalMenuItems.push({
-          name: "TENEBRE.Ammo.ConfigureAmmoContextMenu",
-          icon: `<i class="fas fa-cog" style="color: currentColor;"></i>`,
-          isVisible: (item) => {
-            return item?.type === "weapon";
-          },
-          callback: function(elem) {
-            const actor = getActorFromDom(elem);
-            const itemId = elem.dataset.itemId;
-            const item = actor?.items?.get(itemId);
-            if (item) {
-              item.sheet.render(true);
             }
           }
         });
@@ -164,10 +201,12 @@ function patchContextMenu() {
 // Renderização da ficha de ator
 function onRenderActorSheet(app, html) {
   const actor = app.actor ?? app.document;
-  if (!actor || actor.type !== "player" || !actor.isOwner) return;
+  if (!actor || actor.type !== "player") return;
+  if (!actor.isOwner && !game.user.isGM) return;
 
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
+  injectEncumbrancePanel(app, html, actor);
 }
 
 // Injeta quantidade e usos de aljavas na ficha
@@ -259,84 +298,248 @@ function patchPlayerSheetHeaderButtons() {
   }
 }
 
-// Renderização de flags na ficha do item (GM-only)
-function renderItemFlags(app, html) {
+function onRenderItemSheet(app, html) {
   const item = app.item ?? app.document ?? app.object;
-  if (!game.user.isGM) return;
-  if (!item?.isOwner) return;
-  if (!["equipment", "weapon"].includes(item.type)) return;
+  if (!item) return;
+  if (!item.isOwner && !game.user.isGM) return;
+
+  if (TenebreSettings.get("enableEncumbrance")) {
+    injectItemWeightField(app, html, item);
+  }
+}
+
+// Campo "Peso" na aba Descrição/Estatísticas (estilo Custo / Número)
+async function injectItemWeightField(app, html, item) {
+  if (!["equipment", "weapon", "armor"].includes(item.type)) return;
 
   const root = getRoot(html);
-  if (!root || root.querySelector(".tenebre-item-flags")) return;
+  if (!root) return;
 
-  const section = document.createElement("section");
-  section.className = "tenebre-item-flags foreground border";
-  section.innerHTML = item.type === "equipment" ? equipmentFlagHtml(item) : weaponFlagHtml(item);
+  const existingRows = Array.from(root.querySelectorAll(".tenebre-weight-row"));
+  if (existingRows.length === 1) return;
+  if (existingRows.length > 1) {
+    existingRows.slice(1).forEach((row) => row.remove());
+    return;
+  }
 
-  const target =
-    root.querySelector(".sheet-body .tab[data-tab='stats'] .stats") ??
-    root.querySelector(".sheet-body .tab[data-tab='description']") ??
-    root.querySelector(".sheet-body") ??
-    root.querySelector(".tab.active") ??
-    root.querySelector(".window-content") ??
-    root.querySelector("form");
-  target?.append(section);
+  if (root.dataset?.tenebreWeightInjecting === "true") return;
+  if (root.dataset) root.dataset.tenebreWeightInjecting = "true";
 
-  // Wire change listeners
-  section.querySelectorAll("input, select").forEach((input) => {
-    input.addEventListener("change", async (event) => {
-      const field = event.currentTarget.dataset.flag;
-      const type = event.currentTarget.type;
-      const value = type === "checkbox" ? event.currentTarget.checked : event.currentTarget.value;
-      await item.setFlag(FLAG_SCOPE, field, value);
-    });
+  try {
+    await EncumbranceService.autoAssignSlots(item);
+  } catch (err) {
+    if (root.dataset) delete root.dataset.tenebreWeightInjecting;
+    throw err;
+  }
+
+  const numberRow = findItemWeightAnchor(root, item);
+  if (!numberRow) {
+    if (root.dataset) delete root.dataset.tenebreWeightInjecting;
+    return;
+  }
+
+  root.querySelectorAll(".tenebre-weight-row").forEach((row) => row.remove());
+
+  const slots = EncumbranceService.getItemSlots(item);
+  const editable = Boolean(app.isEditable && item.isOwner);
+  const row = createWeightRow(slots, editable, numberRow.style);
+
+  numberRow.element.insertAdjacentElement(numberRow.insert, row);
+  if (root.dataset) root.dataset.tenebreWeightInjected = "true";
+
+  const input = row.querySelector(".tenebre-weight-input");
+  input?.addEventListener("change", async (event) => {
+    const value = Math.max(0, Math.min(10, Number(event.currentTarget.value) || 0));
+    event.currentTarget.value = value;
+    await item.setFlag(FLAG_SCOPE, "encumbranceSlots", value);
+    await item.setFlag(FLAG_SCOPE, "encumbranceManual", true);
+    await EncumbranceService.rememberItemWeight(item, value);
+    refreshActorEncumbrance(item.parent);
   });
 }
 
-// Construtores HTML das flags
+function findItemWeightAnchor(root, item) {
+  const numberKeys = item.type === "weapon"
+    ? ["WEAPON.NUMBER", "EQUIPMENT.NUMBER"]
+    : ["EQUIPMENT.NUMBER", "WEAPON.NUMBER"];
 
-function equipmentFlagHtml(item) {
-  const itemIsAmmo = isAmmo(item);
-  const itemIsRation = isRation(item);
+  const numberInput = root.querySelector('input[name="system.number"]');
+  if (numberInput) {
+    const row = numberInput.closest(".gridrow, .number");
+    if (row) {
+      return {
+        element: row,
+        insert: "afterend",
+        style: row.classList.contains("gridrow") ? "gridrow" : "symbaroum"
+      };
+    }
+  }
 
-  return `
-    <h1>${game.i18n.localize("TENEBRE.ItemFlags.Title")}</h1>
-    <label class="tenebre-check">
-      <input type="checkbox" data-flag="isRation" ${itemIsRation ? "checked" : ""}>
-      <span>${game.i18n.localize("TENEBRE.ItemFlags.IsRation")}</span>
-    </label>
-    <label class="tenebre-check">
-      <input type="checkbox" data-flag="isAmmo" ${itemIsAmmo ? "checked" : ""}>
-      <span>${game.i18n.localize("TENEBRE.ItemFlags.IsAmmo")}</span>
-    </label>
-  `;
+  for (const row of root.querySelectorAll(".gridrow")) {
+    const label = row.querySelector(".gridcolumn:first-child");
+    if (matchesSymbaroumLabel(label?.textContent, ...numberKeys)) {
+      return { element: row, insert: "afterend", style: "gridrow" };
+    }
+  }
+
+  for (const row of root.querySelectorAll(".number")) {
+    const label = row.querySelector("label");
+    if (matchesSymbaroumLabel(label?.textContent, ...numberKeys)) {
+      return { element: row, insert: "afterend", style: "symbaroum" };
+    }
+  }
+
+  if (item.type === "armor") {
+    const costInput = root.querySelector('input[name="system.cost"]');
+    if (costInput) {
+      const costDiv = costInput.closest(".cost");
+      if (costDiv) return { element: costDiv, insert: "afterend", style: "symbaroum" };
+    }
+  }
+
+  return null;
 }
 
-function weaponFlagHtml(item) {
-  const selected = getFlag(item, "weaponAmmoType", WEAPON_AMMO_TYPES.NONE);
-  const compatibleAmmo = getWeaponAmmoType(item);
-  const available = compatibleAmmo && item.parent
-    ? sumItemQuantities(findAmmoItems(item.parent, compatibleAmmo))
-    : 0;
-
-  return `
-    <h1>${game.i18n.localize("TENEBRE.ItemFlags.Title")}</h1>
-    <label>
-      <span>${game.i18n.localize("TENEBRE.ItemFlags.WeaponAmmoType")}</span>
-      <select data-flag="weaponAmmoType">
-        <option value="${WEAPON_AMMO_TYPES.NONE}" ${selected === WEAPON_AMMO_TYPES.NONE ? "selected" : ""}>Não</option>
-        <option value="${WEAPON_AMMO_TYPES.BOW}"  ${selected !== WEAPON_AMMO_TYPES.NONE ? "selected" : ""}>Sim</option>
-      </select>
-    </label>
-    ${compatibleAmmo ? `<p>${game.i18n.format("TENEBRE.ItemFlags.CompatibleAmmo", { quantity: available })}</p>` : ""}
+function createWeightRow(slots, editable, style) {
+  const label = game.i18n.localize("TENEBRE.Encumbrance.Weight");
+  const disabled = editable ? "" : "disabled";
+  const inputHtml = `
+    <input
+      type="number"
+      class="tenebre-weight-input"
+      value="${slots}"
+      min="0"
+      max="10"
+      step="1"
+      ${disabled}
+    >
   `;
+
+  const row = document.createElement("div");
+  if (style === "gridrow") {
+    row.className = "gridrow tenebre-weight-row";
+    row.innerHTML = `
+      <div class="gridcolumn">${label}</div>
+      <div class="gridcolumn data">${inputHtml}</div>
+    `;
+  } else {
+    row.className = "number tenebre-weight-row";
+    row.innerHTML = `<label>${label}</label>${inputHtml}`;
+  }
+  return row;
 }
 
+function refreshActorEncumbrance(actor) {
+  if (!actor) return;
+  for (const app of Object.values(ui.windows)) {
+    const sheetActor = app.actor ?? app.document;
+    if (sheetActor?.id === actor.id && typeof app.render === "function") {
+      app.render(false);
+    }
+  }
+}
+
+// Indicador de carga ao lado do título "Equipamento" na aba Gear
+function injectEncumbrancePanel(app, html, actor) {
+  if (!TenebreSettings.get("enableEncumbrance")) return;
+
+  const el = getRoot(html);
+  if (!el) return;
+
+  const load = EncumbranceService.calculateLoad(actor);
+  const title = findEquipmentSectionTitle(el, actor);
+  if (!title) return;
+
+  let indicator = title.querySelector(".tenebre-enc-indicator");
+  if (!indicator) {
+    indicator = document.createElement("span");
+    indicator.className = "tenebre-enc-indicator";
+    title.appendChild(indicator);
+  }
+
+  indicator.innerHTML = buildEncumbranceIndicatorHtml(load);
+  indicator.title = game.i18n.format("TENEBRE.Encumbrance.BarTooltip", {
+    current: load.currentLoad,
+    capacity: load.capacity,
+    max: load.maxCapacity,
+    strong: load.strong
+  });
+}
+
+function findEquipmentSectionTitle(root, actor) {
+  const equipmentsSection = root.querySelector(".equipments");
+  if (equipmentsSection) {
+    const h1 = equipmentsSection.querySelector(":scope > h1") ?? equipmentsSection.querySelector("h1");
+    if (h1) return h1;
+  }
+
+  const titleVariants = symbaroumLabelVariants("TITLE.EQUIPMENTS");
+  for (const h1 of root.querySelectorAll("h1")) {
+    if (matchesEquipmentTitle(h1, titleVariants)) return h1;
+  }
+
+  for (const header of root.querySelectorAll("li.equipment.item-header")) {
+    const qty = header.querySelector(".quantity");
+    if (matchesSymbaroumLabel(qty?.textContent, "EQUIPMENT.QUANTITY_SHORT")) {
+      return header.closest(".equipments")?.querySelector("h1") ?? null;
+    }
+  }
+
+  if (actor) {
+    for (const row of root.querySelectorAll(".equipments [data-item-id]")) {
+      const item = actor.items.get(row.dataset.itemId);
+      if (item?.type === "equipment") {
+        return row.closest(".equipments")?.querySelector("h1") ?? null;
+      }
+    }
+  }
+
+  return null;
+}
+
+function matchesEquipmentTitle(h1, titleVariants) {
+  const clone = h1.cloneNode(true);
+  clone.querySelector(".tenebre-enc-indicator")?.remove();
+  clone.querySelector("a")?.remove();
+  return titleVariants.has(normalize(clone.textContent || ""));
+}
+
+function buildEncumbranceIndicatorHtml(load) {
+  let statusClass = "";
+  let statusText = "";
+
+  if (load.isImmobilized) {
+    statusClass = "tenebre-enc-immobilized";
+    statusText = game.i18n.localize("TENEBRE.Encumbrance.Immobilized");
+  } else if (load.isOverloaded) {
+    statusClass = "tenebre-enc-overloaded";
+    statusText = game.i18n.format("TENEBRE.Encumbrance.DefensePenalty", { penalty: load.defensePenalty });
+  }
+
+  const loadText = game.i18n.format("TENEBRE.Encumbrance.Indicator", {
+    current: load.currentLoad,
+    capacity: load.capacity
+  });
+
+  const porterBadge = load.hasPorter
+    ? ` <span class="tenebre-enc-porter" title="${game.i18n.localize("TENEBRE.Encumbrance.Porter")}"><i class="fas fa-dolly"></i></span>`
+    : "";
+
+  const statusHtml = statusText
+    ? ` <span class="tenebre-enc-status ${statusClass}">(${statusText})</span>`
+    : "";
+
+  return `${loadText}${porterBadge}${statusHtml}`;
+}
 // Funções auxiliares
 
 function getRoot(html) {
+  if (!html) return null;
   if (html instanceof HTMLElement) return html;
+  if (typeof jQuery !== "undefined" && html instanceof jQuery) return html[0] ?? null;
+  if (html?.jquery && html?.[0] instanceof HTMLElement) return html[0];
   if (html?.[0] instanceof HTMLElement) return html[0];
+  if (html?.element instanceof HTMLElement) return html.element;
   return null;
 }
 
@@ -545,4 +748,3 @@ function onCloseDialog(dialog, html) {
     }, 100);
   }
 }
-

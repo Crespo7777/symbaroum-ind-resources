@@ -29,27 +29,11 @@
     <input type="checkbox" name="showSpecialAmmoInChat" {{checked settings.showSpecialAmmoInChat}}>
   </label>
 
-  <h2>{{localize "TENEBRE.Settings.RecoveryGroup"}}</h2>
-  <label>
-    <span>{{localize "TENEBRE.Settings.RecoveryAttribute"}}</span>
-    <select name="recoveryAttribute">
-      {{selectOptions attributes selected=settings.recoveryAttribute}}
-    </select>
-  </label>
-  <label>
-    <span>{{localize "TENEBRE.Settings.RecoveryFailure"}}</span>
-    <input type="number" name="recoveryFailure" value="{{settings.recoveryFailure}}" min="0" max="100">
-  </label>
-  <label>
-    <span>{{localize "TENEBRE.Settings.RecoverySuccess"}}</span>
-    <input type="number" name="recoverySuccess" value="{{settings.recoverySuccess}}" min="0" max="100">
-  </label>
-  <label>
-    <span>{{localize "TENEBRE.Settings.RecoveryCritical"}}</span>
-    <input type="number" name="recoveryCritical" value="{{settings.recoveryCritical}}" min="0" max="100">
-  </label>
-
   <h2>{{localize "TENEBRE.Settings.RestGroup"}}</h2>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableHunger"}}</span>
+    <input type="checkbox" name="enableHunger" {{checked settings.enableHunger}}>
+  </label>
   <label>
     <span>{{localize "TENEBRE.Settings.EnableRestHealing"}}</span>
     <input type="checkbox" name="enableRestHealing" {{checked settings.enableRestHealing}}>
@@ -57,6 +41,12 @@
   <label>
     <span>{{localize "TENEBRE.Settings.RestHealing"}}</span>
     <input type="number" name="restHealing" value="{{settings.restHealing}}" min="0">
+  </label>
+
+  <h2>{{localize "TENEBRE.Settings.EncumbranceGroup"}}</h2>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableEncumbrance"}}</span>
+    <input type="checkbox" name="enableEncumbrance" {{checked settings.enableEncumbrance}}>
   </label>
 
   <footer class="sheet-footer flexrow">
