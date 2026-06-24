@@ -8,6 +8,7 @@ import { RestService } from "./rest.mjs";
 import { HotbarService } from "./hotbar.mjs";
 import { findAmmoItems, isAmmo, isRation, sumItemQuantities } from "./item-flags.mjs";
 import { VerseService } from "./verses.mjs";
+import { EncumbranceService } from "./encumbrance.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -20,6 +21,12 @@ Hooks.once("init", () => {
     icon: "icons/consumables/food/bowl-stew-brown.webp",
     statuses: ["hunger", "fome"]
   });
+});
+
+Hooks.on("createItem", (item) => {
+  if (TenebreSettings.get("enableEncumbrance") && item.parent && item.parent.type === "player") {
+    EncumbranceService.autoAssignSlots(item);
+  }
 });
 
 Hooks.once("ready", () => {
@@ -38,14 +45,27 @@ Hooks.once("ready", () => {
   registerSheetHooks();
   HotbarService.register();
 
-  // Aplica desvantagem nos testes se estiver com Fome
+  // Aplica desvantagem de Fome e penalidade de Defesa por Sobrecarga
   if (game.symbaroum?.api?.rollAttribute) {
     const originalRollAttribute = game.symbaroum.api.rollAttribute;
     game.symbaroum.api.rollAttribute = function(actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier) {
+      // Regra de Fome
       const hasHunger = actor?.effects?.some(e => e.statuses?.has?.("hunger") || e.statuses?.has?.("fome") || e.name === "Fome" || e.name === "Hunger");
       if (hasHunger) {
         favour = -1;
       }
+
+      // Regra de Sobrecarga (Encumbrance) - Penalidade na Defesa
+      if (TenebreSettings.get("enableEncumbrance") && actor?.type === "player") {
+        const attrName = String(actingAttributeName).toLowerCase();
+        if (attrName === "defense" || attrName === "defesa") {
+          const load = EncumbranceService.calculateLoad(actor);
+          if (load.defensePenalty > 0) {
+            modifier = (Number(modifier) || 0) - load.defensePenalty;
+          }
+        }
+      }
+
       return originalRollAttribute.call(this, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier);
     };
   }
@@ -55,12 +75,22 @@ Hooks.once("ready", () => {
     ammo: AmmoService,
     rest: RestService,
     verses: VerseService,
+    encumbrance: EncumbranceService,
 
     inspectActorResources,
     diagnostics: {
       version: game.modules.get(MODULE_ID)?.version ?? null
     }
   };
+
+  // Auto-atribuir slots de sobrecarga na inicialização
+  if (TenebreSettings.get("enableEncumbrance")) {
+    for (const actor of game.actors) {
+      if (actor.type === "player" && actor.isOwner) {
+        EncumbranceService.autoAssignAll(actor);
+      }
+    }
+  }
 
   console.log(`${MODULE_ID} | v${game.modules.get(MODULE_ID)?.version} ready.`);
 });

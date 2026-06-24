@@ -4,6 +4,7 @@ import { RestService } from "./rest.mjs";
 import { RationService } from "./rations.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { getAmmoModifiers, getSpecialAmmo } from "./special-ammo.mjs";
+import { EncumbranceService } from "./encumbrance.mjs";
 import {
   findAmmoItems,
   getAmmoType,
@@ -37,7 +38,9 @@ const ITEM_SHEET_HOOKS = [
 
 export function registerSheetHooks() {
   for (const hook of ACTOR_SHEET_HOOKS) Hooks.on(hook, onRenderActorSheet);
-  for (const hook of ITEM_SHEET_HOOKS) Hooks.on(hook, renderItemFlags);
+  for (const hook of ITEM_SHEET_HOOKS) {
+    Hooks.on(hook, renderItemFlags);
+  }
   Hooks.on("renderDialog", onRenderDialog);
   Hooks.on("renderTemplate", onRenderTemplate);
   Hooks.on("closeDialog", onCloseDialog);
@@ -168,6 +171,7 @@ function onRenderActorSheet(app, html) {
 
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
+  injectEncumbrancePanel(app, html, actor);
 }
 
 // Injeta quantidade e usos de aljavas na ficha
@@ -298,6 +302,7 @@ function renderItemFlags(app, html) {
 function equipmentFlagHtml(item) {
   const itemIsAmmo = isAmmo(item);
   const itemIsRation = isRation(item);
+  const encSlots = EncumbranceService.getItemSlots(item);
 
   return `
     <h1>${game.i18n.localize("TENEBRE.ItemFlags.Title")}</h1>
@@ -309,6 +314,10 @@ function equipmentFlagHtml(item) {
       <input type="checkbox" data-flag="isAmmo" ${itemIsAmmo ? "checked" : ""}>
       <span>${game.i18n.localize("TENEBRE.ItemFlags.IsAmmo")}</span>
     </label>
+    <label>
+      <span>${game.i18n.localize("TENEBRE.ItemFlags.EncumbranceSlots")}</span>
+      <input type="number" data-flag="encumbranceSlots" value="${encSlots}" min="0" max="10" style="flex: 0 0 80px;">
+    </label>
   `;
 }
 
@@ -318,6 +327,7 @@ function weaponFlagHtml(item) {
   const available = compatibleAmmo && item.parent
     ? sumItemQuantities(findAmmoItems(item.parent, compatibleAmmo))
     : 0;
+  const encSlots = EncumbranceService.getItemSlots(item);
 
   return `
     <h1>${game.i18n.localize("TENEBRE.ItemFlags.Title")}</h1>
@@ -329,9 +339,126 @@ function weaponFlagHtml(item) {
       </select>
     </label>
     ${compatibleAmmo ? `<p>${game.i18n.format("TENEBRE.ItemFlags.CompatibleAmmo", { quantity: available })}</p>` : ""}
+    <label>
+      <span>${game.i18n.localize("TENEBRE.ItemFlags.EncumbranceSlots")}</span>
+      <input type="number" data-flag="encumbranceSlots" value="${encSlots}" min="0" max="10" style="flex: 0 0 80px;">
+    </label>
   `;
 }
 
+// Injeta o valor de peso ao lado do cabeçalho "Equipamento"
+function injectEncumbrancePanel(app, html, actor) {
+  if (!TenebreSettings.get("enableEncumbrance")) return;
+
+  const el = getRoot(html);
+  if (!el) return;
+  if (el.dataset.tenebreEncInjected) return;
+
+  const load = EncumbranceService.calculateLoad(actor);
+
+  const equipHeaders = el.querySelectorAll(".inventory-list .list-header, .inventory-list .item-header, .tab-body h3, .inventory h3");
+  let targetHeader = null;
+  for (const h of equipHeaders) {
+    const text = (h.textContent || "").trim().toLowerCase();
+    if (text.includes("equipamento") || text.includes("equipment") || text.includes("gear")) {
+      targetHeader = h;
+      break;
+    }
+  }
+
+  if (!targetHeader) {
+    const allHeaders = el.querySelectorAll("h3, .list-header");
+    for (const h of allHeaders) {
+      const text = (h.textContent || "").trim().toLowerCase();
+      if (text.includes("equipamento") || text.includes("equipment")) {
+        targetHeader = h;
+        break;
+      }
+    }
+  }
+
+  if (targetHeader) {
+    let statusHtml = "";
+    if (load.isImmobilized) {
+      statusHtml = ` <span style="color: #8b0000; font-size: 0.9em; font-weight: bold;">(${game.i18n.localize("TENEBRE.Encumbrance.Immobilized")})</span>`;
+    } else if (load.isOverloaded) {
+      statusHtml = ` <span style="color: #cc6600; font-size: 0.9em; font-weight: bold;">(${game.i18n.format("TENEBRE.Encumbrance.DefensePenalty", { penalty: load.defensePenalty })})</span>`;
+    }
+
+    const textToInject = ` <span style="font-weight: normal; font-size: 0.9em; color: #e8e8e8;">(${load.capacity} / ${load.currentLoad})</span>${statusHtml}`;
+    targetHeader.innerHTML += textToInject;
+    el.dataset.tenebreEncInjected = "true";
+  }
+
+  // Inject "Peso" column in the inventory lists
+  const allNodes = el.querySelectorAll("*");
+  let qtdeHeaders = [];
+  for (const node of allNodes) {
+    if (node.children.length === 0) {
+      const text = (node.textContent || "").trim().toLowerCase();
+      if (text === "qtde." || text === "qtde" || text === "qty" || text === "quantity") {
+        qtdeHeaders.push(node);
+      }
+    }
+  }
+
+  for (const headerNode of qtdeHeaders) {
+    const parent = headerNode.parentElement;
+    if (!parent || parent.dataset.tenebreWeightColInjected) continue;
+
+    const pesoCol = headerNode.cloneNode(true);
+    pesoCol.style.flex = "0 0 35px";
+    pesoCol.style.minWidth = "35px";
+    pesoCol.style.fontSize = "0.9em";
+    pesoCol.style.textAlign = "center";
+    pesoCol.style.color = "#e8e8e8";
+    pesoCol.style.fontWeight = "bold";
+    pesoCol.classList.add("tenebre-weight-col-header");
+    parent.insertBefore(pesoCol, headerNode);
+    parent.dataset.tenebreWeightColInjected = "true";
+
+    // Agora precisamos injetar nas linhas abaixo deste cabeçalho.
+    // O pai deste cabeçalho (a linha de cabeçalho) costuma ser irmão das linhas de item,
+    // ou pertencer a um container. Vamos pegar o container.
+    const listContainer = parent.parentElement;
+    if (!listContainer) continue;
+
+    const itemRows = listContainer.querySelectorAll(".item[data-item-id]");
+    for (const row of itemRows) {
+      if (row.dataset.tenebreWeightColInjected) continue;
+
+      const itemId = row.dataset.itemId;
+      const item = actor.items.get(itemId);
+      if (!item || !["equipment", "weapon", "armor"].includes(item.type)) continue;
+
+      const slots = EncumbranceService.getItemSlots(item);
+      
+      const children = Array.from(row.children);
+      let qtdeEl = children.find(c => {
+        return c.className.includes("quantity") || c.className.includes("qty") || c.querySelector("input[name*='quantity']") || c.querySelector("input[name*='number']");
+      });
+
+      if (!qtdeEl && children.length >= 3) {
+        // Fallback: geralmente é o penúltimo ou antepenúltimo elemento.
+        // O Nome é o primeiro ou segundo (depois da imagem). O último é os controles. O penúltimo é o status.
+        // Então Qtde. deve ser o antepenúltimo.
+        qtdeEl = children[children.length - 3] || children[children.length - 2];
+      }
+
+      if (qtdeEl) {
+        const pesoVal = document.createElement("div");
+        pesoVal.style.flex = "0 0 35px";
+        pesoVal.style.minWidth = "35px";
+        pesoVal.style.fontSize = "0.9em";
+        pesoVal.style.textAlign = "center";
+        pesoVal.style.alignSelf = "center";
+        pesoVal.textContent = slots;
+        row.insertBefore(pesoVal, qtdeEl);
+        row.dataset.tenebreWeightColInjected = "true";
+      }
+    }
+  }
+}
 // Funções auxiliares
 
 function getRoot(html) {

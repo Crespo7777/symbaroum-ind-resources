@@ -43,7 +43,8 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableHitTracking",
       "enableAmmoRecovery",
       "showSpecialAmmoInChat",
-      "enableRestHealing"
+      "enableRestHealing",
+      "enableEncumbrance"
     ];
 
     const numbers = [
@@ -108,6 +109,7 @@ export class TenebreSettings {
     register("recoverySuccess", Number, DEFAULTS.recoverySuccess, "TENEBRE.Settings.RecoverySuccess", "TENEBRE.Settings.RecoverySuccessHint");
     register("recoveryCritical", Number, DEFAULTS.recoveryCritical, "TENEBRE.Settings.RecoveryCritical", "TENEBRE.Settings.RecoveryCriticalHint");
 
+    register("enableEncumbrance", Boolean, true, "TENEBRE.Settings.EnableEncumbrance", "TENEBRE.Settings.EnableEncumbranceHint");
   }
 
   static get(key) {

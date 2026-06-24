@@ -232,3 +232,84 @@
   object-fit: cover;
   border: none;
 }
+
+/* ── Encumbrance panel ──────────────────────────────────────────────── */
+
+.tenebre-enc-panel {
+  margin-bottom: 8px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border-light-primary);
+  border-radius: 4px;
+}
+
+.tenebre-enc-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.tenebre-enc-label i {
+  color: #7a7973;
+  margin-right: 4px;
+}
+
+.tenebre-enc-porter i {
+  color: #c8a050;
+  font-size: 11px;
+}
+
+.tenebre-enc-status {
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.tenebre-enc-overloaded {
+  color: #cc6600;
+}
+
+.tenebre-enc-immobilized {
+  color: #8b0000;
+}
+
+.tenebre-enc-bar-bg {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.tenebre-enc-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+/* ── Encumbrance badges ─────────────────────────────────────────────── */
+
+.tenebre-enc-badge {
+  display: inline-block;
+  padding: 1px 4px;
+  margin-left: 6px;
+  font-size: 10px;
+  background: #e4e0d8;
+  color: #333;
+  border-radius: 4px;
+  border: 1px solid #c2bcb0;
+  font-weight: bold;
+  vertical-align: middle;
+}
+
+.tenebre-enc-zero {
+  background: #f0f0f0;
+  color: #888;
+  border-color: #ddd;
+}
+
+.tenebre-enc-heavy {
+  background: #ffe0e0;
+  color: #8b0000;
+  border-color: #e0b0b0;
+}

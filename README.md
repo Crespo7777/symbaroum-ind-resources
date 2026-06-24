@@ -44,7 +44,18 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 * **Desvantagem Constante:** Qualquer rolagem de atributo ou teste feito sob o efeito de Fome é executado com desvantagem (rola 2d20 e escolhe o pior resultado/maior d20).
 * **Testes Diários de Inanição:** Durante o descanso de um personagem com Fome, para cada dia passado, o sistema rola automaticamente um teste de **Vigoroso** (Strong) com desvantagem. Se falhar, o atributo base Vigoroso diminui em **-1**. Chegar a 0 significa morte por inanição.
 
-### 6. 🛏️ Descanso Avançado (botão "Descanso")
+### 6. ⚖️ Sistema de Sobrecarga Opcional (Encumbrance)
+* **Regra do Guia Avançado do Jogador:** Implementa a regra opcional de sobrecarga baseada no atributo **Vigoroso** (Strong).
+* **Painel Dinâmico na Ficha:** Injeta um painel com barra de progresso próximo ao cabeçalho "Equipamento", mostrando a carga atual, capacidade máxima e penalidades defensivas ativas.
+* **Badges Visuais:** Adiciona uma pequena insígnia (badge) na linha de cada item exibindo seu peso acumulado e destacando itens pesados (Maciços) ou de peso zero.
+* **Auto-atribuição Global:** O sistema possui um banco de dados interno que analisa os nomes dos itens (em inglês e português) assim que entram no inventário. O peso é atribuído automaticamente e silenciosamente a todos os itens.
+  * **Peso Padrão:** 1 espaço.
+  * **Peso Zero:** Roupas, bolsas e mochilas pequenas, moedas, joias, e armaduras vestidas.
+  * **Peso Duplo (2 espaços):** Armas com a qualidade Maciça (Massive) e baús pesados.
+* **Edição Manual Flexível:** Qualquer item pode ter seu peso editado manualmente pelo Mestre clicando no ícone da engrenagem do item (na aba Equipamento).
+* **Mecânicas de Capacidade:** A capacidade básica é o valor de Vigoroso. O dom **Transportador** (Porter) multiplica a capacidade por 1.5. A cada espaço acima do limite, o sistema avisa o jogador e indica um redutor na **Defesa** equivalente ao sobrepeso. Ultrapassar o dobro do Vigoroso imobiliza o personagem.
+
+### 7. 🛏️ Descanso Avançado (botão "Descanso")
 * Adiciona um botão dedicado **Descanso** na barra de cabeçalho da ficha do PJ.
 * Permite configurar a quantidade de **Dias de descanso** e a taxa de **Cura por dia**.
 * Zera os testes de morte falhos e remove a **Corrupção Temporária** (caso o personagem sobreviva aos testes de inanição).
