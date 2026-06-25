@@ -57,14 +57,22 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
   * **Recipientes Volumosos:** Barris, baús e caixas contam como 1 item próprio, somado ao conteúdo carregado separadamente.
   * **Peso Duplo (2 espaços):** Armas pesadas, de duas mãos ou com a qualidade Maciça (Massive).
   * **Armaduras Equipadas:** Armaduras em estado **Equipado** contam pela categoria: leve 2, média 3, pesada 4.
-* **Containers (fase 1):** Mochilas, sacos, sacolas, bolsas, alforjes, baús, caixas e barris podem guardar itens pelo menu de botão direito.
-  * Clique com o botão direito em um item e selecione **Guardar** para escolher um recipiente e a quantidade, quando o item possuir pilha.
-  * Clique com o botão direito no recipiente e selecione **Abrir** para ver, usar ou retirar os itens guardados. Pilhas podem ser retiradas parcialmente.
-  * Itens guardados ficam ocultos da lista principal e não contam para a sobrecarga enquanto estiverem dentro do recipiente.
 * **Edição Manual Flexível:** Armas, armaduras e equipamentos exibem o campo **Peso** na descrição do item, abaixo de **Número**, permitindo ajuste manual quando necessário.
 * **Mecânicas de Capacidade:** A capacidade básica é o valor de Vigoroso. O dom **Transportador** (Porter) multiplica a capacidade por 1.5. A cada espaço acima do limite, o sistema avisa o jogador e indica um redutor na **Defesa** equivalente ao sobrepeso. Ultrapassar o dobro do Vigoroso imobiliza o personagem.
 
-### 7. 🛏️ Descanso Avançado (botão "Descanso")
+### 7. 🎒 Recipientes e Itens Guardados (Containers)
+* **Recipientes Detectados:** Mochilas, sacos, sacolas, bolsas, alforjes, baús, caixas e barris são reconhecidos como recipientes.
+* **Guardar Item:** Clique com o **botão direito** em um item e selecione **Guardar**. O sistema permite escolher o recipiente de destino e, quando o item possuir pilha, a quantidade a guardar.
+* **Abrir Recipiente:** Clique com o **botão direito** no recipiente e selecione **Abrir** para visualizar os itens guardados.
+* **Ações Dentro do Recipiente:** A janela do recipiente permite **Usar**, **Retirar** ou **Ver** cada item guardado.
+  * **Usar:** para equipamentos consumíveis ou rápidos, publica o item no chat e consome 1 unidade.
+  * **Retirar:** permite escolher a quantidade quando o item guardado possui pilha.
+  * **Ver:** abre a ficha do item.
+* **Peso e Sobrecarga:** Itens guardados ficam ocultos da lista principal da ficha e não contam para a sobrecarga enquanto estiverem dentro do recipiente.
+* **Pilhas Parciais:** Se guardar ou retirar apenas parte de uma pilha, o sistema divide ou junta automaticamente com uma pilha visível igual quando possível.
+* **Fase Atual:** Esta é a fase 1 da função de containers. O fluxo usa menus de botão direito e janela simples. Drag-and-drop direto para dentro de recipientes fica para uma fase posterior.
+
+### 8. 🛏️ Descanso Avançado (botão "Descanso")
 * Adiciona um botão dedicado **Descanso** na barra de cabeçalho da ficha do PJ.
 * Permite configurar a quantidade de **Dias de descanso** e a taxa de **Cura por dia**.
 * Zera os testes de morte falhos e remove a **Corrupção Temporária** (caso o personagem sobreviva aos testes de inanição).
