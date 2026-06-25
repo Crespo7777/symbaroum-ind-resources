@@ -1,6 +1,6 @@
 # ⚔️ Symbaroum Ind Resources — Foundry VTT
 
-**Symbaroum Ind Resources** é um módulo desenvolvido para o sistema de RPG **Symbaroum** no **Foundry VTT (v12+)**. O objetivo deste módulo é automatizar o controle de recursos importantes de sobrevivência e combate de forma nativa e integrada à interface do sistema Symbaroum, sem poluir a ficha dos personagens.
+**Symbaroum Ind Resources** é um módulo desenvolvido para o sistema de RPG **Symbaroum** no **Foundry VTT v13**. O objetivo deste módulo é automatizar o controle de recursos importantes de sobrevivência e combate de forma nativa e integrada à interface do sistema Symbaroum.
 
 ---
 
@@ -11,12 +11,12 @@
 * **Quantidade e Usos:** A quantidade no inventário exibe quantos usos restam no formato `Unidades (UsosRestantes/MaxUsos)` (ex: `1 (7/7)`).
 * **Notificação no Chat:** Consumir um pão de viagem publica uma mensagem detalhada no Chat contendo o retrato do personagem e as informações de uso do pão.
 * **Ícone de Atalho na Hotbar:** Para o jogador ativo, um ícone de pão de viagem aparece automaticamente no canto esquerdo da Hotbar. Clicar nele consome um uso sem precisar abrir a ficha.
-* **Cálculo Cumulativo:** O controle de usos calcula perfeitamente o valor total acumulado de todos os pães de viagem que o jogador possui no inventário (onde cada pão equivale a 7 usos).
+* **Cálculo Cumulativo:** O controle de usos calcula o valor total acumulado de todos os pães de viagem que o jogador possui no inventário. A quantidade de usos por pão é configurável nas opções do módulo.
 
 ### 2. 🎒 Sistema de Aljava e Recarga de Munições
 * **Ação de Recarga:**
-  * O jogador não dispara projéteis avulsos diretamente da mochila. É necessário equipar e recarregar uma aljava ou estojo de virotes (limite de 12 flechas/virotes no total).
-  * Clique com o **botão direito** em um item de aljava/estojo no inventário e selecione **"Recarregar Aljava/Estojo"**.
+  * O jogador não dispara projéteis avulsos diretamente da mochila. É necessário equipar e recarregar uma aljava (limite de 12 flechas/virotes no total).
+  * Clique com o **botão direito** em um item de aljava no inventário e selecione **"Recarregar Aljava"**.
   * Abre um diálogo que permite escolher qual munição avulsa do inventário carregar e a quantidade (limitado dinamicamente pela capacidade restante da aljava e quantidade disponível no inventário).
   * Uma mensagem detalhada é enviada ao chat com o retrato do personagem, ícone e quantidade da munição carregada, e o status da aljava de destino.
 * **Exibição na Ficha:** O display das aljavas no inventário é atualizado dinamicamente no formato `Quantidade (Carregadas/12)` (ex: `1 (10/12)`).
@@ -32,19 +32,47 @@ O módulo oferece suporte mecânico completo para todos os projéteis especiais 
 
 ### 4. 🎲 Recuperação Oficial por Projétil (Individual d20)
 O sistema antigo de porcentagem estática foi substituído pela regra oficial de recuperação individual por d20:
-* Ao clicar em "Recuperar Munição" após o combate, o sistema faz uma rolagem de d20 para cada flecha ou virote disparado para saber se ele quebrou:
+* Ao clicar em "Recuperar Munição" após o combate, o sistema resolve **um projétil por clique**. Se 7 ataques acertaram, há 7 testes pendentes; cada clique rola 1d20 para uma flecha ou virote e deixa os demais para os próximos cliques:
   * **Projétil Comum (sem qualidades):** Recupera se rolar **10 ou menos** (`d20 <= 10`).
   * **Projétil com Qualidade (Precisa, Flamejante, etc.):** Recupera se rolar **15 ou menos** (`d20 <= 15`).
   * **Projétil Místico/Alquímico (Certeira, Atordoante):** Recupera se rolar **17 ou menos** (`d20 <= 17`).
-* Exibe no chat os dados individuais de cada d20 com destaque colorido (**Verde** para sucesso, **Vermelho e Riscado** para falha/quebra), trazendo suspense e clareza para a mesa.
+* Exibe no chat o d20 daquele projétil, informa se foi recuperado ou quebrou e mostra quantos testes ainda faltam, mantendo o suspense a cada clique.
 
 ### 5. 🍲 Regra Opcional de Fome (Hunger)
-* **Status Effect HUD:** Adiciona o status **Fome** (ícone de prato de comida) na paleta de efeitos de status do Token no HUD do Foundry.
+* **Status Effect HUD:** Adiciona o status **Fome** (ícone monocromático próprio) na paleta de efeitos de status do Token no HUD do Foundry.
+* **Aviso no Chat:** Quando o efeito Fome é aplicado, o chat recebe uma notificação com imagem e nome do personagem afetado.
 * **Sem Cura Natural:** Personagens sob o efeito de Fome não recuperam vitalidade ao descansar (cura forçada a 0).
 * **Desvantagem Constante:** Qualquer rolagem de atributo ou teste feito sob o efeito de Fome é executado com desvantagem (rola 2d20 e escolhe o pior resultado/maior d20).
-* **Testes Diários de Inanição:** Durante o descanso de um personagem com Fome, para cada dia passado, o sistema rola automaticamente um teste de **Vigoroso** (Strong) com desvantagem. Se falhar, o atributo base Vigoroso diminui em **-1**. Chegar a 0 significa morte por inanição.
+* **Testes Diários de Inanição:** Durante o descanso de um personagem com Fome, para cada dia passado, o sistema rola automaticamente um teste de **Vigoroso** (Strong) com desvantagem. Se falhar, o modificador temporário de Vigoroso recebe **-1**. Chegar a Vigoroso total 0 marca o personagem como morto, zera a Vitalidade e registra a morte por inanição no chat.
+* **Recuperação de Vigoroso:** Remover Fome representa o personagem voltando a se alimentar, mas não apaga imediatamente o dano de inanição. Depois que a Fome acaba, o botão **Descanso** recupera naturalmente 1 ponto de Vigoroso perdido por dia. Curas herbais e poderes podem recuperar essa penalidade pela API `game.tenebreResources.hunger.recoverStrongPenalty(actor, amount, { source })`, como se fossem pontos de Vitalidade.
 
-### 6. 🛏️ Descanso Avançado (botão "Descanso")
+### 6. ⚖️ Sistema de Sobrecarga Opcional (Encumbrance)
+* **Regra do Guia Avançado do Jogador:** Implementa a regra opcional de sobrecarga baseada no atributo **Vigoroso** (Strong).
+* **Painel Dinâmico na Ficha:** Injeta um painel com barra de progresso próximo ao cabeçalho "Equipamento", mostrando a carga atual, capacidade máxima e penalidades defensivas ativas.
+* **Auto-atribuição Global:** O sistema possui um banco de dados interno que analisa os nomes dos itens (em inglês e português) assim que entram no inventário. O peso é atribuído automaticamente e silenciosamente a todos os itens.
+  * **Peso Padrão:** 1 espaço.
+  * **Estado dos Itens:** Apenas itens em estado **Equipado** contam para sobrecarga. Itens em **Ativo** ou **Outro** não contam peso.
+  * **Munições:** Flechas e virotes contam como 1 item transportado para cada 10 unidades.
+  * **Itens Pequenos:** Moedas, pingentes e joias contam como 1 item transportado para cada 50 peças.
+  * **Recipientes Volumosos:** Barris, baús e caixas contam como 1 item próprio, somado ao conteúdo carregado separadamente.
+  * **Peso Duplo (2 espaços):** Armas pesadas, de duas mãos ou com a qualidade Maciça (Massive).
+  * **Armaduras Equipadas:** Armaduras em estado **Equipado** contam pela categoria: leve 2, média 3, pesada 4.
+* **Edição Manual Flexível:** Armas, armaduras e equipamentos exibem o campo **Peso** na descrição do item, abaixo de **Número**, permitindo ajuste manual quando necessário.
+* **Mecânicas de Capacidade:** A capacidade básica é o valor de Vigoroso. O dom **Transportador** (Porter) multiplica a capacidade por 1.5. A cada espaço acima do limite, o sistema avisa o jogador e indica um redutor na **Defesa** equivalente ao sobrepeso. Ultrapassar o dobro do Vigoroso imobiliza o personagem.
+
+### 7. 🎒 Recipientes e Itens Guardados (Containers)
+* **Recipientes Detectados:** Mochilas, sacos, sacolas, bolsas, alforjes, baús, caixas e barris são reconhecidos como recipientes.
+* **Guardar Item:** Clique com o **botão direito** em um item e selecione **Guardar**. O sistema permite escolher o recipiente de destino e, quando o item possuir pilha, a quantidade a guardar.
+* **Abrir Recipiente:** Clique com o **botão direito** no recipiente e selecione **Abrir** para visualizar os itens guardados.
+* **Ações Dentro do Recipiente:** A janela do recipiente permite **Usar**, **Retirar** ou **Ver** cada item guardado.
+  * **Usar:** para equipamentos consumíveis ou rápidos, publica o item no chat e consome 1 unidade.
+  * **Retirar:** permite escolher a quantidade quando o item guardado possui pilha.
+  * **Ver:** abre a ficha do item.
+* **Peso e Sobrecarga:** Itens guardados ficam ocultos da lista principal da ficha e não contam para a sobrecarga enquanto estiverem dentro do recipiente.
+* **Pilhas Parciais:** Se guardar ou retirar apenas parte de uma pilha, o sistema divide ou junta automaticamente com uma pilha visível igual quando possível.
+* **Fase Atual:** Esta é a fase 1 da função de containers. O fluxo usa menus de botão direito e janela simples. Drag-and-drop direto para dentro de recipientes fica para uma fase posterior.
+
+### 8. 🛏️ Descanso Avançado (botão "Descanso")
 * Adiciona um botão dedicado **Descanso** na barra de cabeçalho da ficha do PJ.
 * Permite configurar a quantidade de **Dias de descanso** e a taxa de **Cura por dia**.
 * Zera os testes de morte falhos e remove a **Corrupção Temporária** (caso o personagem sobreviva aos testes de inanição).
@@ -67,7 +95,7 @@ https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module
 1. No menu lateral direito do Foundry VTT, vá na aba **Configurações de Jogo** (ícone de engrenagem).
 2. Clique em **Configurar Ajustes** (Configure Settings).
 3. Na aba **Ajustes do Sistema** (System Settings), clique em **Symbaroum Ind Resources**.
-4. Configure opções como rastreamento de acertos, recuperação automática e valores padrão de descanso.
+4. Configure os controles de Pão de Viagem, consumo de munição, rastreamento de acertos, recuperação de munição, Fome, descanso e Sobrecarga.
 
 ### Atalhos de Teclado (Keybindings)
 * **Abrir Diálogo de Descanso** (para o PJ controlado — padrão: `Ctrl + Shift + R`).

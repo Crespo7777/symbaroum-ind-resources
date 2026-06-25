@@ -2,34 +2,6 @@
    Tenebre Resources — Stylesheet v2
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Item flag section (equipment / weapon sheets) ─────────────────── */
-
-.tenebre-item-flags {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px;
-}
-
-.tenebre-item-flags h1 {
-  margin: 0 0 6px;
-  font-size: 16px;
-}
-
-.tenebre-item-flags label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.tenebre-item-flags label span { flex: 1; }
-
-.tenebre-item-flags select { flex: 0 0 180px; }
-
-.tenebre-check { justify-content: flex-start !important; }
-.tenebre-check input { flex: 0 0 auto; }
-
 /* ── Settings form ──────────────────────────────────────────────────── */
 
 .tenebre-settings {
@@ -209,6 +181,15 @@
 
 /* ── Chat cards ─────────────────────────────────────────────────────── */
 
+#chat-log .dice-tooltip,
+#chat-log .dice-tooltip-collapser,
+.chat-message .dice-tooltip,
+.chat-message .dice-tooltip-collapser,
+body .dice-tooltip,
+body .dice-tooltip-collapser {
+  display: none !important;
+}
+
 .tenebre-chat-card h3 {
   margin: 0 0 6px;
   font-size: 14px;
@@ -231,4 +212,178 @@
   height: 42px;
   object-fit: cover;
   border: none;
+}
+
+/* ── Encumbrance indicator (actor gear tab) ─────────────────────────── */
+
+.tenebre-enc-indicator {
+  display: inline;
+  margin-left: 10px;
+  font-weight: normal;
+  font-size: 0.88em;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Garante visibilidade no cabeçalho h1 do Symbaroum */
+.equipments > h1 .tenebre-enc-indicator,
+.equipments h1 .tenebre-enc-indicator {
+  color: #ffffff !important;
+}
+
+.tenebre-enc-indicator .tenebre-enc-porter {
+  margin-left: 4px;
+  color: #f0d080;
+  font-size: 0.95em;
+}
+
+.tenebre-enc-indicator .tenebre-enc-status {
+  margin-left: 4px;
+  font-size: 0.92em;
+  font-weight: bold;
+}
+
+.tenebre-enc-indicator .tenebre-enc-overloaded {
+  color: #ffb366 !important;
+}
+
+.tenebre-enc-indicator .tenebre-enc-immobilized {
+  color: #ff7070 !important;
+}
+
+/* ── Item weight field (matches Symbaroum gridrow) ──────────────────── */
+
+.tenebre-weight-row .tenebre-weight-input {
+  width: 100%;
+  text-align: center;
+}
+
+/* ── Encumbrance panel ──────────────────────────────────────────────── */
+
+.tenebre-enc-panel {
+  margin-bottom: 8px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border-light-primary);
+  border-radius: 4px;
+}
+
+.tenebre-enc-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.tenebre-enc-label i {
+  color: #7a7973;
+  margin-right: 4px;
+}
+
+.tenebre-enc-porter i {
+  color: #c8a050;
+  font-size: 11px;
+}
+
+.tenebre-enc-status {
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.tenebre-enc-overloaded {
+  color: #cc6600;
+}
+
+.tenebre-enc-immobilized {
+  color: #8b0000;
+}
+
+.tenebre-enc-bar-bg {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.tenebre-enc-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+/* ── Encumbrance badges ─────────────────────────────────────────────── */
+
+.tenebre-enc-badge {
+  display: inline-block;
+  padding: 1px 4px;
+  margin-left: 6px;
+  font-size: 10px;
+  background: #e4e0d8;
+  color: #333;
+  border-radius: 4px;
+  border: 1px solid #c2bcb0;
+  font-weight: bold;
+  vertical-align: middle;
+}
+
+.tenebre-enc-zero {
+  background: #f0f0f0;
+  color: #888;
+  border-color: #ddd;
+}
+
+.tenebre-enc-heavy {
+  background: #ffe0e0;
+  color: #8b0000;
+  border-color: #e0b0b0;
+}
+
+/* ── Containers ─────────────────────────────────────────────────────── */
+
+.tenebre-container-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tenebre-container-item {
+  display: grid;
+  grid-template-columns: 28px 1fr 40px auto auto auto;
+  gap: 6px;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.tenebre-container-item img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border: 0;
+}
+
+.tenebre-container-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+.tenebre-container-qty {
+  text-align: center;
+  font-weight: bold;
+}
+
+.tenebre-container-item button {
+  min-width: 0;
+  width: auto;
+  line-height: 1.4;
+  padding: 2px 6px;
 }

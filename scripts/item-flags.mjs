@@ -97,6 +97,15 @@ export function findAmmoItems(actor, ammoType) {
   return actorItems(actor).filter((item) => isAmmo(item) && getAmmoType(item) === ammoType && itemQuantity(item) > 0);
 }
 
+export function findLoadedQuiverItems(actor, ammoType) {
+  return actorItems(actor).filter((item) => {
+    return isQuiver(item)
+      && getAmmoType(item) === ammoType
+      && itemQuantity(item) > 0
+      && getQuiverLoadedTotal(item) > 0;
+  });
+}
+
 export function sumItemQuantities(items) {
   return items.reduce((total, item) => total + itemQuantity(item), 0);
 }
@@ -104,7 +113,7 @@ export function sumItemQuantities(items) {
 export function isQuiver(item) {
   if (!item || item.type !== "equipment") return false;
   const name = item.name?.toLowerCase() || "";
-  return name.includes("aljava") || name.includes("quiver") || name.includes("estojo") || name.includes("case");
+  return name.includes("aljava") || name.includes("quiver");
 }
 
 export function getQuiverLoadedAmmo(quiverItem) {
@@ -142,6 +151,10 @@ export function getAmmoShots(item) {
 
 export function sumAmmoShots(items) {
   return items.reduce((total, item) => total + getAmmoShots(item), 0);
+}
+
+export function sumLoadedQuiverShots(items) {
+  return items.reduce((total, item) => total + (isQuiver(item) ? getQuiverLoadedTotal(item) : 0), 0);
 }
 
 export function localizeAmmoType(ammoType) {

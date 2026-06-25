@@ -1,4 +1,4 @@
-import { ATTRIBUTE_CHOICES, DEFAULTS, MODULE_ID } from "./constants.mjs";
+import { DEFAULTS, MODULE_ID } from "./constants.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -29,7 +29,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
   async _prepareContext(_options) {
     return {
       settings: TenebreSettings.export(),
-      attributes: localizedChoices(ATTRIBUTE_CHOICES),
       isGM: game.user.isGM
     };
   }
@@ -43,14 +42,13 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableHitTracking",
       "enableAmmoRecovery",
       "showSpecialAmmoInChat",
-      "enableRestHealing"
+      "enableHunger",
+      "enableRestHealing",
+      "enableEncumbrance"
     ];
 
     const numbers = [
       "rationUses",
-      "recoveryFailure",
-      "recoverySuccess",
-      "recoveryCritical",
       "restHealing"
     ];
 
@@ -91,23 +89,12 @@ export class TenebreSettings {
     register("enableHitTracking", Boolean, true, "TENEBRE.Settings.EnableHitTracking", "TENEBRE.Settings.EnableHitTrackingHint");
     register("enableAmmoRecovery", Boolean, true, "TENEBRE.Settings.EnableAmmoRecovery", "TENEBRE.Settings.EnableAmmoRecoveryHint");
     register("showSpecialAmmoInChat", Boolean, true, "TENEBRE.Settings.ShowSpecialAmmoInChat", "TENEBRE.Settings.ShowSpecialAmmoInChatHint");
+    register("enableHunger", Boolean, true, "TENEBRE.Settings.EnableHunger", "TENEBRE.Settings.EnableHungerHint");
     register("enableRestHealing", Boolean, true, "TENEBRE.Settings.EnableRestHealing", "TENEBRE.Settings.EnableRestHealingHint");
     register("restHealing", Number, DEFAULTS.restHealing, "TENEBRE.Settings.RestHealing", "TENEBRE.Settings.RestHealingHint");
 
-    game.settings.register(MODULE_ID, "recoveryAttribute", {
-      name: "TENEBRE.Settings.RecoveryAttribute",
-      hint: "TENEBRE.Settings.RecoveryAttributeHint",
-      scope: "world",
-      config: false,
-      default: DEFAULTS.recoveryAttribute,
-      type: String,
-      choices: localizedChoices(ATTRIBUTE_CHOICES)
-    });
-
-    register("recoveryFailure", Number, DEFAULTS.recoveryFailure, "TENEBRE.Settings.RecoveryFailure", "TENEBRE.Settings.RecoveryFailureHint");
-    register("recoverySuccess", Number, DEFAULTS.recoverySuccess, "TENEBRE.Settings.RecoverySuccess", "TENEBRE.Settings.RecoverySuccessHint");
-    register("recoveryCritical", Number, DEFAULTS.recoveryCritical, "TENEBRE.Settings.RecoveryCritical", "TENEBRE.Settings.RecoveryCriticalHint");
-
+    register("enableEncumbrance", Boolean, true, "TENEBRE.Settings.EnableEncumbrance", "TENEBRE.Settings.EnableEncumbranceHint");
+    register("encumbranceDiscoveredWeights", Object, { version: 1, slots: [], bundles: [] }, "TENEBRE.Settings.EncumbranceDiscoveredWeights", "TENEBRE.Settings.EncumbranceDiscoveredWeightsHint");
   }
 
   static get(key) {
@@ -131,10 +118,48 @@ function register(key, type, defaultValue, name, hint) {
     scope: "world",
     config: false,
     default: defaultValue,
-    type
+    type,
+    onChange: (value) => onSettingChanged(key, value)
   });
 }
 
-function localizedChoices(choices) {
-  return Object.fromEntries(Object.entries(choices).map(([key, label]) => [key, game.i18n.localize(label)]));
+function onSettingChanged(key, value) {
+  Hooks.callAll(MODULE_ID + ".settingsChanged", key, value);
+
+  if (key === "enableHunger") {
+    if (value) game.tenebreResources?.hunger?.registerStatusEffect?.();
+    else game.tenebreResources?.hunger?.unregisterStatusEffect?.();
+  }
+
+  if (key === "enableEncumbrance" && value) {
+    for (const actor of game.actors ?? []) {
+      if (actor.type === "player" && (actor.isOwner || game.user?.isGM)) {
+        game.tenebreResources?.encumbrance?.autoAssignAll?.(actor);
+      }
+    }
+  }
+
+  if (key === "encumbranceDiscoveredWeights") {
+    game.tenebreResources?.encumbrance?.applyDynamicWeightConfig?.(value);
+  }
+
+  game.tenebreResources?.hotbar?.refresh?.();
+  rerenderOpenSheets();
+}
+
+function rerenderOpenSheets() {
+  for (const app of Object.values(ui.windows ?? {})) {
+    if (app?.actor || app?.item || app?.document?.documentName === "Actor" || app?.document?.documentName === "Item") {
+      app.render?.(false);
+    }
+  }
+
+  const instances = foundry.applications?.instances;
+  if (instances && typeof instances[Symbol.iterator] === "function") {
+    for (const app of instances) {
+      if (app?.document?.documentName === "Actor" || app?.document?.documentName === "Item") {
+        app.render?.({ force: false });
+      }
+    }
+  }
 }

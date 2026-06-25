@@ -17,6 +17,8 @@ export class AmmoService {
   }
 
   static async consumeAmmo(actor, ammo, weapon, ammoType) {
+    const shot = getRecoverableShotData(actor, ammo, ammoType);
+
     if (ammo.isVirtual) {
       const quiver = actor.items.get(ammo.quiverId);
       if (quiver) {
@@ -76,9 +78,10 @@ export class AmmoService {
     }
 
     await actor.setFlag(FLAG_SCOPE, "lastShot", {
-      ammoItemId: ammo.id,
-      ammoName: ammo.name,
-      ammoType,
+      ammoItemId: shot?.itemId ?? ammo.id,
+      ammoName: shot?.name ?? ammo.name,
+      ammoType: shot?.ammoType ?? ammoType,
+      ammoImg: shot?.img ?? ammo.img,
       weaponId: weapon.id,
       timestamp: Date.now()
     });
@@ -272,19 +275,24 @@ export class AmmoService {
   static async recordHit(actor, ammo) {
     if (!TenebreSettings.get("enableHitTracking") || !ammo) return;
 
-    // Registra acertos apenas se o personagem estiver em um combate iniciado
-    const inCombat = game.combat?.started && game.combat.combatants.some(c => c.actorId === actor.id);
-    if (!inCombat) return;
+    const shot = getRecoverableShotData(actor, ammo);
+    if (!shot) return;
 
-    const ammoType = getAmmoType(ammo);
     const current = actor.getFlag(FLAG_SCOPE, "combat") ?? {};
     const ammoHits = foundry.utils.deepClone(current.ammoHits ?? {});
-    const entry = ammoHits[ammo.id] ?? { itemId: ammo.id, name: ammo.name, ammoType, img: ammo.img, count: 0 };
-    entry.name = ammo.name;
-    entry.ammoType = ammoType;
-    entry.img = ammo.img;
+    const entry = ammoHits[shot.key] ?? {
+      itemId: shot.itemId,
+      name: shot.name,
+      ammoType: shot.ammoType,
+      img: shot.img,
+      count: 0
+    };
+    entry.itemId = shot.itemId;
+    entry.name = shot.name;
+    entry.ammoType = shot.ammoType;
+    entry.img = shot.img;
     entry.count += 1;
-    ammoHits[ammo.id] = entry;
+    ammoHits[shot.key] = entry;
 
     await actor.setFlag(FLAG_SCOPE, "combat", {
       ammoHit: (current.ammoHit ?? 0) + 1,
@@ -313,67 +321,82 @@ export class AmmoService {
       return;
     }
 
-    const recoveredByItem = {};
-    let totalRecovered = 0;
-    const chatDetails = [];
-
-    for (const entry of Object.values(hits.ammoHits)) {
-      const shotCount = Number(entry.count) || 0;
-      if (shotCount <= 0) continue;
-
-      const threshold = getAmmoRecoveryThreshold(entry.name);
-      let recoveredCount = 0;
-      const rolls = [];
-
-      for (let i = 0; i < shotCount; i++) {
-        const roll = Math.floor(Math.random() * 20) + 1;
-        const success = roll <= threshold;
-        if (success) {
-          recoveredCount++;
-          rolls.push({ val: roll, status: "recovered", label: "Recuperada" });
-        } else {
-          rolls.push({ val: roll, status: "broken", label: "Quebrada" });
-        }
-      }
-
-      if (recoveredCount > 0) {
-        const item = actorItems(actor).find((candidate) => candidate.id === entry.itemId || (candidate.name === entry.name && isAmmo(candidate) && !isQuiver(candidate)));
-        if (item) {
-          await changeItemQuantity(item, recoveredCount);
-        } else {
-          await createRecoveredAmmo(actor, entry, recoveredCount);
-        }
-        recoveredByItem[entry.name] = recoveredCount;
-        totalRecovered += recoveredCount;
-      }
-
-      const rollsHtml = rolls.map(r => {
-        const color = r.status === "recovered" ? "#2e7d32" : "#c62828";
-        const strike = r.status === "broken" ? "text-decoration: line-through; opacity: 0.6;" : "";
-        const bg = r.status === "recovered" ? "rgba(46, 125, 50, 0.1)" : "rgba(198, 40, 40, 0.1)";
-        return `<span style="display: inline-block; padding: 2px 6px; margin: 2px; border: 1px solid ${color}; background: ${bg}; border-radius: 3px; font-weight: bold; color: ${color}; ${strike}" title="${r.label}">${r.val}</span>`;
-      }).join(" ");
-
-      let typeLabel = "Comum";
-      if (threshold === 15) typeLabel = "Qualidade";
-      else if (threshold === 17) typeLabel = "Mística";
-
-      chatDetails.push(`
-        <div style="margin-top: 8px; border-top: 1px solid #ddd; padding-top: 4px;">
-          <strong>${escapeHtml(entry.name)}</strong> (${typeLabel} - Limite: &le; ${threshold})<br>
-          <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 2px;">${rollsHtml}</div>
-          <span style="font-size: 0.9em; color: #555;">
-            Atirados: ${shotCount} | Recuperados: ${recoveredCount} | Quebrados: ${shotCount - recoveredCount}
-          </span>
-        </div>
-      `);
+    const entryPair = Object.entries(hits.ammoHits).find(([, entry]) => Number(entry.count) > 0);
+    if (!entryPair) {
+      await actor.setFlag(FLAG_SCOPE, "combat", {
+        arrowsHit: 0,
+        boltsHit: 0,
+        ammoHit: 0,
+        ammoHits: {}
+      });
+      ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
+      return;
     }
 
+    const [entryKey, entry] = entryPair;
+    const recoveryEntry = getRecoverableEntryData(actor, entry);
+    if (!recoveryEntry) {
+      const ammoHits = foundry.utils.deepClone(hits.ammoHits);
+      const remainingForEntry = Math.max(0, Number(ammoHits[entryKey]?.count ?? 0) - 1);
+      if (remainingForEntry > 0) {
+        ammoHits[entryKey].count = remainingForEntry;
+      } else {
+        delete ammoHits[entryKey];
+      }
+
+      await actor.setFlag(FLAG_SCOPE, "combat", {
+        arrowsHit: 0,
+        boltsHit: 0,
+        ammoHit: Math.max(0, totalHits - 1),
+        ammoHits
+      });
+      ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
+      return;
+    }
+
+    const threshold = getAmmoRecoveryThreshold(recoveryEntry.name);
+    const roll = await rollD20();
+    const success = roll.total <= threshold;
+
+    if (success) {
+      const item = actorItems(actor).find((candidate) => {
+        if (!isAmmo(candidate) || isQuiver(candidate)) return false;
+        return candidate.id === recoveryEntry.itemId || candidate.name === recoveryEntry.name;
+      });
+      if (item) {
+        await changeItemQuantity(item, 1);
+      } else {
+        await createRecoveredAmmo(actor, recoveryEntry, 1);
+      }
+    }
+
+    const ammoHits = foundry.utils.deepClone(hits.ammoHits);
+    const remainingForEntry = Math.max(0, Number(ammoHits[entryKey]?.count ?? 0) - 1);
+    if (remainingForEntry > 0) {
+      ammoHits[entryKey].count = remainingForEntry;
+    } else {
+      delete ammoHits[entryKey];
+    }
+
+    const remainingTotal = Math.max(0, totalHits - 1);
     await actor.setFlag(FLAG_SCOPE, "combat", {
       arrowsHit: 0,
       boltsHit: 0,
-      ammoHit: 0,
-      ammoHits: {}
+      ammoHit: remainingTotal,
+      ammoHits
+    });
+
+    let typeLabel = game.i18n.localize("TENEBRE.Recovery.TypeCommon");
+    if (threshold === 15) typeLabel = game.i18n.localize("TENEBRE.Recovery.TypeQuality");
+    else if (threshold === 17) typeLabel = game.i18n.localize("TENEBRE.Recovery.TypeMystical");
+
+    const color = success ? "#2e7d32" : "#c62828";
+    const status = success
+      ? game.i18n.localize("TENEBRE.Recovery.ProjectileRecovered")
+      : game.i18n.localize("TENEBRE.Recovery.ProjectileBroken");
+    const resultText = game.i18n.format(success ? "TENEBRE.Recovery.SingleRecovered" : "TENEBRE.Recovery.SingleBroken", {
+      ammo: escapeHtml(recoveryEntry.name),
+      remaining: remainingTotal
     });
 
     const chatContent = `
@@ -382,22 +405,107 @@ export class AmmoService {
           ${game.i18n.localize("TENEBRE.Recovery.ChatTitle")}
         </h3>
         <p style="margin: 0 0 5px 0;">
-          ${game.i18n.format("TENEBRE.Recovery.NewChatRoll", {
+          ${game.i18n.format("TENEBRE.Recovery.SingleChatRoll", {
             actor: escapeHtml(actor.name),
-            total: totalRecovered
+            ammo: escapeHtml(recoveryEntry.name),
+            type: typeLabel,
+            threshold
           })}
         </p>
-        ${chatDetails.join("")}
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+          <span style="display: inline-block; padding: 3px 8px; border: 1px solid ${color}; background: rgba(0,0,0,0.05); border-radius: 3px; font-weight: bold; color: ${color};">
+            ${roll.total}
+          </span>
+          <strong style="color: ${color};">${status}</strong>
+        </div>
+        <p style="margin: 6px 0 0 0; font-size: 0.9em; color: #555;">${resultText}</p>
       </div>
     `;
 
-    await ChatMessage.create({
+    const chatData = {
       speaker: ChatMessage.getSpeaker({ actor }),
       content: chatContent
-    });
+    };
+
+    await ChatMessage.create(chatData);
   }
 }
 
+function getRecoverableShotData(actor, ammo, fallbackAmmoType = "") {
+  if (!ammo) return null;
+
+  if (ammo.isVirtual) {
+    return {
+      key: ammo.recoveryKey ?? ammo.recoveryItemId ?? ammo.id ?? ammo.name,
+      itemId: ammo.recoveryItemId ?? ammo.id,
+      name: ammo.recoveryName ?? ammo.name,
+      ammoType: getAmmoType(ammo) || fallbackAmmoType || "ammo",
+      img: ammo.img
+    };
+  }
+
+  if (isQuiver(ammo)) {
+    const lastShot = actor?.getFlag?.(FLAG_SCOPE, "lastShot");
+    if (!lastShot || isQuiverName(lastShot.ammoName)) return null;
+    return {
+      key: lastShot.ammoItemId ?? lastShot.ammoName,
+      itemId: lastShot.ammoItemId,
+      name: lastShot.ammoName,
+      ammoType: lastShot.ammoType || fallbackAmmoType || "ammo",
+      img: lastShot.ammoImg
+    };
+  }
+
+  if (!isAmmo(ammo)) return null;
+  return {
+    key: ammo.id,
+    itemId: ammo.id,
+    name: ammo.name,
+    ammoType: getAmmoType(ammo) || fallbackAmmoType || "ammo",
+    img: ammo.img
+  };
+}
+
+function getRecoverableEntryData(actor, entry) {
+  if (!entry) return null;
+
+  const item = entry.itemId ? actorItems(actor).find((candidate) => candidate.id === entry.itemId) : null;
+  if (!isQuiverName(entry.name) && (!item || !isQuiver(item))) {
+    return entry;
+  }
+
+  const lastShot = actor?.getFlag?.(FLAG_SCOPE, "lastShot");
+  if (!lastShot || isQuiverName(lastShot.ammoName)) return null;
+
+  return {
+    itemId: lastShot.ammoItemId,
+    name: lastShot.ammoName,
+    ammoType: lastShot.ammoType || entry.ammoType || "ammo",
+    img: lastShot.ammoImg || entry.img
+  };
+}
+
+function isQuiverName(name) {
+  const value = String(name ?? "").toLowerCase();
+  return value.includes("aljava") || value.includes("quiver");
+}
+
+async function rollD20() {
+  if (globalThis.Roll) {
+    const roll = new Roll("1d20");
+    if (roll.evaluate.length > 0) {
+      await roll.evaluate({ async: true });
+    } else {
+      await roll.evaluate();
+    }
+    return roll;
+  }
+
+  return {
+    total: Math.floor(Math.random() * 20) + 1,
+    formula: "1d20"
+  };
+}
 
 async function postAmmoCard(actor, ammo) {
   const description = getAmmoDescription(ammo);

@@ -1,12 +1,14 @@
-import { FLAG_SCOPE } from "./constants.mjs";
+import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
+import { HungerService } from "./hunger.mjs";
 import { escapeHtml } from "./utils.mjs";
 
 // Gerenciamento de descanso de personagens
 export class RestService {
   // Abre diálogo de descanso para o ator
   static async openRestDialog(actor) {
-    const defaultHealing = Number(TenebreSettings.get("restHealing")) || 1;
+    const restHealingEnabled = TenebreSettings.get("enableRestHealing");
+    const defaultHealing = restHealingEnabled ? (Number(TenebreSettings.get("restHealing")) || 1) : 0;
 
     const content = `
       <div class="tenebre-rest-dialog">
@@ -33,7 +35,7 @@ export class RestService {
         callback: (_event, _button, dialog) => {
           return {
             days: Number(dialog.element.querySelector("#tenebre-days")?.value) || 1,
-            healing: Number(dialog.element.querySelector("#tenebre-healing")?.value) ?? 1
+            healing: restHealingEnabled ? (Number(dialog.element.querySelector("#tenebre-healing")?.value) ?? 1) : 0
           };
         }
       },
@@ -47,20 +49,20 @@ export class RestService {
   // Aplica efeitos de descanso (recuperação de vitalidade, remoção de corrupção temporária e resets de morte)
   static async applyRest(actor, days = 1, healingPerDay = null) {
     const updates = {};
-    const results = { days, actorName: actor.name, healed: 0, corruptionCleared: 0, hungerResults: [] };
+    const results = { days, actorName: actor.name, healed: 0, corruptionCleared: 0, hungerResults: [], hungerStrongRecovered: 0 };
 
     // Zera os testes de morte falhos
     updates["system.nbrOfFailedDeathRoll"] = 0;
 
     // Verifica status de fome
-    const hasHunger = actor.effects.some(e => e.statuses?.has?.("hunger") || e.statuses?.has?.("fome") || e.name === "Fome" || e.name === "Hunger");
+    const hasHunger = HungerService.hasHunger(actor);
 
     // Recuperação de vitalidade
-    let finalHealing = healingPerDay !== null
-      ? healingPerDay
-      : (TenebreSettings.get("enableRestHealing") ? (Number(TenebreSettings.get("restHealing")) || 0) : 0);
+    let finalHealing = TenebreSettings.get("enableRestHealing")
+      ? (healingPerDay !== null ? healingPerDay : (Number(TenebreSettings.get("restHealing")) || 0))
+      : 0;
 
-    if (hasHunger) {
+    if (!HungerService.naturalHealingAllowed(actor)) {
       finalHealing = 0;
     }
 
@@ -78,40 +80,64 @@ export class RestService {
 
     // Testes diários de Vigoroso por inanição
     if (hasHunger) {
-      let currentStrong = Number(actor.system?.attributes?.strong?.value ?? 0);
-      const strongBonus = Number(actor.system?.attributes?.strong?.bonus ?? 0);
-      const strongTemp = Number(actor.system?.attributes?.strong?.temporaryMod ?? 0);
+      let currentStrong = HungerService.getStrongTotal(actor);
+      let currentPenalty = HungerService.getStrongPenalty(actor);
+      const pendingPenaltyUpdates = {};
 
       for (let d = 1; d <= days; d++) {
-        const target = currentStrong + strongBonus + strongTemp;
-        // Rolagem com desvantagem (dois testes e escolhe o pior)
-        const roll1 = Math.floor(Math.random() * 20) + 1;
-        const roll2 = Math.floor(Math.random() * 20) + 1;
-        const rollValue = Math.max(roll1, roll2);
-        const success = rollValue <= target;
+        const starvation = HungerService.rollStarvationDay(currentStrong);
 
         let effectMsg = "";
-        if (!success) {
-          currentStrong = Math.max(0, currentStrong - 1);
-          effectMsg = `Falhou! Vigoroso diminuído em -1 (Novo base: ${currentStrong})`;
-          updates["system.attributes.strong.value"] = currentStrong;
+        if (!starvation.success) {
+          currentPenalty -= 1;
+          currentStrong = starvation.nextStrong;
+          updates["system.attributes.strong.temporaryMod"] = Number(actor.system?.attributes?.strong?.temporaryMod ?? 0) + currentPenalty - HungerService.getStrongPenalty(actor);
+          pendingPenaltyUpdates[`flags.${MODULE_ID}.hungerStrongPenalty`] = currentPenalty;
+
+          if (starvation.dead) {
+            updates["system.health.toughness.value"] = 0;
+            updates["system.nbrOfFailedDeathRoll"] = 3;
+            effectMsg = game.i18n.localize("TENEBRE.Hunger.StarvationDeath");
+          } else {
+            effectMsg = game.i18n.format("TENEBRE.Hunger.StarvationFailure", {
+              strong: currentStrong,
+              modifier: currentPenalty
+            });
+          }
         } else {
           effectMsg = "Passou no teste!";
         }
 
         results.hungerResults.push({
           day: d,
-          rolls: [roll1, roll2],
-          selectedRoll: rollValue,
-          target,
-          success,
+          rolls: starvation.rolls,
+          selectedRoll: starvation.selectedRoll,
+          target: starvation.target,
+          success: starvation.success,
           effectMsg,
-          dead: currentStrong === 0
+          dead: starvation.dead
         });
 
-        if (currentStrong === 0) {
+        if (starvation.dead) {
           break;
         }
+      }
+
+      Object.assign(updates, pendingPenaltyUpdates);
+    } else {
+      const hungerPenalty = HungerService.getStrongPenalty(actor);
+      if (hungerPenalty < 0) {
+        const recovered = Math.min(days, Math.abs(hungerPenalty));
+        const nextPenalty = hungerPenalty + recovered;
+        const currentTemporaryMod = Number(actor.system?.attributes?.strong?.temporaryMod ?? 0) || 0;
+
+        updates["system.attributes.strong.temporaryMod"] = currentTemporaryMod + recovered;
+        if (nextPenalty < 0) {
+          updates[`flags.${MODULE_ID}.hungerStrongPenalty`] = nextPenalty;
+        } else {
+          updates[`flags.${MODULE_ID}.-=hungerStrongPenalty`] = null;
+        }
+        results.hungerStrongRecovered = recovered;
       }
     }
 
@@ -126,6 +152,9 @@ export class RestService {
     }
 
     await actor.update(updates);
+    if (results.hungerResults.some(hr => hr.dead)) {
+      await HungerService.markDead(actor);
+    }
     await RestService.#postRestMessage(actor, results);
   }
 
@@ -138,10 +167,16 @@ export class RestService {
     if (results.corruptionCleared > 0) {
       lines.push(game.i18n.format("TENEBRE.Rest.ChatCorruptionCleared", { amount: results.corruptionCleared }));
     }
+    if (results.hungerStrongRecovered > 0) {
+      lines.push(game.i18n.format("TENEBRE.Hunger.NaturalRecovery", { amount: results.hungerStrongRecovered }));
+    }
 
     if (results.hungerResults && results.hungerResults.length > 0) {
       lines.push(`<li style="list-style: none; margin-left: -15px; font-weight: bold; color: #c62828; margin-top: 8px;">
-        <i class="fas fa-drumstick-bite"></i> Testes de Inanição (Fome):
+        <i class="fas fa-drumstick-bite"></i> ${game.i18n.localize("TENEBRE.Hunger.StarvationTests")}:
+      </li>`);
+      lines.push(`<li style="font-size: 0.9em; list-style: none; margin-left: -10px;">
+        ${game.i18n.localize("TENEBRE.Hunger.MovementReminder")}
       </li>`);
       for (const hr of results.hungerResults) {
         const statusColor = hr.success ? "#2e7d32" : "#c62828";
