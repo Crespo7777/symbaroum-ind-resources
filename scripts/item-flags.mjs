@@ -7,6 +7,8 @@ const ARROW_ALIASES = [
   "flecha",
   "flechas",
   "arrow",
+  "Arrows/Bolts - Regular",
+  "Flechas/Virotes - Regulares",
   "arrows",
   "precision arrow",
   "flaming arrow",
