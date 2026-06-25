@@ -5,6 +5,7 @@ import { RationService } from "./rations.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { getAmmoModifiers, getSpecialAmmo } from "./special-ammo.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
+import { ContainerService } from "./containers.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
 import { normalize } from "./utils.mjs";
 import {
@@ -115,6 +116,41 @@ function patchContextMenu() {
         this._tenebrePatched = true;
 
         this.originalMenuItems.push({
+          name: "TENEBRE.Containers.StoreContextMenu",
+          icon: `<i class="fas fa-box-open" style="color: currentColor;"></i>`,
+          isVisible: (item) => {
+            const actor = this.myParent?.actor;
+            return TenebreSettings.get("enableEncumbrance")
+              && ContainerService.canStoreItem(item)
+              && ContainerService.getAvailableContainers(actor, item).length > 0;
+          },
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
+            if (actor && item) {
+              ContainerService.storeItemPrompt(actor, item);
+            }
+          }
+        });
+
+        this.originalMenuItems.push({
+          name: "TENEBRE.Containers.OpenContextMenu",
+          icon: `<i class="fas fa-box" style="color: currentColor;"></i>`,
+          isVisible: (item) => {
+            return TenebreSettings.get("enableEncumbrance") && ContainerService.isContainer(item);
+          },
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
+            if (actor && item) {
+              ContainerService.openContainer(actor, item);
+            }
+          }
+        });
+
+        this.originalMenuItems.push({
           name: "TENEBRE.Rations.ConsumeRationContextMenu",
           icon: `<i class="fas fa-bread-slice" style="color: currentColor;"></i>`,
           isVisible: (item) => {
@@ -200,9 +236,21 @@ function onRenderActorSheet(app, html) {
   if (!actor || actor.type !== "player") return;
   if (!actor.isOwner && !game.user.isGM) return;
 
+  hideStoredItemRows(app, html, actor);
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
   injectEncumbrancePanel(app, html, actor);
+}
+
+function hideStoredItemRows(app, html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  for (const item of actor.items ?? []) {
+    if (!ContainerService.isStored(item)) continue;
+    const row = el.querySelector(`.item[data-item-id="${item.id}"]`);
+    if (row) row.style.display = "none";
+  }
 }
 
 // Injeta quantidade e usos de aljavas na ficha

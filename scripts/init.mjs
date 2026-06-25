@@ -10,6 +10,7 @@ import { findAmmoItems, isAmmo, isRation, sumItemQuantities } from "./item-flags
 import { VerseService } from "./verses.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { HungerService } from "./hunger.mjs";
+import { ContainerService } from "./containers.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -78,6 +79,7 @@ Hooks.once("ready", async () => {
     verses: VerseService,
     encumbrance: EncumbranceService,
     hunger: HungerService,
+    containers: ContainerService,
 
     inspectActorResources,
     diagnostics: {

@@ -11,6 +11,7 @@ import {
   upsertDynamicSlotRule,
   ENC_SLOTS
 } from "./encumbrance-db.mjs";
+import { ContainerService } from "./containers.mjs";
 import { normalize } from "./utils.mjs";
 
 const GEAR_ITEM_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
@@ -253,6 +254,16 @@ export class EncumbranceService {
     const state = item?.system?.state;
 
     if (!isTrackedGear(item)) {
+      return {
+        slotsPerUnit,
+        quantity: 0,
+        totalSlots: 0,
+        state,
+        counted: false
+      };
+    }
+
+    if (ContainerService.isStored(item)) {
       return {
         slotsPerUnit,
         quantity: 0,
@@ -600,7 +611,8 @@ async function readDynamicWeightFile() {
 }
 
 async function writeDynamicWeightFile(config) {
-  if (!globalThis.FilePicker?.upload || !globalThis.File) return false;
+  const filePicker = globalThis.foundry?.applications?.apps?.FilePicker?.implementation;
+  if (!filePicker?.upload || !globalThis.File) return false;
 
   const path = dynamicWeightFilePath();
   if (!path) return false;
@@ -608,7 +620,7 @@ async function writeDynamicWeightFile(config) {
   try {
     const blob = new Blob([`${JSON.stringify(config, null, 2)}\n`], { type: "application/json" });
     const file = new File([blob], dynamicWeightFileName(), { type: "application/json" });
-    await FilePicker.upload("data", path.directory, file, { notify: false });
+    await filePicker.upload("data", path.directory, file, { notify: false });
     dynamicWeightFileFingerprint = fingerprintWeightConfig(config);
     return true;
   } catch (err) {

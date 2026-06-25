@@ -340,3 +340,50 @@ body .dice-tooltip-collapser {
   color: #8b0000;
   border-color: #e0b0b0;
 }
+
+/* ── Containers ─────────────────────────────────────────────────────── */
+
+.tenebre-container-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tenebre-container-item {
+  display: grid;
+  grid-template-columns: 28px 1fr 40px auto auto auto;
+  gap: 6px;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.tenebre-container-item img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border: 0;
+}
+
+.tenebre-container-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+.tenebre-container-qty {
+  text-align: center;
+  font-weight: bold;
+}
+
+.tenebre-container-item button {
+  min-width: 0;
+  width: auto;
+  line-height: 1.4;
+  padding: 2px 6px;
+}

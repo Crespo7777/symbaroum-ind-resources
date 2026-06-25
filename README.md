@@ -57,6 +57,10 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
   * **Recipientes Volumosos:** Barris, baús e caixas contam como 1 item próprio, somado ao conteúdo carregado separadamente.
   * **Peso Duplo (2 espaços):** Armas pesadas, de duas mãos ou com a qualidade Maciça (Massive).
   * **Armaduras Equipadas:** Armaduras em estado **Equipado** contam pela categoria: leve 2, média 3, pesada 4.
+* **Containers (fase 1):** Mochilas, sacos, sacolas, bolsas, alforjes, baús, caixas e barris podem guardar itens pelo menu de botão direito.
+  * Clique com o botão direito em um item e selecione **Guardar** para escolher um recipiente e a quantidade, quando o item possuir pilha.
+  * Clique com o botão direito no recipiente e selecione **Abrir** para ver, usar ou retirar os itens guardados. Pilhas podem ser retiradas parcialmente.
+  * Itens guardados ficam ocultos da lista principal e não contam para a sobrecarga enquanto estiverem dentro do recipiente.
 * **Edição Manual Flexível:** Armas, armaduras e equipamentos exibem o campo **Peso** na descrição do item, abaixo de **Número**, permitindo ajuste manual quando necessário.
 * **Mecânicas de Capacidade:** A capacidade básica é o valor de Vigoroso. O dom **Transportador** (Porter) multiplica a capacidade por 1.5. A cada espaço acima do limite, o sistema avisa o jogador e indica um redutor na **Defesa** equivalente ao sobrepeso. Ultrapassar o dobro do Vigoroso imobiliza o personagem.
 
