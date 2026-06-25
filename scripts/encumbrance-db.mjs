@@ -290,7 +290,15 @@ export function getStackBundleSlots(itemName) {
 }
 
 function matchesAliases(normalizedName, aliases) {
-  return aliases.some(alias => normalizedName.includes(normalize(alias)));
+  const searchableName = toSearchableText(normalizedName);
+  return aliases.some((alias) => {
+    const searchableAlias = toSearchableText(alias).trim();
+    return Boolean(searchableAlias) && searchableName.includes(` ${searchableAlias} `);
+  });
+}
+
+function toSearchableText(value) {
+  return ` ${normalize(value).replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ")} `;
 }
 
 function rebuildWeightConfig() {

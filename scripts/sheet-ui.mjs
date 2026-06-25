@@ -118,7 +118,7 @@ function patchContextMenu() {
           name: "TENEBRE.Rations.ConsumeRationContextMenu",
           icon: `<i class="fas fa-bread-slice" style="color: currentColor;"></i>`,
           isVisible: (item) => {
-            return isRation(item) && itemQuantity(item) > 0;
+            return TenebreSettings.get("enableRations") && isRation(item) && itemQuantity(item) > 0;
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);
@@ -132,6 +132,7 @@ function patchContextMenu() {
           name: "TENEBRE.Ammo.RecoverAmmoContextMenu",
           icon: `<i class="fas fa-arrows-rotate" style="color: currentColor;"></i>`,
           isVisible: (item) => {
+            if (!TenebreSettings.get("enableAmmoRecovery")) return false;
             if (item?.type !== "weapon") return false;
             const ammoType = getWeaponAmmoType(item);
             return Boolean(ammoType);
@@ -148,7 +149,7 @@ function patchContextMenu() {
           name: "TENEBRE.Ammo.ReloadQuiverContextMenu",
           icon: `<i class="fas fa-redo" style="color: currentColor;"></i>`,
           isVisible: (item) => {
-            return isQuiver(item) && itemQuantity(item) > 0;
+            return TenebreSettings.get("enableAmmoConsumption") && isQuiver(item) && itemQuantity(item) > 0;
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);

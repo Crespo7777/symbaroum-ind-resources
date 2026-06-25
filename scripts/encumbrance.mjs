@@ -262,6 +262,16 @@ export class EncumbranceService {
       };
     }
 
+    if (hasGearState(item) && !isEquippedGearState(item)) {
+      return {
+        slotsPerUnit,
+        quantity: 0,
+        totalSlots: 0,
+        state,
+        counted: false
+      };
+    }
+
     if (isQuiver(item)) {
       const shots = getAmmoShots(item);
       const bundleRule = getStackBundleRule("flechas");
@@ -287,16 +297,6 @@ export class EncumbranceService {
         totalSlots,
         state,
         counted: totalSlots > 0
-      };
-    }
-
-    if ((item.type === "weapon" || item.type === "armor") && isActiveGearState(item)) {
-      return {
-        slotsPerUnit,
-        quantity: 0,
-        totalSlots: 0,
-        state,
-        counted: false
       };
     }
 
@@ -440,8 +440,12 @@ function isTrackedGear(item) {
   return Boolean(item && (item.system?.isGear || GEAR_ITEM_TYPES.has(item.type)));
 }
 
-function isActiveGearState(item) {
-  return item?.system?.isActive === true || item?.system?.state === "active";
+function hasGearState(item) {
+  return item?.system?.state !== undefined && item?.system?.state !== null && item?.system?.state !== "";
+}
+
+function isEquippedGearState(item) {
+  return item?.system?.isEquipped === true || item?.system?.state === "equipped";
 }
 
 function encumbranceQuantity(item) {

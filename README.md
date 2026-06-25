@@ -49,16 +49,14 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 ### 6. ⚖️ Sistema de Sobrecarga Opcional (Encumbrance)
 * **Regra do Guia Avançado do Jogador:** Implementa a regra opcional de sobrecarga baseada no atributo **Vigoroso** (Strong).
 * **Painel Dinâmico na Ficha:** Injeta um painel com barra de progresso próximo ao cabeçalho "Equipamento", mostrando a carga atual, capacidade máxima e penalidades defensivas ativas.
-* **Badges Visuais:** Adiciona uma pequena insígnia (badge) na linha de cada item exibindo seu peso acumulado e destacando itens pesados (Maciços) ou de peso zero.
 * **Auto-atribuição Global:** O sistema possui um banco de dados interno que analisa os nomes dos itens (em inglês e português) assim que entram no inventário. O peso é atribuído automaticamente e silenciosamente a todos os itens.
   * **Peso Padrão:** 1 espaço.
-  * **Peso Zero:** Itens no estado **Ativo** ou **Outro** não contam peso.
-  * **Estado dos Itens:** Ativo não conta peso; Equipado conta peso; Outro não conta peso.
+  * **Estado dos Itens:** Apenas itens em estado **Equipado** contam para sobrecarga. Itens em **Ativo** ou **Outro** não contam peso.
   * **Munições:** Flechas e virotes contam como 1 item transportado para cada 10 unidades.
   * **Itens Pequenos:** Moedas, pingentes e joias contam como 1 item transportado para cada 50 peças.
   * **Recipientes Volumosos:** Barris, baús e caixas contam como 1 item próprio, somado ao conteúdo carregado separadamente.
-  * **Peso Duplo (2 espaços):** Armas com a qualidade Maciça (Massive).
-  * **Armaduras Equipadas:** Armaduras em estado Equipado contam pelo valor de Obstrutiva.
+  * **Peso Duplo (2 espaços):** Armas pesadas, de duas mãos ou com a qualidade Maciça (Massive).
+  * **Armaduras Equipadas:** Armaduras em estado **Equipado** contam pela categoria: leve 2, média 3, pesada 4.
 * **Edição Manual Flexível:** Armas, armaduras e equipamentos exibem o campo **Peso** na descrição do item, abaixo de **Número**, permitindo ajuste manual quando necessário.
 * **Mecânicas de Capacidade:** A capacidade básica é o valor de Vigoroso. O dom **Transportador** (Porter) multiplica a capacidade por 1.5. A cada espaço acima do limite, o sistema avisa o jogador e indica um redutor na **Defesa** equivalente ao sobrepeso. Ultrapassar o dobro do Vigoroso imobiliza o personagem.
 
