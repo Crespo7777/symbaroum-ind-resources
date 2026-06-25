@@ -10,7 +10,6 @@
 * **Consumo na Ficha:** Clique com o **botão direito** sobre o item de Pão de Viagem (ou *Waybread*) no inventário do personagem e selecione **"Consumir Pão de Viagem"** para gastar 1 uso.
 * **Quantidade e Usos:** A quantidade no inventário exibe quantos usos restam no formato `Unidades (UsosRestantes/MaxUsos)` (ex: `1 (7/7)`).
 * **Notificação no Chat:** Consumir um pão de viagem publica uma mensagem detalhada no Chat contendo o retrato do personagem e as informações de uso do pão.
-* **Ícone de Atalho na Hotbar:** Para o jogador ativo, um ícone de pão de viagem aparece automaticamente no canto esquerdo da Hotbar. Clicar nele consome um uso sem precisar abrir a ficha.
 * **Cálculo Cumulativo:** O controle de usos calcula o valor total acumulado de todos os pães de viagem que o jogador possui no inventário. A quantidade de usos por pão é configurável nas opções do módulo.
 
 ### 2. 🎒 Sistema de Aljava e Recarga de Munições
@@ -63,14 +62,15 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 ### 7. 🎒 Recipientes e Itens Guardados (Containers)
 * **Recipientes Detectados:** Mochilas, sacos, sacolas, bolsas, alforjes, baús, caixas e barris são reconhecidos como recipientes.
 * **Guardar Item:** Clique com o **botão direito** em um item e selecione **Guardar**. O sistema permite escolher o recipiente de destino e, quando o item possuir pilha, a quantidade a guardar.
-* **Abrir Recipiente:** Clique com o **botão direito** no recipiente e selecione **Abrir** para visualizar os itens guardados.
-* **Ações Dentro do Recipiente:** A janela do recipiente permite **Usar**, **Retirar** ou **Ver** cada item guardado.
-  * **Usar:** para equipamentos consumíveis ou rápidos, publica o item no chat e consome 1 unidade.
+* **Estado Necessário:** Só é possível guardar itens e retirar itens de recipientes quando o item/recipiente estiver em **Equipado**. Itens ou recipientes em **Ativo** ou **Outro** bloqueiam a ação e exibem aviso.
+* **Abrir Recipiente:** Clique com o **botão direito** no recipiente e selecione **Abrir** para expandir ou recolher uma sublista logo abaixo dele na própria ficha.
+* **Ações Dentro do Recipiente:** A sublista do recipiente permite **Retirar** ou **Ver** cada item guardado.
   * **Retirar:** permite escolher a quantidade quando o item guardado possui pilha.
   * **Ver:** abre a ficha do item.
+* **Uso de Itens Guardados:** Para usar um item, primeiro retire-o do recipiente para o inventário principal.
 * **Peso e Sobrecarga:** Itens guardados ficam ocultos da lista principal da ficha e não contam para a sobrecarga enquanto estiverem dentro do recipiente.
 * **Pilhas Parciais:** Se guardar ou retirar apenas parte de uma pilha, o sistema divide ou junta automaticamente com uma pilha visível igual quando possível.
-* **Fase Atual:** Esta é a fase 1 da função de containers. O fluxo usa menus de botão direito e janela simples. Drag-and-drop direto para dentro de recipientes fica para uma fase posterior.
+* **Fase Atual:** Esta é a fase 1 da função de containers. O fluxo usa menus de botão direito e sublista expansível na ficha. Drag-and-drop direto para dentro de recipientes fica para uma fase posterior.
 
 ### 8. 🛏️ Descanso Avançado (botão "Descanso")
 * Adiciona um botão dedicado **Descanso** na barra de cabeçalho da ficha do PJ.
