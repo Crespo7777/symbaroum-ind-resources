@@ -1,5 +1,5 @@
 import { AmmoService } from "./ammo.mjs";
-import { getWeaponAmmoType, findLoadedQuiverItems, localizeAmmoType, sumLoadedQuiverShots } from "./item-flags.mjs";
+import { getWeaponAmmoType } from "./item-flags.mjs";
 import { TenebreSettings } from "./settings.mjs";
 
 let patched = false;
@@ -30,13 +30,6 @@ export function patchWeaponRolls() {
         ui.notifications.warn(game.i18n.localize("ABILITY_ERROR.TARGET"));
         return undefined;
       }
-    }
-
-    // Verifica se possui munição
-    const ammoItems = findLoadedQuiverItems(this, ammoType);
-    if (sumLoadedQuiverShots(ammoItems) <= 0) {
-      ui.notifications.warn(game.i18n.format("TENEBRE.Ammo.NoCompatibleAmmo", { type: localizeAmmoType(ammoType) }));
-      return undefined;
     }
 
     const rollState = {

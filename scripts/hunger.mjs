@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { escapeHtml } from "./utils.mjs";
+import { evaluateRoll, rollTotal } from "./dice.mjs";
 
 export const HUNGER_STATUS_ID = "hunger";
 export const HUNGER_EFFECT_ID = "tenebreHunger001";
@@ -263,16 +264,19 @@ export class HungerService {
     await HungerService.#markActiveTokensDead(actor);
   }
 
-  static rollStarvationDay(strongTotal) {
+  static async rollStarvationDay(strongTotal) {
     const target = Number(strongTotal) || 0;
-    const roll1 = Math.floor(Math.random() * 20) + 1;
-    const roll2 = Math.floor(Math.random() * 20) + 1;
+    const rollObject1 = await evaluateRoll("1d20");
+    const rollObject2 = await evaluateRoll("1d20");
+    const roll1 = rollTotal(rollObject1);
+    const roll2 = rollTotal(rollObject2);
     const selectedRoll = Math.max(roll1, roll2);
     const success = selectedRoll <= target;
     const nextStrong = success ? target : target - 1;
 
     return {
       rolls: [roll1, roll2],
+      rollObjects: [rollObject1, rollObject2],
       selectedRoll,
       target,
       success,

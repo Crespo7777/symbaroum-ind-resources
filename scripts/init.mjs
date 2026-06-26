@@ -22,15 +22,13 @@ Hooks.once("init", () => {
 Hooks.on("createItem", (item) => {
   if (!TenebreSettings.get("enableEncumbrance")) return;
 
-  EncumbranceService.learnItem(item);
   if (item.parent && item.parent.type === "player") {
     EncumbranceService.autoAssignSlots(item);
   }
 });
 
-Hooks.on("updateItem", (item) => {
+Hooks.on("updateItem", (_item) => {
   if (!TenebreSettings.get("enableEncumbrance")) return;
-  EncumbranceService.learnItem(item);
 });
 
 Hooks.once("ready", async () => {
@@ -47,10 +45,6 @@ Hooks.once("ready", async () => {
 
   await EncumbranceService.loadWeightConfig(MODULE_ID);
   if (TenebreSettings.get("enableEncumbrance")) {
-    const discovery = await EncumbranceService.discoverKnownItems();
-    if (discovery.learned > 0) {
-      console.log(`${MODULE_ID} | Learned encumbrance weights for ${discovery.learned} item names from ${discovery.scanned} scanned items.`);
-    }
     EncumbranceService.startDynamicWeightFileWatcher();
   }
 

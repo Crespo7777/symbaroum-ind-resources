@@ -3,7 +3,7 @@ import { actorItems, changeItemQuantity, itemQuantity } from "./item-flags.mjs";
 import { escapeHtml, normalize } from "./utils.mjs";
 
 const STORABLE_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
-const ACCESSIBLE_STATES = new Set(["equipped"]);
+const ACCESSIBLE_STATES = new Set(["equipped", "active"]);
 const expandedContainers = new Set();
 
 const LIGHT_CONTAINER_ALIASES = [
@@ -16,9 +16,19 @@ const LIGHT_CONTAINER_ALIASES = [
   "sacolas",
   "satchel",
   "sack",
+  "cesto",
+  "cesta",
+  "basket",
   "bolsa",
   "bag",
   "pouch",
+  "purse",
+  "bolsa de moedas",
+  "coin purse",
+  "jarro",
+  "jarra",
+  "pitcher",
+  "clay pitcher",
   "alforje",
   "alforjes",
   "saddlebag"
@@ -37,11 +47,22 @@ const BULKY_CONTAINER_ALIASES = [
   "coffer"
 ];
 
+const NON_CONTAINER_ALIASES = [
+  "saco de dormir",
+  "sleeping bag",
+  "bedroll",
+  "colchonete",
+  "one box",
+  "one sack",
+  "one barrel"
+];
+
 export class ContainerService {
   static isContainer(item) {
     if (!item || !STORABLE_TYPES.has(item.type)) return false;
     if (item.getFlag?.(FLAG_SCOPE, "isContainer") === true) return true;
     const name = normalize(item.name);
+    if (hasAlias(name, NON_CONTAINER_ALIASES)) return false;
     return hasAlias(name, LIGHT_CONTAINER_ALIASES) || hasAlias(name, BULKY_CONTAINER_ALIASES);
   }
 
@@ -175,26 +196,26 @@ export class ContainerService {
     const preStoredState = item.system?.state ?? "";
 
     if (item.type === "equipment" && storableQuantity > 1 && amount < storableQuantity) {
-      const itemData = item.toObject();
-      delete itemData._id;
-      itemData.system = foundry.utils.deepClone(itemData.system ?? {});
-      itemData.system.number = amount;
-      itemData.flags = foundry.utils.deepClone(itemData.flags ?? {});
-      itemData.flags[FLAG_SCOPE] = {
-        ...(itemData.flags[FLAG_SCOPE] ?? {}),
-        storedIn: container.id,
-        storedInName: container.name,
-        preStoredState
-      };
-
+      const storedStack = findStoredStack(actor, item, container);
       await changeItemQuantity(item, -amount);
-      await actor.createEmbeddedDocuments("Item", [itemData], { render: true });
+      if (storedStack) {
+        await changeItemQuantity(storedStack, amount);
+      } else {
+        const itemData = createStoredItemData(item, container, amount, preStoredState);
+        await actor.createEmbeddedDocuments("Item", [itemData], { render: true });
+      }
     } else {
-      await item.update({
-        [`flags.${FLAG_SCOPE}.storedIn`]: container.id,
-        [`flags.${FLAG_SCOPE}.storedInName`]: container.name,
-        [`flags.${FLAG_SCOPE}.preStoredState`]: preStoredState
-      });
+      const storedStack = item.type === "equipment" ? findStoredStack(actor, item, container) : null;
+      if (storedStack) {
+        await changeItemQuantity(storedStack, itemQuantity(item));
+        await actor.deleteEmbeddedDocuments("Item", [item.id], { render: true });
+      } else {
+        await item.update({
+          [`flags.${FLAG_SCOPE}.storedIn`]: container.id,
+          [`flags.${FLAG_SCOPE}.storedInName`]: container.name,
+          [`flags.${FLAG_SCOPE}.preStoredState`]: preStoredState
+        });
+      }
     }
 
     ui.notifications.info(game.i18n.format("TENEBRE.Containers.Stored", {
@@ -351,6 +372,32 @@ function findVisibleStack(actor, item) {
       && !ContainerService.isStored(candidate)
       && !ContainerService.isContainer(candidate);
   });
+}
+
+function findStoredStack(actor, item, container) {
+  if (item.type !== "equipment") return null;
+  return actorItems(actor).find((candidate) => {
+    return candidate.id !== item.id
+      && candidate.type === item.type
+      && candidate.name === item.name
+      && ContainerService.getStoredIn(candidate) === container.id
+      && !ContainerService.isContainer(candidate);
+  });
+}
+
+function createStoredItemData(item, container, quantity, preStoredState) {
+  const itemData = item.toObject();
+  delete itemData._id;
+  itemData.system = foundry.utils.deepClone(itemData.system ?? {});
+  itemData.system.number = quantity;
+  itemData.flags = foundry.utils.deepClone(itemData.flags ?? {});
+  itemData.flags[FLAG_SCOPE] = {
+    ...(itemData.flags[FLAG_SCOPE] ?? {}),
+    storedIn: container.id,
+    storedInName: container.name,
+    preStoredState
+  };
+  return itemData;
 }
 
 function hasAlias(normalizedName, aliases) {

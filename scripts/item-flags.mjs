@@ -100,6 +100,7 @@ export function findLoadedQuiverItems(actor, ammoType) {
     return isQuiver(item)
       && getAmmoType(item) === ammoType
       && itemQuantity(item) > 0
+      && isActiveOrEquipped(item)
       && getQuiverLoadedTotal(item) > 0;
   });
 }
@@ -112,6 +113,11 @@ export function isQuiver(item) {
   if (!item || item.type !== "equipment") return false;
   const name = item.name?.toLowerCase() || "";
   return name.includes("aljava") || name.includes("quiver");
+}
+
+export function isActiveOrEquipped(item) {
+  const state = String(item?.system?.state ?? "").toLowerCase();
+  return state === "active" || state === "equipped";
 }
 
 export function getQuiverLoadedAmmo(quiverItem) {

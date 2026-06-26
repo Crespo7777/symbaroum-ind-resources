@@ -758,6 +758,11 @@ function onRenderDialog(dialog, html, data) {
               console.error("Tenebre Resources | Error preparing ammo modifiers:", err);
               ui.notifications.error("Error preparing ammo modifiers: " + err.message);
             }
+
+            if (!chosenAmmo) {
+              ui.notifications.warn(game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver"));
+              throw "Cancelled";
+            }
           }
 
           let result;
@@ -795,7 +800,6 @@ function onRenderDialog(dialog, html, data) {
 
   const { actor, ammoType } = activeRoll;
   const quivers = findLoadedQuiverItems(actor, ammoType);
-  if (!quivers.length) return;
 
   const selectDiv = document.createElement("div");
   selectDiv.className = "bonus";
@@ -807,14 +811,23 @@ function onRenderDialog(dialog, html, data) {
   const select = document.createElement("select");
   select.id = "tenebre-ammo-select";
 
-  for (const q of quivers) {
-    const loaded = getQuiverLoadedAmmo(q);
-    for (const entry of loaded) {
-      if (entry.quantity > 0) {
-        const option = document.createElement("option");
-        option.value = `quiver|${q.id}|${entry.name}`;
-        option.innerText = `${q.name}: ${entry.name} (${entry.quantity}/12)`;
-        select.appendChild(option);
+  if (!quivers.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.innerText = game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver");
+    option.disabled = true;
+    option.selected = true;
+    select.appendChild(option);
+  } else {
+    for (const q of quivers) {
+      const loaded = getQuiverLoadedAmmo(q);
+      for (const entry of loaded) {
+        if (entry.quantity > 0) {
+          const option = document.createElement("option");
+          option.value = `quiver|${q.id}|${entry.name}`;
+          option.innerText = `${q.name}: ${entry.name} (${entry.quantity}/12)`;
+          select.appendChild(option);
+        }
       }
     }
   }
@@ -862,9 +875,16 @@ function attachAmmoRollButtonCapture(dialog, contentEl, activeRoll) {
     const text = normalize(button.textContent || "");
     if (buttonKey !== "roll" && !text.includes("rolar") && !text.includes("roll")) continue;
 
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
       try {
         prepareSelectedAmmoForRoll(contentEl, activeRoll);
+        if (!activeRoll.chosenAmmo) {
+          ui.notifications.warn(game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver"));
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          return false;
+        }
       } catch (err) {
         console.error("Tenebre Resources | Error capturing selected ammo:", err);
       }

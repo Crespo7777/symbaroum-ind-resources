@@ -118,6 +118,102 @@
   gap: 8px;
 }
 
+/* ── Bottom ammunition HUD ─────────────────────────────────────────── */
+
+.tenebre-ammo-hud {
+  position: fixed;
+  z-index: 75;
+  min-height: 40px;
+  max-height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tenebre-ammo-hud[hidden] {
+  display: none !important;
+}
+
+.tenebre-ammo-hud-item {
+  min-width: 0;
+  height: 38px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid rgba(190, 150, 70, 0.36);
+  border-radius: 6px;
+  background: rgba(8, 8, 10, 0.72);
+  color: #d7c99f;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.tenebre-ammo-hud-left .tenebre-ammo-hud-item {
+  width: 56px;
+  grid-template-columns: 18px 1fr;
+  height: 30px;
+  padding: 3px 6px;
+  gap: 4px;
+}
+
+.tenebre-ammo-hud-recover {
+  cursor: pointer;
+}
+
+.tenebre-ammo-hud-recover:hover {
+  border-color: rgba(220, 175, 80, 0.72);
+  background: rgba(28, 22, 12, 0.82);
+}
+
+.tenebre-ammo-hud-right .tenebre-ammo-hud-item {
+  flex: 1 1 120px;
+}
+
+.tenebre-ammo-hud-item i {
+  text-align: center;
+  color: #c8a050;
+}
+
+.tenebre-ammo-hud-item img {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border: 0;
+  border-radius: 2px;
+}
+
+.tenebre-ammo-hud-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.tenebre-ammo-hud-item strong {
+  min-width: 28px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(200, 160, 80, 0.18);
+  color: #ffffff;
+  text-align: center;
+  font-size: 13px;
+}
+
+.tenebre-ammo-hud-left .tenebre-ammo-hud-item strong {
+  min-width: 20px;
+  padding: 0 4px;
+  font-size: 12px;
+}
+
+.tenebre-ammo-hud[data-empty="true"] {
+  opacity: 0.62;
+}
+
 /* ── Chat cards ─────────────────────────────────────────────────────── */
 
 #chat-log .dice-tooltip,

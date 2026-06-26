@@ -3,6 +3,7 @@ import { TenebreSettings } from "./settings.mjs";
 import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver, isAmmo, getQuiverLoadedAmmo, getQuiverLoadedTotal } from "./item-flags.mjs";
 import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryThreshold } from "./special-ammo.mjs";
 import { escapeHtml } from "./utils.mjs";
+import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs";
 
 export class AmmoService {
   static async selectAmmo(actor, ammoType) {
@@ -355,8 +356,9 @@ export class AmmoService {
     }
 
     const threshold = getAmmoRecoveryThreshold(recoveryEntry.name);
-    const roll = await rollD20();
-    const success = roll.total <= threshold;
+    const roll = await evaluateRoll("1d20");
+    const rollValue = rollTotal(roll);
+    const success = rollValue <= threshold;
 
     if (success) {
       const item = actorItems(actor).find((candidate) => {
@@ -414,7 +416,7 @@ export class AmmoService {
         </p>
         <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
           <span style="display: inline-block; padding: 3px 8px; border: 1px solid ${color}; background: rgba(0,0,0,0.05); border-radius: 3px; font-weight: bold; color: ${color};">
-            ${roll.total}
+            ${rollValue}
           </span>
           <strong style="color: ${color};">${status}</strong>
         </div>
@@ -422,12 +424,11 @@ export class AmmoService {
       </div>
     `;
 
-    const chatData = {
+    await createChatMessageAfterDice({
       speaker: ChatMessage.getSpeaker({ actor }),
-      content: chatContent
-    };
-
-    await ChatMessage.create(chatData);
+      content: chatContent,
+      rolls: [roll]
+    });
   }
 }
 
@@ -488,23 +489,6 @@ function getRecoverableEntryData(actor, entry) {
 function isQuiverName(name) {
   const value = String(name ?? "").toLowerCase();
   return value.includes("aljava") || value.includes("quiver");
-}
-
-async function rollD20() {
-  if (globalThis.Roll) {
-    const roll = new Roll("1d20");
-    if (roll.evaluate.length > 0) {
-      await roll.evaluate({ async: true });
-    } else {
-      await roll.evaluate();
-    }
-    return roll;
-  }
-
-  return {
-    total: Math.floor(Math.random() * 20) + 1,
-    formula: "1d20"
-  };
 }
 
 async function postAmmoCard(actor, ammo) {

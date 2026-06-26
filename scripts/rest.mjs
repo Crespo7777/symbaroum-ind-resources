@@ -2,6 +2,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { HungerService } from "./hunger.mjs";
 import { escapeHtml } from "./utils.mjs";
+import { createChatMessageAfterDice } from "./dice.mjs";
 
 // Gerenciamento de descanso de personagens
 export class RestService {
@@ -85,7 +86,7 @@ export class RestService {
       const pendingPenaltyUpdates = {};
 
       for (let d = 1; d <= days; d++) {
-        const starvation = HungerService.rollStarvationDay(currentStrong);
+        const starvation = await HungerService.rollStarvationDay(currentStrong);
 
         let effectMsg = "";
         if (!starvation.success) {
@@ -111,6 +112,7 @@ export class RestService {
         results.hungerResults.push({
           day: d,
           rolls: starvation.rolls,
+          rollObjects: starvation.rollObjects,
           selectedRoll: starvation.selectedRoll,
           target: starvation.target,
           success: starvation.success,
@@ -192,9 +194,7 @@ export class RestService {
       }
     }
 
-    await ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor }),
-      content: `
+    const content = `
         <div class="tenebre-chat-card">
           <h3>${game.i18n.format("TENEBRE.Rest.ChatTitle", {
             actor: escapeHtml(results.actorName),
@@ -202,7 +202,13 @@ export class RestService {
           })}</h3>
           <ul>${lines.map(l => `<li>${l}</li>`).join("")}</ul>
         </div>
-      `
+      `;
+    const rolls = (results.hungerResults ?? []).flatMap((hr) => hr.rollObjects ?? []);
+
+    await createChatMessageAfterDice({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      content,
+      rolls
     });
   }
 }

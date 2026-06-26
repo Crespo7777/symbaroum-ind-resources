@@ -4,8 +4,10 @@ import {
   applyDynamicEncumbranceWeights,
   detectEncumbranceSlots,
   getDynamicEncumbranceWeights,
+  getMergedEncumbranceWeights,
   getStackBundleRule,
   hasConfiguredEncumbranceRule,
+  hasExactEncumbranceItem,
   hasMassiveQuality,
   loadEncumbranceWeights,
   upsertDynamicSlotRule,
@@ -122,11 +124,15 @@ const HEAVY_ARMOR_TERMS = [
 
 let dynamicWeightFileFingerprint = null;
 let dynamicWeightFileWatcher = null;
+let activeWeightConfigFingerprint = null;
+let weightConfigModuleId = null;
 
 export class EncumbranceService {
   static async loadWeightConfig(moduleId) {
+    weightConfigModuleId = moduleId;
     await loadEncumbranceWeights(moduleId);
     this.applyDynamicWeightConfig(await readDynamicWeightConfig());
+    activeWeightConfigFingerprint = fingerprintWeightConfig(getMergedEncumbranceWeights());
   }
 
   static applyDynamicWeightConfig(config) {
@@ -142,25 +148,31 @@ export class EncumbranceService {
     if (!config) return false;
     this.applyDynamicWeightConfig(config);
     dynamicWeightFileFingerprint = fingerprintWeightConfig(getDynamicEncumbranceWeights());
+    activeWeightConfigFingerprint = fingerprintWeightConfig(getMergedEncumbranceWeights());
     if (canPersistDynamicWeights()) {
       await game.settings.set(MODULE_ID, "encumbranceDiscoveredWeights", getDynamicEncumbranceWeights());
     }
     return true;
   }
 
-  static startDynamicWeightFileWatcher(intervalMs = 10000) {
-    if (!canPersistDynamicWeights() || dynamicWeightFileWatcher) return false;
+  static startDynamicWeightFileWatcher(intervalMs = 1000) {
+    if (dynamicWeightFileWatcher) return false;
 
     dynamicWeightFileWatcher = globalThis.setInterval(async () => {
       try {
-        const config = await readDynamicWeightFile();
-        const fingerprint = fingerprintWeightConfig(config);
-        if (!config || fingerprint === dynamicWeightFileFingerprint) return;
+        if (weightConfigModuleId) {
+          await loadEncumbranceWeights(weightConfigModuleId);
+        }
 
+        const config = await readDynamicWeightConfig();
         this.applyDynamicWeightConfig(config);
+        const fingerprint = fingerprintWeightConfig(getMergedEncumbranceWeights());
+        if (fingerprint === activeWeightConfigFingerprint) return;
+
+        activeWeightConfigFingerprint = fingerprint;
         dynamicWeightFileFingerprint = fingerprintWeightConfig(getDynamicEncumbranceWeights());
-        await game.settings.set(MODULE_ID, "encumbranceDiscoveredWeights", getDynamicEncumbranceWeights());
-        console.log(`Tenebre Resources | Reloaded encumbrance weights from ${dynamicWeightFileUrl()}.`);
+        console.log("Tenebre Resources | Reloaded encumbrance weights.");
+        rerenderOpenActorSheets();
       } catch (err) {
         console.warn("Tenebre Resources | Could not watch the encumbrance weight file.", err);
       }
@@ -232,15 +244,11 @@ export class EncumbranceService {
     const isManual = item.getFlag?.(FLAG_SCOPE, "encumbranceManual") === true;
     const manualSlots = sanitizeSlots(manual, null);
 
-    if (item.type === "weapon") {
-      return isManual && manualSlots !== null ? manualSlots : weaponCarriedSlots(item);
-    }
-
-    if (item.type === "armor") {
-      return isManual && manualSlots !== null ? manualSlots : armorCarriedSlots(item);
-    }
-
     if (isManual && manualSlots !== null) return manualSlots;
+    if (hasExactEncumbranceItem(item.name)) return detectEncumbranceSlots(item.name);
+
+    if (item.type === "weapon") return weaponCarriedSlots(item);
+    if (item.type === "armor") return armorCarriedSlots(item);
     if (getStackBundleRule(item.name)) return ENC_SLOTS.ZERO;
 
     return detectEncumbranceSlots(item.name);
@@ -263,7 +271,8 @@ export class EncumbranceService {
       };
     }
 
-    if (ContainerService.isStored(item)) {
+    const stored = ContainerService.isStored(item);
+    if (stored && !isStoredInCarriedContainer(item)) {
       return {
         slotsPerUnit,
         quantity: 0,
@@ -273,7 +282,7 @@ export class EncumbranceService {
       };
     }
 
-    if (hasGearState(item) && !isEquippedGearState(item)) {
+    if (!stored && hasGearState(item) && !isEquippedGearState(item)) {
       return {
         slotsPerUnit,
         quantity: 0,
@@ -456,7 +465,15 @@ function hasGearState(item) {
 }
 
 function isEquippedGearState(item) {
-  return item?.system?.isEquipped === true || item?.system?.state === "equipped";
+  const state = String(item?.system?.state ?? "").toLowerCase();
+  return item?.system?.isEquipped === true || state === "equipped" || state === "active";
+}
+
+function isStoredInCarriedContainer(item) {
+  const actor = item?.parent;
+  const containerId = ContainerService.getStoredIn(item);
+  const container = actor?.items?.get?.(containerId);
+  return isEquippedGearState(container);
 }
 
 function encumbranceQuantity(item) {
@@ -542,6 +559,25 @@ function defaultLoadResult() {
     hasPorter: false,
     items: []
   };
+}
+
+function rerenderOpenActorSheets() {
+  for (const app of Object.values(globalThis.ui?.windows ?? {})) {
+    const sheetActor = app.actor ?? app.document;
+    if (sheetActor?.documentName === "Actor" || sheetActor?.type === "player") {
+      app.render?.(false);
+    }
+  }
+
+  const instances = globalThis.foundry?.applications?.instances;
+  if (!instances || typeof instances[Symbol.iterator] !== "function") return;
+
+  for (const app of instances) {
+    const document = app?.document ?? app?.actor;
+    if (document?.documentName === "Actor" || document?.type === "player") {
+      app.render?.({ force: false });
+    }
+  }
 }
 
 function applyPenaltyToArmorData(armorData, penalty) {

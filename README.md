@@ -19,6 +19,7 @@
   * Abre um diálogo que permite escolher qual munição avulsa do inventário carregar e a quantidade (limitado dinamicamente pela capacidade restante da aljava e quantidade disponível no inventário).
   * Uma mensagem detalhada é enviada ao chat com o retrato do personagem, ícone e quantidade da munição carregada, e o status da aljava de destino.
 * **Exibição na Ficha:** O display das aljavas no inventário é atualizado dinamicamente no formato `Quantidade (Carregadas/12)` (ex: `1 (10/12)`).
+* **Indicadores no Rodapé:** A interface exibe um indicador de projéteis recuperáveis e as aljavas em **Equipado** ou **Ativo** com a carga atual (`Carregadas/12`) nos espaços livres próximos à hotbar/chat. Aljavas em **Outro** não aparecem e a HUD informa quando não há aljava equipada/ativa.
 * **Dropdown no Modal de Ataque:** Ao realizar um ataque com arma à distância, o dropdown de munições listará apenas os tipos de projéteis específicos que estão *carregados* nas aljavas equipadas do personagem (ex: `Aljava: Flecha - Precisão (2/12)`).
 
 ### 3. 🏹 Projéteis Especiais e Qualidades Alquímicas
@@ -48,9 +49,10 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 ### 6. ⚖️ Sistema de Sobrecarga Opcional (Encumbrance)
 * **Regra do Guia Avançado do Jogador:** Implementa a regra opcional de sobrecarga baseada no atributo **Vigoroso** (Strong).
 * **Painel Dinâmico na Ficha:** Injeta um painel com barra de progresso próximo ao cabeçalho "Equipamento", mostrando a carga atual, capacidade máxima e penalidades defensivas ativas.
-* **Auto-atribuição Global:** O sistema possui um banco de dados interno que analisa os nomes dos itens (em inglês e português) assim que entram no inventário. O peso é atribuído automaticamente e silenciosamente a todos os itens.
-  * **Peso Padrão:** 1 espaço.
-  * **Estado dos Itens:** Apenas itens em estado **Equipado** contam para sobrecarga. Itens em **Ativo** ou **Outro** não contam peso.
+* **Auto-atribuição Global:** O sistema usa `data/encumbrance-weights.json` como banco de pesos por nome de item. O arquivo possui a seção `items`, no formato `"Pão de Viagem": 1`, e a seção `bundles` para pilhas como flechas/virotes. A comparação ignora maiúsculas/minúsculas e acentos para evitar duplicação desnecessária.
+  * **Recarga em tempo real:** O arquivo instalado no módulo é recarregado automaticamente em até 1 segundo enquanto o Foundry está aberto, usando `fetch` sem cache. Alterações feitas apenas na pasta do projeto precisam ser copiadas para `Data/modules` para entrarem no Foundry.
+  * **Peso Padrão:** 1 espaço quando o item não existir no JSON e não tiver regra específica.
+  * **Estado dos Itens:** Itens em estado **Equipado** ou **Ativo** contam para sobrecarga. Itens em **Outro** não contam peso.
   * **Munições:** Flechas e virotes contam como 1 item transportado para cada 10 unidades.
   * **Itens Pequenos:** Moedas, pingentes e joias contam como 1 item transportado para cada 50 peças.
   * **Recipientes Volumosos:** Barris, baús e caixas contam como 1 item próprio, somado ao conteúdo carregado separadamente.
@@ -60,15 +62,15 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 * **Mecânicas de Capacidade:** A capacidade básica é o valor de Vigoroso. O dom **Transportador** (Porter) multiplica a capacidade por 1.5. A cada espaço acima do limite, o sistema avisa o jogador e indica um redutor na **Defesa** equivalente ao sobrepeso. Ultrapassar o dobro do Vigoroso imobiliza o personagem.
 
 ### 7. 🎒 Recipientes e Itens Guardados (Containers)
-* **Recipientes Detectados:** Mochilas, sacos, sacolas, bolsas, alforjes, baús, caixas e barris são reconhecidos como recipientes.
+* **Recipientes Detectados:** Mochilas, sacos, sacolas, bolsas, alforjes, cestos, jarros, baús, caixas e barris são reconhecidos como recipientes.
 * **Guardar Item:** Clique com o **botão direito** em um item e selecione **Guardar**. O sistema permite escolher o recipiente de destino e, quando o item possuir pilha, a quantidade a guardar.
-* **Estado Necessário:** Só é possível guardar itens e retirar itens de recipientes quando o item/recipiente estiver em **Equipado**. Itens ou recipientes em **Ativo** ou **Outro** bloqueiam a ação e exibem aviso.
+* **Estado Necessário:** Só é possível guardar itens e retirar itens de recipientes quando o item/recipiente estiver em **Equipado** ou **Ativo**. Itens ou recipientes em **Outro** bloqueiam a ação e exibem aviso.
 * **Abrir Recipiente:** Clique com o **botão direito** no recipiente e selecione **Abrir** para expandir ou recolher uma sublista logo abaixo dele na própria ficha.
 * **Ações Dentro do Recipiente:** A sublista do recipiente permite **Retirar** ou **Ver** cada item guardado.
   * **Retirar:** permite escolher a quantidade quando o item guardado possui pilha.
   * **Ver:** abre a ficha do item.
 * **Uso de Itens Guardados:** Para usar um item, primeiro retire-o do recipiente para o inventário principal.
-* **Peso e Sobrecarga:** Itens guardados ficam ocultos da lista principal da ficha e não contam para a sobrecarga enquanto estiverem dentro do recipiente.
+* **Peso e Sobrecarga:** Itens guardados ficam ocultos da lista principal da ficha, mas continuam contando para sobrecarga se o recipiente estiver em **Equipado** ou **Ativo**. Recipientes leves não contam peso próprio; recipientes volumosos contam peso próprio e também somam o conteúdo.
 * **Pilhas Parciais:** Se guardar ou retirar apenas parte de uma pilha, o sistema divide ou junta automaticamente com uma pilha visível igual quando possível.
 * **Fase Atual:** Esta é a fase 1 da função de containers. O fluxo usa menus de botão direito e sublista expansível na ficha. Drag-and-drop direto para dentro de recipientes fica para uma fase posterior.
 
