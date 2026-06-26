@@ -9,6 +9,7 @@ import { ContainerService } from "./containers.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
 import { normalize } from "./utils.mjs";
 import {
+  actorItems,
   findLoadedQuiverItems,
   getWeaponAmmoType,
   isAmmo,
@@ -121,15 +122,15 @@ function patchContextMenu() {
           isVisible: (item) => {
             const actor = this.myParent?.actor;
             return TenebreSettings.get("enableEncumbrance")
-              && ContainerService.canStoreItem(item)
-              && ContainerService.getAvailableContainers(actor, item).length > 0;
+              && ContainerService.canAttemptStoreItem(item)
+              && ContainerService.getContainers(actor, item).length > 0;
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);
             const itemId = elem.dataset.itemId;
             const item = actor?.items?.get(itemId);
             if (actor && item) {
-              ContainerService.storeItemPrompt(actor, item);
+              ContainerService.storeItemPrompt(actor, item).then(() => rerenderActorSheets(actor));
             }
           }
         });
@@ -237,6 +238,7 @@ function onRenderActorSheet(app, html) {
   if (!actor.isOwner && !game.user.isGM) return;
 
   hideStoredItemRows(app, html, actor);
+  injectContainerInlineLists(app, html, actor);
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
   injectEncumbrancePanel(app, html, actor);
@@ -246,10 +248,138 @@ function hideStoredItemRows(app, html, actor) {
   const el = getRoot(html);
   if (!el) return;
 
-  for (const item of actor.items ?? []) {
-    if (!ContainerService.isStored(item)) continue;
-    const row = el.querySelector(`.item[data-item-id="${item.id}"]`);
-    if (row) row.style.display = "none";
+  const hideRows = () => {
+    for (const item of actorItems(actor)) {
+      if (!ContainerService.isStored(item)) continue;
+      const row = el.querySelector(`[data-item-id="${item.id}"]`);
+      if (!row) continue;
+      row.hidden = true;
+      row.style.display = "none";
+      row.classList.add("tenebre-hidden-stored-item");
+    }
+  };
+
+  hideRows();
+  setTimeout(hideRows, 0);
+  setTimeout(hideRows, 100);
+}
+
+function injectContainerInlineLists(app, html, actor) {
+  if (!TenebreSettings.get("enableEncumbrance")) return;
+
+  const el = getRoot(html);
+  if (!el) return;
+
+  el.querySelectorAll(".tenebre-container-inline-row").forEach((row) => row.remove());
+
+  for (const container of actorItems(actor)) {
+    if (!ContainerService.isContainer(container) || ContainerService.isStored(container)) continue;
+
+    const row = el.querySelector(`[data-item-id="${container.id}"]`);
+    if (!row || row.classList.contains("tenebre-hidden-stored-item")) continue;
+
+    const expanded = ContainerService.isContainerExpanded(actor, container);
+    row.classList.toggle("tenebre-container-expanded", expanded);
+    row.setAttribute("aria-expanded", expanded ? "true" : "false");
+    if (!expanded) continue;
+
+    row.insertAdjacentElement("afterend", buildContainerInlineRow(actor, container, row));
+  }
+}
+
+function buildContainerInlineRow(actor, container, anchorRow) {
+  const isTableRow = anchorRow?.tagName === "TR";
+  const tagName = isTableRow
+    ? "tr"
+    : anchorRow?.tagName === "LI"
+      ? "li"
+      : "div";
+
+  const row = document.createElement(tagName);
+  row.className = "tenebre-container-inline-row";
+  row.dataset.containerId = container.id;
+
+  const content = document.createElement("div");
+  content.className = "tenebre-container-inline";
+
+  const storedItems = ContainerService.getStoredItems(actor, container);
+  if (!storedItems.length) {
+    const empty = document.createElement("p");
+    empty.className = "tenebre-container-empty";
+    empty.textContent = game.i18n.localize("TENEBRE.Containers.Empty");
+    content.appendChild(empty);
+  } else {
+    const list = document.createElement("ol");
+    list.className = "tenebre-container-list";
+    for (const item of storedItems) {
+      list.appendChild(buildContainerInlineItem(actor, item));
+    }
+    content.appendChild(list);
+  }
+
+  if (isTableRow) {
+    const cell = document.createElement("td");
+    cell.colSpan = Math.max(1, anchorRow.children.length || 1);
+    cell.appendChild(content);
+    row.appendChild(cell);
+  } else {
+    row.appendChild(content);
+  }
+
+  return row;
+}
+
+function buildContainerInlineItem(actor, item) {
+  const row = document.createElement("li");
+  row.className = "tenebre-container-item";
+  row.dataset.storedItemId = item.id;
+
+  const img = document.createElement("img");
+  img.src = item.img || "icons/svg/item-bag.svg";
+  img.alt = "";
+  row.appendChild(img);
+
+  const name = document.createElement("span");
+  name.className = "tenebre-container-name";
+  name.textContent = item.name;
+  row.appendChild(name);
+
+  const quantity = document.createElement("span");
+  quantity.className = "tenebre-container-qty";
+  quantity.textContent = String(item.type === "equipment" ? itemQuantity(item) : 1);
+  row.appendChild(quantity);
+
+  const withdraw = document.createElement("button");
+  withdraw.type = "button";
+  withdraw.textContent = game.i18n.localize("TENEBRE.Containers.Withdraw");
+  withdraw.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await ContainerService.withdrawItemPrompt(actor, item);
+    rerenderActorSheets(actor);
+  });
+  row.appendChild(withdraw);
+
+  const edit = document.createElement("button");
+  edit.type = "button";
+  edit.textContent = game.i18n.localize("TENEBRE.Containers.Edit");
+  edit.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    item.sheet?.render(true);
+  });
+  row.appendChild(edit);
+
+  return row;
+}
+
+function rerenderActorSheets(actor) {
+  if (!actor) return;
+  for (const app of Object.values(ui.windows ?? {})) {
+    const sheetActor = app.actor ?? app.document;
+    if (sheetActor?.id === actor.id && typeof app.render === "function") {
+      app.render(false);
+    }
   }
 }
 

@@ -3,6 +3,8 @@ import { actorItems, changeItemQuantity, itemQuantity } from "./item-flags.mjs";
 import { escapeHtml, normalize } from "./utils.mjs";
 
 const STORABLE_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
+const ACCESSIBLE_STATES = new Set(["equipped"]);
+const expandedContainers = new Set();
 
 const LIGHT_CONTAINER_ALIASES = [
   "mochila",
@@ -52,6 +54,10 @@ export class ContainerService {
   }
 
   static canStoreItem(item) {
+    return this.canAttemptStoreItem(item) && isAccessibleState(item);
+  }
+
+  static canAttemptStoreItem(item) {
     return Boolean(
       item
       && STORABLE_TYPES.has(item.type)
@@ -61,12 +67,18 @@ export class ContainerService {
     );
   }
 
-  static getAvailableContainers(actor, item = null) {
+  static getContainers(actor, item = null) {
     return actorItems(actor).filter((candidate) => {
       return candidate.id !== item?.id
         && this.isContainer(candidate)
         && !this.isStored(candidate)
         && itemQuantity(candidate) > 0;
+    });
+  }
+
+  static getAvailableContainers(actor, item = null) {
+    return this.getContainers(actor, item).filter((candidate) => {
+      return isAccessibleState(candidate);
     });
   }
 
@@ -76,10 +88,19 @@ export class ContainerService {
   }
 
   static async storeItemPrompt(actor, item) {
-    if (!actor || !item || !this.canStoreItem(item)) return;
+    if (!actor || !item) return;
+    if (!isAccessibleState(item)) {
+      warnInaccessibleState("TENEBRE.Containers.CannotStoreOther");
+      return;
+    }
+    if (!this.canStoreItem(item)) return;
 
     const containers = this.getAvailableContainers(actor, item);
     if (!containers.length) {
+      if (this.getContainers(actor, item).length > 0) {
+        warnInaccessibleState("TENEBRE.Containers.CannotStoreInOther");
+        return;
+      }
       ui.notifications.warn(game.i18n.localize("TENEBRE.Containers.NoContainers"));
       return;
     }
@@ -140,6 +161,15 @@ export class ContainerService {
   }
 
   static async storeItem(actor, item, container, quantity = 1) {
+    if (!isAccessibleState(item)) {
+      warnInaccessibleState("TENEBRE.Containers.CannotStoreOther");
+      return;
+    }
+    if (!isAccessibleState(container)) {
+      warnInaccessibleState("TENEBRE.Containers.CannotStoreInOther");
+      return;
+    }
+
     const storableQuantity = getStorableQuantity(item);
     const amount = Math.max(1, Math.min(storableQuantity, Math.floor(Number(quantity) || 1)));
     const preStoredState = item.system?.state ?? "";
@@ -171,47 +201,46 @@ export class ContainerService {
       item: item.name,
       container: container.name
     }));
+    rerenderActorSheets(actor);
   }
 
   static openContainer(actor, container) {
+    return this.toggleContainer(actor, container);
+  }
+
+  static toggleContainer(actor, container) {
+    if (!actor || !container) return false;
+
+    const key = containerKey(actor, container);
+    const isExpanded = !expandedContainers.has(key);
+    if (isExpanded) {
+      expandedContainers.add(key);
+    } else {
+      expandedContainers.delete(key);
+    }
+
+    rerenderActorSheets(actor);
+    return isExpanded;
+  }
+
+  static isContainerExpanded(actor, container) {
+    if (!actor || !container) return false;
+    return expandedContainers.has(containerKey(actor, container));
+  }
+
+  static collapseContainer(actor, container) {
     if (!actor || !container) return;
-
-    const dialog = new Dialog({
-      title: game.i18n.format("TENEBRE.Containers.OpenTitle", { container: container.name }),
-      content: this.#buildContainerContent(actor, container),
-      buttons: {
-        close: {
-          icon: '<i class="fas fa-times"></i>',
-          label: game.i18n.localize("TENEBRE.Common.Cancel")
-        }
-      },
-      render: (html) => {
-        html.find("[data-action]").on("click", async (event) => {
-          const button = event.currentTarget;
-          const itemId = button.closest("[data-item-id]")?.dataset?.itemId;
-          const storedItem = actor.items.get(itemId);
-          if (!storedItem) return;
-
-          const action = button.dataset.action;
-          if (action === "withdraw") {
-            await this.withdrawItemPrompt(actor, storedItem);
-            dialog.close();
-            this.openContainer(actor, container);
-          } else if (action === "edit") {
-            storedItem.sheet?.render(true);
-          } else if (action === "use") {
-            await this.useStoredItem(actor, storedItem);
-            dialog.close();
-            this.openContainer(actor, container);
-          }
-        });
-      }
-    });
-    dialog.render(true);
+    expandedContainers.delete(containerKey(actor, container));
   }
 
   static async withdrawItemPrompt(actor, item) {
     if (!actor || !item || !this.isStored(item)) return;
+    const container = actor.items.get(this.getStoredIn(item));
+    if (!isAccessibleState(container)) {
+      warnInaccessibleState("TENEBRE.Containers.CannotWithdrawOther");
+      return;
+    }
+
     const quantity = getStorableQuantity(item);
     if (item.type !== "equipment" || quantity <= 1) {
       await this.withdrawItem(actor, item, quantity);
@@ -255,6 +284,11 @@ export class ContainerService {
 
   static async withdrawItem(actor, item, quantity = null) {
     if (!actor || !item || !this.isStored(item)) return;
+    const container = actor.items.get(this.getStoredIn(item));
+    if (!isAccessibleState(container)) {
+      warnInaccessibleState("TENEBRE.Containers.CannotWithdrawOther");
+      return;
+    }
 
     const currentQuantity = getStorableQuantity(item);
     const amount = Math.max(1, Math.min(currentQuantity, Math.floor(Number(quantity ?? currentQuantity) || currentQuantity)));
@@ -294,57 +328,18 @@ export class ContainerService {
       [`flags.${FLAG_SCOPE}.-=preStoredState`]: null
     });
   }
-
-  static async useStoredItem(actor, item) {
-    if (!actor || !item) return;
-    if (item.type !== "equipment" || itemQuantity(item) <= 0) {
-      item.sheet?.render(true);
-      return;
-    }
-
-    await ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor }),
-      content: `
-        <div class="tenebre-chat-card">
-          <h3>${game.i18n.format("TENEBRE.Containers.Used", { item: escapeHtml(item.name) })}</h3>
-          <div class="tenebre-chat-item">
-            <img src="${item.img}" alt="">
-            <div>${String(item.system?.description ?? "")}</div>
-          </div>
-        </div>
-      `
-    });
-
-    if (itemQuantity(item) > 1) {
-      await changeItemQuantity(item, -1);
-    } else {
-      await actor.deleteEmbeddedDocuments("Item", [item.id], { render: true });
-    }
-  }
-
-  static #buildContainerContent(actor, container) {
-    const storedItems = this.getStoredItems(actor, container);
-    if (!storedItems.length) {
-      return `<p>${game.i18n.localize("TENEBRE.Containers.Empty")}</p>`;
-    }
-
-    const rows = storedItems.map((item) => `
-      <li class="tenebre-container-item" data-item-id="${item.id}">
-        <img src="${item.img}" alt="">
-        <span class="tenebre-container-name">${escapeHtml(item.name)}</span>
-        <span class="tenebre-container-qty">${item.type === "equipment" ? itemQuantity(item) : 1}</span>
-        <button type="button" data-action="use">${game.i18n.localize("TENEBRE.Containers.Use")}</button>
-        <button type="button" data-action="withdraw">${game.i18n.localize("TENEBRE.Containers.Withdraw")}</button>
-        <button type="button" data-action="edit">${game.i18n.localize("TENEBRE.Containers.Edit")}</button>
-      </li>
-    `).join("");
-
-    return `<ol class="tenebre-container-list">${rows}</ol>`;
-  }
 }
 
 function getStorableQuantity(item) {
   return item?.type === "equipment" ? Math.max(1, itemQuantity(item)) : 1;
+}
+
+function isAccessibleState(item) {
+  return ACCESSIBLE_STATES.has(String(item?.system?.state ?? "").toLowerCase());
+}
+
+function warnInaccessibleState(key) {
+  ui.notifications.warn(game.i18n.localize(key));
 }
 
 function findVisibleStack(actor, item) {
@@ -368,4 +363,18 @@ function hasAlias(normalizedName, aliases) {
 
 function toSearchableText(value) {
   return ` ${normalize(value).replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ")} `;
+}
+
+function containerKey(actor, container) {
+  return `${actor.uuid ?? actor.id}:${container.id}`;
+}
+
+function rerenderActorSheets(actor) {
+  if (!actor || !globalThis.ui?.windows) return;
+  for (const app of Object.values(ui.windows)) {
+    const sheetActor = app.actor ?? app.document;
+    if (sheetActor?.id === actor.id && typeof app.render === "function") {
+      app.render(false);
+    }
+  }
 }
