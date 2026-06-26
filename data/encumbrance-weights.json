@@ -2,6 +2,8 @@
   "version": 2,
   "items": {
     "A Pedra do Sol": 1,
+    "acha de armas": 2,
+    "acha-de-armas": 2,
     "Adaga": 1,
     "Adaga de Aparar": 1,
     "Água Benta": 1,
@@ -13,14 +15,19 @@
     "Alchemical Grenade": 1,
     "Alchemical Mine - Moderate": 1,
     "Ale-porridge with Butter": 1,
+    "alforje": 0,
+    "alforjes": 0,
     "Algibeira": 0,
     "Aljava": 0,
     "Ampulheta": 0,
     "Animal Mask": 1,
     "Antítido Moderado": 1,
+    "apron": 0,
+    "arca": 1,
     "Arco": 1,
     "Arco Longo": 1,
     "Arma Longa": 1,
+    "arma pesada": 2,
     "Armadilha de Caça": 1,
     "Armadilha de Urso": 1,
     "Armadura Completa": 4,
@@ -34,43 +41,60 @@
     "Artisan tool": 1,
     "Artisan’s garb": 0,
     "Assassin’s Blade": 1,
+    "attire": 0,
+    "avental": 0,
     "Axe": 1,
     "Backpack": 0,
+    "bag": 0,
     "Bagpipe": 1,
     "Ballista": 1,
     "Bandagens": 1,
     "Bandages": 1,
+    "bandana": 0,
+    "bandolier": 0,
     "Barbecued Young-boar with Beats": 1,
     "Bark Mask": 1,
     "Barrel": 1,
     "Barril": 1,
     "Basket": 0,
+    "bastard sword": 2,
     "Bastard Sword, one hand grip": 2,
     "Bastard Sword, two-handed grip": 2,
+    "battle axe": 2,
     "Battle claw": 1,
+    "battle flail": 2,
+    "battleaxe": 2,
+    "bau": 1,
     "Baú Grande": 1,
     "Baú Pequeno": 1,
     "Bear trap": 1,
     "Beca": 0,
     "Bedroll": 1,
+    "belt": 0,
     "Belt pouch": 0,
     "Bestas Espinhosas": 1,
     "Bico de Corvo": 1,
     "Birch-bark Horn": 1,
     "Bite": 1,
     "Blood-soup with Dark Bread": 1,
+    "blouse": 0,
     "Blowpipe": 1,
+    "blusa": 0,
     "Bolas": 1,
+    "bolsa": 0,
+    "bolsa de componentes": 0,
     "Bolsa de moedas": 0,
     "Bomba de Esporos": 1,
     "Boots": 0,
     "Bordão": 1,
+    "bota": 0,
     "Botas": 0,
     "Bottle of Ludendrink (mulled wine)": 1,
     "Bottle of of Vearra’s Red (simple wine)": 1,
     "Bottle of Southern Slopes (from Alberetor)": 1,
     "Bottle of White Wine (unspecified)": 1,
     "Bow": 1,
+    "box": 1,
     "Brass bell": 0,
     "Breaching (Pot on ground)": 1,
     "Breaching Pot (buried)": 1,
@@ -83,13 +107,19 @@
     "Cabbage Pie": 1,
     "Cabbage Stew": 1,
     "Cachecol": 0,
+    "caixa": 1,
     "Caixa decorada": 1,
     "Calça": 0,
+    "calças": 0,
     "Camisa": 0,
     "Can of Vesa": 1,
+    "canteen": 0,
     "Cantil": 0,
+    "capa": 0,
+    "capuz": 0,
     "Cardamom, one box": 1,
     "Cartographer’s Instruments": 1,
+    "cartucheira": 0,
     "Casaco": 0,
     "Catapult": 1,
     "Cera de Vela": 1,
@@ -97,16 +127,24 @@
     "Chain": 1,
     "Chapéu": 0,
     "Cheating Kit": 1,
+    "chest": 1,
     "Cinnamon, one box": 1,
+    "cinto": 0,
+    "cinturao": 0,
     "Clava com Cravos": 1,
     "Claws": 1,
     "Clay pitcher": 0,
     "Climbing equipment": 1,
     "Climbing Gear": 1,
+    "cloak": 0,
+    "clothes": 0,
+    "clothing": 0,
     "Clove, one box": 1,
     "Coat": 0,
+    "coffer": 1,
     "Coin purse": 0,
     "Combate Desarmado": 1,
+    "component pouch": 0,
     "Composite Bow": 1,
     "Concealed Armor": 2,
     "Concentrated Magic": 1,
@@ -117,6 +155,7 @@
     "Corrente": 1,
     "Cotton Fabric, one roll": 1,
     "Couraça de Seda Envernizada": 3,
+    "crate": 1,
     "Crayons": 0,
     "Crow Armor": 3,
     "Crow’s Beak": 1,
@@ -124,12 +163,14 @@
     "Death Mask": 1,
     "Decorated box": 1,
     "Disguise Kit": 1,
+    "double axe": 2,
     "Double Chainmail": 3,
     "Double-axe": 1,
     "Dress": 0,
     "Drinking horn": 1,
     "Drone Dew": 1,
     "Drum": 1,
+    "duas maos": 2,
     "Elemental Essence": 1,
     "Elixir da Vida": 1,
     "Elixir of Life": 1,
@@ -139,15 +180,23 @@
     "Escada de Corda": 1,
     "Escudo": 1,
     "Esfera-Trovão": 1,
+    "espada bastarda": 2,
     "Espada Bastarda, duas mãos": 2,
     "Espada Bastarda, uma mão": 2,
     "Espada de Duelo": 1,
+    "espada do executor": 2,
     "Espelho de Bolso": 1,
     "Essência Elemental": 1,
     "Estilete": 1,
     "Estoc": 1,
+    "estojo": 0,
     "Excavation Tools": 1,
+    "executioner axe": 2,
+    "executioner sword": 2,
+    "executioner's axe": 2,
+    "executioner's sword": 2,
     "Executioner’s Sword": 1,
+    "faixa": 0,
     "Fencing Sword": 1,
     "Ferramenta de Artesão": 1,
     "Fiddle": 1,
@@ -161,12 +210,15 @@
     "Fish Sauce & Crispbread": 1,
     "Fishing line and hook": 1,
     "Flail": 1,
+    "flask": 0,
     "Flint and steel": 1,
     "Foice": 1,
     "Fried Pastry": 1,
     "Frigideira": 1,
+    "Frigideirra": 1,
     "Fruit Pudding": 1,
     "Fruit Sherbet": 1,
+    "frying pan": 1,
     "Full Plate": 4,
     "Funda": 1,
     "Garra de Batalha": 1,
@@ -174,15 +226,22 @@
     "Gazuas": 1,
     "Ginger, one box": 1,
     "Giz": 0,
+    "glaive": 2,
     "Glass vial": 1,
+    "gloves": 0,
     "Gold, one bar": 1,
     "Goma Selvagem": 1,
     "Gown": 0,
     "Grappling Axe": 1,
     "Grappling hook": 1,
+    "great axe": 2,
+    "great sword": 2,
+    "greataxe": 2,
+    "greatsword": 2,
     "Halberd": 2,
     "Hash Patties with Turnips": 1,
     "Hat": 0,
+    "headband": 0,
     "Healing Spider": 1,
     "Heavy Armor": 4,
     "Heavy Flail": 2,
@@ -193,14 +252,20 @@
     "Homúnculo": 1,
     "Homunculus": 1,
     "Honey-roasted Sorrel": 1,
+    "hood": 0,
+    "hook axe": 2,
     "Horseman’s Bow": 1,
     "Hour glass": 0,
+    "hourglass": 0,
     "Infusão de Transformação Fraco": 1,
     "Ink and feather": 1,
     "Iron Crown": 1,
     "Iron, one bar": 1,
+    "jacket": 0,
+    "jaqueta": 0,
     "Jarra de barro": 0,
     "Jarro de Barro": 0,
+    "keg": 1,
     "Kidney Pie": 1,
     "King’s Steak in Gravy": 1,
     "Kit de Manutenção de Arma": 1,
@@ -209,6 +274,7 @@
     "Ladder": 1,
     "Laminated Armor": 3,
     "Lamp oil": 1,
+    "lanca longa": 2,
     "Lança-Funda": 1,
     "Lance (two-handed)": 1,
     "Lantern": 1,
@@ -217,6 +283,8 @@
     "Lenha": 1,
     "Light Armor": 2,
     "Lockpicks": 1,
+    "long hammer": 2,
+    "long spear": 2,
     "Long Weapon": 1,
     "Long-hammer (single handed)": 1,
     "Long-stemmed Seafoam Pipe": 1,
@@ -225,23 +293,37 @@
     "Lucky Coin": 0,
     "Luneta": 1,
     "Lute": 1,
+    "luva": 0,
+    "luvas": 0,
     "Machado": 1,
+    "machado com gancho": 2,
     "Machado de Arremesso": 1,
+    "machado de batalha": 2,
+    "machado do executor": 2,
     "Machado Duplo": 1,
     "Mágica Concentrada": 1,
     "Mal-Rogan's Mummified Hand": 1,
     "Mangual": 1,
+    "mangual de batalha": 2,
+    "mangual pesado": 2,
+    "mantle": 0,
+    "manto": 0,
     "Manto da Ordem": 2,
     "Mão mumificada de Mal-Rogan": 1,
     "Marlit Cape": 0,
+    "martelo de duas maos": 2,
+    "martelo de guerra": 2,
+    "martelo longo": 2,
     "Máscara": 1,
     "Mask": 1,
+    "maul": 2,
     "Meat & Beats": 1,
     "Meat Pie": 1,
     "Mechanical Trap - Moderate": 1,
     "Mechanical Trap - Strong": 1,
     "Mechanical Trap - Weak": 1,
     "Medium Armor": 3,
+    "meias": 0,
     "Mind Prism": 1,
     "Mint, one box": 1,
     "Mixed Stew": 1,
@@ -250,6 +332,8 @@
     "Moderate Antidote": 1,
     "Moderate Poison": 1,
     "Moderate Transforming Draught": 1,
+    "money pouch": 0,
+    "montante": 2,
     "Mordida": 1,
     "Mouth Harp": 1,
     "Mushroom Pie": 1,
@@ -257,6 +341,7 @@
     "Noble’s garb": 0,
     "Nougat Confectionery": 1,
     "Nuts in Chocolate": 1,
+    "odre": 0,
     "Offal Pie": 1,
     "Oil (vegetable), one earthen": 1,
     "Óleo de Lâmpada": 1,
@@ -265,6 +350,7 @@
     "Order Cloak": 2,
     "Order Medallion": 1,
     "Orvalho do Zangão": 1,
+    "outfit": 0,
     "Pá": 1,
     "Pants": 0,
     "Pão de Viagem": 1,
@@ -280,36 +366,62 @@
     "Pike": 2,
     "Pintura de guerra": 1,
     "Pique": 1,
+    "pochete": 0,
     "Pocket mirror": 1,
+    "pole axe": 2,
+    "poleaxe": 2,
+    "poncho": 0,
+    "porta-pergaminhos": 0,
+    "pouch": 0,
     "Presas": 1,
     "Protective Oil": 1,
+    "purse": 0,
     "Quarterstaff": 1,
+    "quiver": 0,
+    "racao": 1,
+    "racao de viagem": 1,
+    "ration": 1,
+    "rations": 1,
     "Revealing Light": 1,
     "Ritual Codex": 1,
     "Ritual Focus": 1,
     "Robe": 0,
+    "robes": 0,
     "Roka Sausage with Mashed Beats": 1,
     "Root Vegetable Stew": 1,
     "Rope": 1,
     "Rope ladder": 1,
+    "roupa": 0,
+    "roupas": 0,
+    "rucksack": 0,
     "Ruler’s Ring": 1,
     "Rune Staff": 1,
     "Sack": 0,
     "Saco": 0,
     "Saco de alpinista": 0,
     "Saco de Dormir": 1,
+    "sacola": 0,
+    "saddlebag": 0,
     "Saffron, one box": 1,
     "Salt, one sack": 1,
     "Salted Herring with Turnips": 1,
     "Salty-sweet Needles": 0,
+    "sandalia": 0,
+    "sandalias": 0,
+    "sandals": 0,
+    "sapatos": 0,
+    "sapatos de neve": 0,
+    "satchel": 0,
     "Scalemail": 1,
     "Scarf": 0,
+    "scroll case": 0,
     "Scythe": 1,
     "Seda Tecida": 2,
     "Seiva Púrpura Moderado": 1,
     "Shadow Tint": 1,
     "Shield": 1,
     "Shirt": 0,
+    "shoes": 0,
     "Shovel": 1,
     "Silk, one roll": 1,
     "Silver, one bar": 1,
@@ -325,7 +437,9 @@
     "Smoke Tube": 1,
     "Smoked Tea": 1,
     "Snares": 1,
+    "snowshoes": 0,
     "Snuff Box": 0,
+    "socks": 0,
     "Spark Stone": 1,
     "Spear Sling": 1,
     "Spell Scroll": 1,
@@ -338,11 +452,14 @@
     "Spore Bomb": 1,
     "Spy glass": 1,
     "Stiletto": 1,
+    "stockings": 0,
     "Strong Poison": 1,
     "Strong Purple Sap": 1,
     "Strong Transforming Draught": 1,
     "Stuffed Lung with Black Mash": 1,
     "Sugar-coated Rose Petals": 0,
+    "tabard": 0,
+    "tabardo": 0,
     "Table Ale (watered stut)": 1,
     "Tambor": 1,
     "Tankard": 1,
@@ -364,23 +481,37 @@
     "Tintura Crepuscular": 1,
     "Toad Guard": 1,
     "Tocha": 1,
+    "toga": 0,
     "Torch": 1,
+    "traje": 0,
     "Traje de Artesão": 0,
     "Traje de Burguês": 0,
     "Traje de Nobre": 0,
     "Trajes Simples": 0,
     "Trapper’s Manual": 1,
+    "travel bread": 1,
+    "trousers": 0,
     "Trout Pie": 1,
     "Trout Pudding with Turnips": 1,
+    "trunk": 1,
+    "tunic": 0,
+    "tunica": 0,
     "Turmeric, one box": 1,
     "Tusks": 1,
     "Twilight Tincture": 1,
+    "two handed": 2,
+    "two-handed": 2,
     "Unarmed combat": 1,
     "Vara de Pesca": 1,
+    "veil": 0,
     "Vela de Antídoto Fraco": 1,
     "Veneno Moderado": 1,
     "Vestido": 0,
+    "vestimenta": 0,
+    "vestimentas": 0,
+    "veu": 0,
     "Waffles with Butter and Honey": 1,
+    "war hammer": 2,
     "War Paint": 1,
     "Warhammer": 2,
     "Water of Dusk": 1,
@@ -395,12 +526,37 @@
     "Weapon maintenance kit": 1,
     "Whetstone": 1,
     "Wild Chew": 1,
+    "wineskin": 0,
     "Witch Braid": 1,
     "Wolf Skin": 2,
     "Woven Silk": 2,
     "Wraith Dust": 1
   },
   "bundles": {
+    "agulha": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "amulet": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "amuleto": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "anel": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "apito": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "Arpéu": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Arrow": {
       "bundleSize": 10,
       "slots": 1
@@ -449,8 +605,84 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "botao": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "bracelet": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "brinco": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "broche": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "brooch": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "button": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "Cabeça de Martelo": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Cauda de Andorinha Sangrenta": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "chave": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "chaves": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "coin": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "coins": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "colar": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "Cortador de Corda": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "dado": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "dados": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "dice": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "earring": {
+      "bundleSize": 50,
+      "slots": 1
+    },
     "Ensnaring Arrow": {
       "bundleSize": 10,
+      "slots": 1
+    },
+    "ficha": {
+      "bundleSize": 50,
       "slots": 1
     },
     "Flaming Arrow": {
@@ -465,11 +697,39 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "Flecha - Flamejante": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha - Laço": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha - Ponta Perfurante de Armadura": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Flecha - Precisão": {
       "bundleSize": 10,
       "slots": 1
     },
+    "Flecha - Sibilante": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Flecha Certeira": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha de Laço": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha de Precisão": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha Flamejante": {
       "bundleSize": 10,
       "slots": 1
     },
@@ -481,6 +741,18 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "gem": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "gems": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "gemstone": {
+      "bundleSize": 50,
+      "slots": 1
+    },
     "Grappling Arrow": {
       "bundleSize": 10,
       "slots": 1
@@ -489,8 +761,72 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "jewel": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "jewelry": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "joia": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "joias": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "key": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "keys": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "moeda": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "moedas": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "necklace": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "needle": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "orteg": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "ortegs": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "pendant": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "pingente": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "Ponta Perfurante de Armadura": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Precision Arrow": {
       "bundleSize": 10,
+      "slots": 1
+    },
+    "pulseira": {
+      "bundleSize": 50,
       "slots": 1
     },
     "Quarrel": {
@@ -501,6 +837,30 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "ring": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "shilling": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "shillings": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "Sibilante": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "signet": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "sinete": {
+      "bundleSize": 50,
+      "slots": 1
+    },
     "Stun Bolt": {
       "bundleSize": 10,
       "slots": 1
@@ -509,12 +869,28 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "thaler": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "thalers": {
+      "bundleSize": 50,
+      "slots": 1
+    },
+    "token": {
+      "bundleSize": 50,
+      "slots": 1
+    },
     "Virote": {
       "bundleSize": 10,
       "slots": 1
     },
     "Virotes": {
       "bundleSize": 10,
+      "slots": 1
+    },
+    "whistle": {
+      "bundleSize": 50,
       "slots": 1
     },
     "Whistling Arrow": {

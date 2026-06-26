@@ -1,7 +1,3 @@
-2026/06/22-17:24:50.084 86c Recovering log #43
-2026/06/22-17:24:50.089 86c Delete type=0 #43
-2026/06/22-17:24:50.089 86c Delete type=3 #42
-2026/06/22-17:36:29.034 4080 Level-0 table #47: started
-2026/06/22-17:36:29.034 4080 Level-0 table #47: 0 bytes OK
-2026/06/22-17:36:29.035 4080 Delete type=0 #45
-2026/06/22-17:36:29.041 4080 Manual compaction at level-0 from '!adventures!6U6sXU05UOTd9FBe' @ 72057594037927935 : 1 .. '!adventures!6U6sXU05UOTd9FBe' @ 0 : 0; will stop at (end)
+2026/06/24-12:37:09.421 369c Table #9: 1 entries OK
+2026/06/24-12:37:09.424 369c Archiving C:\Users\kcire\AppData\Local\FoundryVTT\Data\modules\symbaroum-ind-resources\packs\symbaroum-ind-resources/MANIFEST-000048: OK
+2026/06/24-12:37:09.427 369c **** Repaired leveldb C:\Users\kcire\AppData\Local\FoundryVTT\Data\modules\symbaroum-ind-resources\packs\symbaroum-ind-resources; recovered 1 files; 1260 bytes. Some data may have been lost. ****
