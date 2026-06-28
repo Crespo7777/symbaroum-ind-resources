@@ -124,11 +124,11 @@
   position: fixed;
   z-index: 75;
   min-height: 40px;
-  max-height: 62px;
+  max-height: 78px;
   display: flex;
   align-items: center;
   gap: 6px;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -170,7 +170,21 @@
 }
 
 .tenebre-ammo-hud-right .tenebre-ammo-hud-item {
-  flex: 1 1 120px;
+  flex: 0 0 auto;
+}
+
+.tenebre-ammo-hud-right {
+  flex-wrap: wrap;
+  align-content: center;
+}
+
+.tenebre-ammo-hud-quiver {
+  width: 66px;
+  height: 32px;
+  grid-template-columns: 22px auto;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 5px;
 }
 
 .tenebre-ammo-hud-item i {
@@ -202,6 +216,13 @@
   color: #ffffff;
   text-align: center;
   font-size: 13px;
+}
+
+.tenebre-ammo-hud-quiver strong {
+  min-width: 32px;
+  padding: 1px 3px;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .tenebre-ammo-hud-left .tenebre-ammo-hud-item strong {

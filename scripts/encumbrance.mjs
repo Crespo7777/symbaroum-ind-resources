@@ -124,6 +124,7 @@ const HEAVY_ARMOR_TERMS = [
 
 let dynamicWeightFileFingerprint = null;
 let dynamicWeightFileWatcher = null;
+let dynamicWeightFileMissing = false;
 let activeWeightConfigFingerprint = null;
 let weightConfigModuleId = null;
 
@@ -144,7 +145,7 @@ export class EncumbranceService {
   }
 
   static async reloadDynamicWeightFile() {
-    const config = await readDynamicWeightFile();
+    const config = await readDynamicWeightFile({ force: true });
     if (!config) return false;
     this.applyDynamicWeightConfig(config);
     dynamicWeightFileFingerprint = fingerprintWeightConfig(getDynamicEncumbranceWeights());
@@ -605,7 +606,9 @@ function actorHasAbility(actor, aliases) {
 }
 
 async function readDynamicWeightConfig() {
-  return await readDynamicWeightFile() ?? readDynamicWeightSetting();
+  const settingConfig = readDynamicWeightSetting();
+  if (settingConfig) return settingConfig;
+  return dynamicWeightFileFingerprint ? await readDynamicWeightFile() : null;
 }
 
 function readDynamicWeightSetting() {
@@ -630,14 +633,20 @@ async function persistDynamicWeightConfig() {
   return true;
 }
 
-async function readDynamicWeightFile() {
+async function readDynamicWeightFile({ force = false } = {}) {
   const url = dynamicWeightFileUrl();
   if (!url) return null;
+  if (dynamicWeightFileMissing && !force) return null;
 
   try {
     const response = await fetch(url, { cache: "no-store" });
+    if (response.status === 404) {
+      dynamicWeightFileMissing = true;
+      return null;
+    }
     if (!response.ok) return null;
     const config = await response.json();
+    dynamicWeightFileMissing = false;
     dynamicWeightFileFingerprint = dynamicWeightFileFingerprint ?? fingerprintWeightConfig(config);
     return config;
   } catch (err) {
@@ -657,6 +666,7 @@ async function writeDynamicWeightFile(config) {
     const blob = new Blob([`${JSON.stringify(config, null, 2)}\n`], { type: "application/json" });
     const file = new File([blob], dynamicWeightFileName(), { type: "application/json" });
     await filePicker.upload("data", path.directory, file, { notify: false });
+    dynamicWeightFileMissing = false;
     dynamicWeightFileFingerprint = fingerprintWeightConfig(config);
     return true;
   } catch (err) {

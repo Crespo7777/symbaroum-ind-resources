@@ -36,7 +36,7 @@ export class HotbarService {
     document.getElementById(BREAD_BTN_ID)?.remove();
 
     const actor = getHudActor();
-    if (!actor || actor.type !== "player") {
+    if (!actor) {
       removeHud();
       return;
     }
@@ -51,12 +51,15 @@ export class HotbarService {
 }
 
 function renderRecoveryHud(panel, actor) {
-  const hits = AmmoService.getTrackedHits(actor);
-  const count = Math.max(0, Number(hits.ammoHit ?? 0) || 0);
-  panel.dataset.empty = count > 0 ? "false" : "true";
+  const count = actor ? Math.max(0, Number(AmmoService.getTrackedHits(actor).ammoHit ?? 0) || 0) : 0;
+  const visible = count > 0;
+
+  panel.dataset.empty = visible ? "false" : "true";
   panel.innerHTML = "";
-  panel.hidden = count <= 0;
-  if (count <= 0) return;
+  panel.hidden = !visible;
+  if (!visible) {
+    return;
+  }
 
   const item = document.createElement("div");
   item.className = "tenebre-ammo-hud-item tenebre-ammo-hud-recover";
@@ -95,7 +98,11 @@ function renderQuiverHud(panel, actor) {
     return isQuiver(item)
       && itemQuantity(item) > 0
       && isActiveOrEquipped(item);
-  });
+  }).map((item) => ({
+    name: item.name,
+    loaded: getQuiverLoadedTotal(item),
+    img: item.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp"
+  }));
 
   panel.dataset.empty = quivers.length > 0 ? "false" : "true";
 
@@ -109,7 +116,7 @@ function renderQuiverHud(panel, actor) {
   }
 
   for (const quiver of quivers) {
-    const loaded = getQuiverLoadedTotal(quiver);
+    const loaded = quiver.loaded;
     const item = document.createElement("div");
     item.className = "tenebre-ammo-hud-item tenebre-ammo-hud-quiver";
     item.title = game.i18n.format("TENEBRE.Hud.QuiverTooltip", {
@@ -118,14 +125,9 @@ function renderQuiverHud(panel, actor) {
     });
 
     const img = document.createElement("img");
-    img.src = quiver.img || "icons/containers/bags/quiver-leather-tan.webp";
+    img.src = quiver.img;
     img.alt = "";
     item.appendChild(img);
-
-    const label = document.createElement("span");
-    label.className = "tenebre-ammo-hud-label";
-    label.textContent = quiver.name;
-    item.appendChild(label);
 
     const value = document.createElement("strong");
     value.textContent = `${loaded}/12`;
@@ -167,23 +169,27 @@ function positionHud(left, right) {
   const bottom = 12;
   const playersRect = getPlayersBoundaryRect();
   const hotbarRect = document.getElementById("hotbar")?.getBoundingClientRect();
-  const chatRect = getChatBoundaryRect();
+  const recoveryWidth = left.dataset.empty === "true" ? 0 : 56;
+  const recoveryGap = recoveryWidth > 0 ? 6 : 0;
+  let anchorLeft = 212;
+  let availableRight = hotbarRect?.left ?? Math.min(window.innerWidth - 24, 620);
 
   if (playersRect && hotbarRect) {
     const playersRight = Math.max(playersRect.right, 212);
-    applyHudPosition(left, playersRight + 8, hotbarRect.left - playersRight - 16, bottom, { hideWhenEmpty: true });
-  } else {
-    applyHudPosition(left, 212, 360, bottom, { hideWhenEmpty: true });
+    anchorLeft = playersRight + 8;
+    availableRight = hotbarRect.left;
+  } else if (playersRect) {
+    anchorLeft = Math.max(playersRect.right, 212) + 8;
   }
 
-  if (hotbarRect && chatRect) {
-    applyHudPosition(right, hotbarRect.right + 8, chatRect.left - hotbarRect.right - 16, bottom);
-  } else {
-    applyHudPosition(right, window.innerWidth - 590, 230, bottom);
-  }
+  applyHudPosition(left, anchorLeft, 56, bottom, { hideWhenEmpty: true, minVisibleWidth: 40 });
+
+  const quiverLeft = anchorLeft + recoveryWidth + recoveryGap;
+  const quiverWidth = availableRight - quiverLeft - 8;
+  applyHudPosition(right, quiverLeft, quiverWidth, bottom);
 }
 
-function applyHudPosition(element, left, width, bottom, { hideWhenEmpty = false } = {}) {
+function applyHudPosition(element, left, width, bottom, { hideWhenEmpty = false, minVisibleWidth = 70 } = {}) {
   if (hideWhenEmpty && element.dataset.empty === "true") {
     element.hidden = true;
     return;
@@ -193,7 +199,7 @@ function applyHudPosition(element, left, width, bottom, { hideWhenEmpty = false 
   element.style.left = `${Math.floor(left)}px`;
   element.style.width = `${safeWidth}px`;
   element.style.bottom = `${bottom}px`;
-  element.hidden = safeWidth < 70;
+  element.hidden = safeWidth < minVisibleWidth;
 }
 
 function getPlayersBoundaryRect() {

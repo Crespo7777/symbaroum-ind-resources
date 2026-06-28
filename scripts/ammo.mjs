@@ -5,7 +5,11 @@ import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryThreshold } from "./
 import { escapeHtml } from "./utils.mjs";
 import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs";
 
+const RECOVERY_ROLL_DELAY_MS = 1800;
+
 export class AmmoService {
+  static #recoveringActors = new Set();
+
   static async selectAmmo(actor, ammoType) {
     const ammoItems = findAmmoItems(actor, ammoType);
     if (!ammoItems.length) {
@@ -315,11 +319,35 @@ export class AmmoService {
   static async recover(actor) {
     if (!TenebreSettings.get("enableAmmoRecovery")) return;
 
+    const actorKey = actor?.uuid ?? actor?.id ?? actor?.name;
+    if (actorKey && this.#recoveringActors.has(actorKey)) return;
+
+    if (actorKey) this.#recoveringActors.add(actorKey);
+    try {
+      let recoveredAny = false;
+      while (true) {
+        const result = await this.#recoverOne(actor);
+        if (result.status === "empty") {
+          if (!recoveredAny) {
+            ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
+          }
+          return;
+        }
+        recoveredAny = true;
+        if (result.status === "rolled" && result.remaining > 0) {
+          await wait(RECOVERY_ROLL_DELAY_MS);
+        }
+      }
+    } finally {
+      if (actorKey) this.#recoveringActors.delete(actorKey);
+    }
+  }
+
+  static async #recoverOne(actor) {
     const hits = this.getTrackedHits(actor);
     const totalHits = hits.ammoHit;
     if (totalHits <= 0) {
-      ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
-      return;
+      return { status: "empty", remaining: 0 };
     }
 
     const entryPair = Object.entries(hits.ammoHits).find(([, entry]) => Number(entry.count) > 0);
@@ -330,8 +358,7 @@ export class AmmoService {
         ammoHit: 0,
         ammoHits: {}
       });
-      ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
-      return;
+      return { status: "empty", remaining: 0 };
     }
 
     const [entryKey, entry] = entryPair;
@@ -351,8 +378,7 @@ export class AmmoService {
         ammoHit: Math.max(0, totalHits - 1),
         ammoHits
       });
-      ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
-      return;
+      return { status: "skipped", remaining: Math.max(0, totalHits - 1) };
     }
 
     const threshold = getAmmoRecoveryThreshold(recoveryEntry.name);
@@ -429,6 +455,8 @@ export class AmmoService {
       content: chatContent,
       rolls: [roll]
     });
+
+    return { status: "rolled", remaining: remainingTotal };
   }
 }
 
@@ -525,4 +553,8 @@ async function createRecoveredAmmo(actor, entry, recovered) {
   };
   itemData.system.number = recovered;
   await actor.createEmbeddedDocuments("Item", [itemData], { render: false });
+}
+
+function wait(ms) {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
