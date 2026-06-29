@@ -44,5 +44,14 @@
       "name": "English",
       "path": "languages/en.json"
     }
+  ],
+  "packs": [
+    {
+      "name": "symbaroum-ind-resources",
+      "label": "Symbaroum Ind Resources",
+      "system": "symbaroum",
+      "type": "Adventure",
+      "path": "packs/symbaroum-ind-resources"
+    }
   ]
 }

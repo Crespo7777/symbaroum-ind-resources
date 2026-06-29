@@ -11,12 +11,14 @@ import { VerseService } from "./verses.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { HungerService } from "./hunger.mjs";
 import { ContainerService } from "./containers.mjs";
+import { setupBithirMod } from "./bithir-macros.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
   registerKeybindings();
 
   HungerService.registerStatusEffect();
+  setupBithirMod();
 });
 
 Hooks.on("createItem", (item) => {
@@ -74,6 +76,7 @@ Hooks.once("ready", async () => {
     encumbrance: EncumbranceService,
     hunger: HungerService,
     containers: ContainerService,
+    bithir: game.bithirmod,
 
     inspectActorResources,
     diagnostics: {
