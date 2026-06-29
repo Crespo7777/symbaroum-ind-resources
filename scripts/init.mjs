@@ -102,6 +102,7 @@ function inspectActorResources(actorOrId) {
 
   const rations = RationService.getState(actor);
   const hits = AmmoService.getTrackedHits(actor);
+  const usesAmmoResources = actor.type === "player";
   return {
     actor: actor.name,
     type: actor.type,
@@ -111,11 +112,11 @@ function inspectActorResources(actorOrId) {
       usesPerUnit: rations.usesPerUnit
     },
     ammo: {
-      quantity: sumItemQuantities(findAmmoItems(actor, "ammo")),
+      quantity: usesAmmoResources ? sumItemQuantities(findAmmoItems(actor, "ammo")) : 0,
       hits
     },
     detectedItems: Array.from(actor.items.values())
-      .filter((item) => isRation(item) || isAmmo(item))
+      .filter((item) => isRation(item) || (usesAmmoResources && isAmmo(item)))
       .map((item) => ({
         id: item.id,
         name: item.name,
