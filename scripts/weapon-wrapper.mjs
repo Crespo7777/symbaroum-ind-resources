@@ -18,6 +18,10 @@ export function patchWeaponRolls() {
       game.tenebreResources.activeWeaponModifiers = null;
     }
 
+    if (this?.type !== "player") {
+      return originalRollWeapon.call(this, weapon, ...args);
+    }
+
     const ammoType = getWeaponAmmoType(weapon);
     if (!ammoType || !TenebreSettings.get("enableAmmoConsumption")) {
       return originalRollWeapon.call(this, weapon, ...args);

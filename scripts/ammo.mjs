@@ -11,6 +11,8 @@ export class AmmoService {
   static #recoveringActors = new Set();
 
   static async selectAmmo(actor, ammoType) {
+    if (!isPlayerActor(actor)) return null;
+
     const ammoItems = findAmmoItems(actor, ammoType);
     if (!ammoItems.length) {
       ui.notifications.warn(game.i18n.format("TENEBRE.Ammo.NoCompatibleAmmo", { type: localizeAmmoType(ammoType) }));
@@ -22,6 +24,8 @@ export class AmmoService {
   }
 
   static async consumeAmmo(actor, ammo, weapon, ammoType) {
+    if (!isPlayerActor(actor)) return;
+
     const shot = getRecoverableShotData(actor, ammo, ammoType);
 
     if (ammo.isVirtual) {
@@ -97,6 +101,8 @@ export class AmmoService {
   }
 
   static async reloadQuiverPrompt(actor, quiverItem) {
+    if (!isPlayerActor(actor)) return;
+
     const currentTotal = getQuiverLoadedTotal(quiverItem);
     const remainingCapacity = 12 - currentTotal;
     if (remainingCapacity <= 0) {
@@ -217,7 +223,7 @@ export class AmmoService {
 
     const actorImg = actor.img || actor.prototypeToken?.texture?.src || "icons/svg/mystery-man.svg";
     const ammoImg = looseItem.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp";
-    const quiverImg = quiverItem.img || "icons/containers/bags/quiver-leather-tan.webp";
+    const quiverImg = quiverItem.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp";
 
     const chatContent = `
       <div class="tenebre-chat-card tenebre-reload-card">
@@ -278,6 +284,7 @@ export class AmmoService {
   }
 
   static async recordHit(actor, ammo) {
+    if (!isPlayerActor(actor)) return;
     if (!TenebreSettings.get("enableHitTracking") || !ammo) return;
 
     const shot = getRecoverableShotData(actor, ammo);
@@ -306,6 +313,13 @@ export class AmmoService {
   }
 
   static getTrackedHits(actor) {
+    if (!isPlayerActor(actor)) {
+      return {
+        ammoHit: 0,
+        ammoHits: {}
+      };
+    }
+
     const combat = actor.getFlag(FLAG_SCOPE, "combat") ?? {};
     const ammoHit = combat.ammoHit !== undefined
       ? Number(combat.ammoHit ?? 0)
@@ -317,6 +331,7 @@ export class AmmoService {
   }
 
   static async recover(actor) {
+    if (!isPlayerActor(actor)) return;
     if (!TenebreSettings.get("enableAmmoRecovery")) return;
 
     const actorKey = actor?.uuid ?? actor?.id ?? actor?.name;
@@ -458,6 +473,10 @@ export class AmmoService {
 
     return { status: "rolled", remaining: remainingTotal };
   }
+}
+
+function isPlayerActor(actor) {
+  return actor?.type === "player";
 }
 
 function getRecoverableShotData(actor, ammo, fallbackAmmoType = "") {

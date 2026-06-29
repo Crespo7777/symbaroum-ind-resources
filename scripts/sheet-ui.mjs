@@ -170,6 +170,7 @@ function patchContextMenu() {
           icon: `<i class="fas fa-arrows-rotate" style="color: currentColor;"></i>`,
           isVisible: (item) => {
             if (!TenebreSettings.get("enableAmmoRecovery")) return false;
+            if (!isPlayerActor(item?.parent)) return false;
             if (item?.type !== "weapon") return false;
             const ammoType = getWeaponAmmoType(item);
             return Boolean(ammoType);
@@ -186,7 +187,10 @@ function patchContextMenu() {
           name: "TENEBRE.Ammo.ReloadQuiverContextMenu",
           icon: `<i class="fas fa-redo" style="color: currentColor;"></i>`,
           isVisible: (item) => {
-            return TenebreSettings.get("enableAmmoConsumption") && isQuiver(item) && itemQuantity(item) > 0;
+            return TenebreSettings.get("enableAmmoConsumption")
+              && isPlayerActor(item?.parent)
+              && isQuiver(item)
+              && itemQuantity(item) > 0;
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);
@@ -385,6 +389,8 @@ function rerenderActorSheets(actor) {
 
 // Injeta quantidade e usos de aljavas na ficha
 function updateQuiverQuantityDisplay(app, html, actor) {
+  if (!isPlayerActor(actor)) return;
+
   const el = getRoot(html);
   if (!el) return;
 
@@ -717,11 +723,15 @@ function getRoot(html) {
   return null;
 }
 
+function isPlayerActor(actor) {
+  return actor?.type === "player";
+}
+
 // Hooks do diálogo de rolagem
 
 function onRenderTemplate(path, data, html) {
   if (path && path.includes("systems/symbaroum/template/chat/dialog.hbs")) {
-    if (game.tenebreResources?.activeWeaponRoll) {
+    if (isPlayerActor(game.tenebreResources?.activeWeaponRoll?.actor)) {
       game.tenebreResources.activeWeaponModifiers = data.weaponModifiers;
     }
   }
@@ -751,7 +761,7 @@ function onRenderDialog(dialog, html, data) {
           const activeRoll = dialog._tenebreWeaponRoll ?? game.tenebreResources?.activeWeaponRoll;
           let chosenAmmo = null;
 
-          if (activeRoll) {
+          if (activeRoll && isPlayerActor(activeRoll.actor)) {
             try {
               chosenAmmo = prepareSelectedAmmoForRoll(el, activeRoll);
             } catch (err) {
@@ -773,7 +783,7 @@ function onRenderDialog(dialog, html, data) {
             throw err;
           }
 
-          if (activeRoll && chosenAmmo && !activeRoll.consumed) {
+          if (activeRoll && isPlayerActor(activeRoll.actor) && chosenAmmo && !activeRoll.consumed) {
             activeRoll.consumed = true;
             await AmmoService.consumeAmmo(activeRoll.actor, chosenAmmo, activeRoll.weapon, activeRoll.ammoType);
           }
@@ -788,6 +798,7 @@ function onRenderDialog(dialog, html, data) {
   // Injeta seletor de munição para ataques à distância
   const activeRoll = game.tenebreResources?.activeWeaponRoll;
   if (!activeRoll) return;
+  if (!isPlayerActor(activeRoll.actor)) return;
   dialog._tenebreWeaponRoll = activeRoll;
 
   const damModInput = el.querySelector("input[id^='dammodifier-']");
