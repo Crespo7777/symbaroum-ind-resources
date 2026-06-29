@@ -1,5 +1,6 @@
 import { AmmoService } from "./ammo.mjs";
 import { getWeaponAmmoType } from "./item-flags.mjs";
+import { ManeuverService } from "./maneuvers.mjs";
 import { TenebreSettings } from "./settings.mjs";
 
 let patched = false;
@@ -23,8 +24,28 @@ export function patchWeaponRolls() {
     }
 
     const ammoType = getWeaponAmmoType(weapon);
+    if (ManeuverService.blocksAttacks(this)) {
+      ui.notifications.warn(game.i18n.localize("TENEBRE.Maneuvers.AttackBlocked"));
+      return undefined;
+    }
+
+    const maneuverRollState = {
+      actor: this,
+      weapon,
+      isRanged: Boolean(ammoType)
+    };
+    game.tenebreResources.activeManeuverWeaponRoll = maneuverRollState;
+
     if (!ammoType || !TenebreSettings.get("enableAmmoConsumption")) {
-      return originalRollWeapon.call(this, weapon, ...args);
+      try {
+        const result = await originalRollWeapon.call(this, weapon, ...args);
+        await ManeuverService.afterWeaponRoll(this, result);
+        return result;
+      } finally {
+        if (game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
+          game.tenebreResources.activeManeuverWeaponRoll = null;
+        }
+      }
     }
 
     // Exige seleção de exatamente 1 alvo se a automação de combate estiver ativa
@@ -32,6 +53,9 @@ export function patchWeaponRolls() {
       const targets = Array.from(game.user.targets);
       if (targets.length !== 1) {
         ui.notifications.warn(game.i18n.localize("ABILITY_ERROR.TARGET"));
+        if (game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
+          game.tenebreResources.activeManeuverWeaponRoll = null;
+        }
         return undefined;
       }
     }
@@ -59,6 +83,7 @@ export function patchWeaponRolls() {
         }
       }
 
+      await ManeuverService.afterWeaponRoll(this, result);
       return result;
     } catch (err) {
       if (err === "Cancelled") {
@@ -66,6 +91,9 @@ export function patchWeaponRolls() {
       }
       throw err;
     } finally {
+      if (game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
+        game.tenebreResources.activeManeuverWeaponRoll = null;
+      }
       setTimeout(() => {
         if (game.tenebreResources?.activeWeaponRoll?.actor === this) {
           game.tenebreResources.activeWeaponRoll = null;

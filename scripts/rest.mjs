@@ -12,17 +12,18 @@ export class RestService {
     const defaultHealing = restHealingEnabled ? (Number(TenebreSettings.get("restHealing")) || 1) : 0;
 
     const content = `
-      <div class="tenebre-rest-dialog">
-        <div class="tenebre-rest-actor">
-          <strong>${escapeHtml(actor.name)}</strong>
+      <div class="symbaroum dialog tenebre-rest-dialog">
+        <div class="damagemodifier tenebre-rest-actor-row">
+          <label>${game.i18n.localize("TENEBRE.Maneuvers.Actor")}</label>
+          <input type="text" value="${escapeHtml(actor.name)}" disabled>
         </div>
-        <div class="tenebre-rest-row">
+        <div class="damagemodifier">
           <label for="tenebre-days">${game.i18n.localize("TENEBRE.Rest.Days")}</label>
-          <input type="number" id="tenebre-days" name="days" value="1" min="1" max="30" style="width:80px">
+          <input type="number" id="tenebre-days" name="days" value="1" min="1" max="30">
         </div>
-        <div class="tenebre-rest-row">
+        <div class="damagemodifier">
           <label for="tenebre-healing">${game.i18n.localize("TENEBRE.Rest.HealingPerDay")}</label>
-          <input type="number" id="tenebre-healing" name="healing" value="${defaultHealing}" min="0" max="100" style="width:80px">
+          <input type="number" id="tenebre-healing" name="healing" value="${defaultHealing}" min="0" max="100">
         </div>
       </div>
     `;

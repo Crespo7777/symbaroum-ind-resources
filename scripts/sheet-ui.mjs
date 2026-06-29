@@ -8,6 +8,7 @@ import { EncumbranceService } from "./encumbrance.mjs";
 import { ContainerService } from "./containers.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
 import { normalize } from "./utils.mjs";
+import { ManeuverService } from "./maneuvers.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -34,6 +35,8 @@ const ITEM_SHEET_HOOKS = [
   "renderSymbaroumItemSheet",
   "renderItemSheet"
 ];
+
+const selectedManeuversByActor = new Map();
 
 // Registro de hooks
 
@@ -246,6 +249,7 @@ function onRenderActorSheet(app, html) {
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
   injectEncumbrancePanel(app, html, actor);
+  injectManeuverPanel(app, html, actor);
 }
 
 function hideStoredItemRows(app, html, actor) {
@@ -456,6 +460,20 @@ function patchPlayerSheetHeaderButtons() {
           await RestService.openRestDialog(this.actor);
         }
       });
+
+      if (hasActorEffects(this.actor)) {
+        buttons.unshift({
+          label: game.i18n.localize("TENEBRE.Maneuvers.ClearEffects"),
+          class: "tenebre-clear-effects",
+          icon: "fas fa-eraser",
+          onclick: async (ev) => {
+            ev.preventDefault();
+            const count = await clearActorEffects(this.actor);
+            ui.notifications.info(game.i18n.format("TENEBRE.Maneuvers.ClearEffectsDone", { count }));
+            this.render(false);
+          }
+        });
+      }
     }
     return buttons;
   };
@@ -476,6 +494,18 @@ function patchPlayerSheetHeaderButtons() {
       return handler.call(this, wrapped);
     };
   }
+}
+
+function hasActorEffects(actor) {
+  return Array.from(actor?.effects ?? []).length > 0;
+}
+
+async function clearActorEffects(actor) {
+  const effects = Array.from(actor?.effects ?? []).filter((effect) => effect?.id);
+  if (!actor || !effects.length) return 0;
+  await ManeuverService.prepareEffectsForRemoval(actor, effects);
+  await actor.deleteEmbeddedDocuments("ActiveEffect", effects.map((effect) => effect.id), { render: true });
+  return effects.length;
 }
 
 function onRenderItemSheet(app, html) {
@@ -710,6 +740,88 @@ function buildEncumbranceIndicatorHtml(load) {
     : "";
 
   return `${loadText}${porterBadge}${statusHtml}`;
+}
+
+function injectManeuverPanel(app, html, actor) {
+  if (!isPlayerActor(actor)) return;
+
+  const el = getRoot(html);
+  if (!el) return;
+
+  const selectionKey = getManeuverSelectionKey(actor);
+  const previousSelection = el.querySelector(".tenebre-maneuver-panel .tenebre-maneuver-select")?.value;
+  if (previousSelection) selectedManeuversByActor.set(selectionKey, previousSelection);
+
+  el.querySelectorAll(".tenebre-maneuver-panel").forEach((panel) => panel.remove());
+
+  const anchor = el.querySelector(".combat .weapons");
+  if (!anchor) return;
+
+  const selectedManeuverId = selectedManeuversByActor.get(selectionKey) ?? ManeuverService.list()[0]?.id;
+  const panel = document.createElement("div");
+  panel.className = "tenebre-maneuver-panel";
+  panel.innerHTML = buildManeuverPanelHtml(selectedManeuverId);
+  anchor.classList.add("tenebre-has-maneuvers");
+
+  const maneuverSelect = panel.querySelector(".tenebre-maneuver-select");
+  maneuverSelect?.addEventListener("change", () => {
+    selectedManeuversByActor.set(selectionKey, maneuverSelect.value);
+  });
+
+  for (const button of panel.querySelectorAll(".tenebre-maneuver-roll")) {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const select = panel.querySelector(".tenebre-maneuver-select");
+      const maneuverId = select?.value;
+      if (maneuverId) selectedManeuversByActor.set(selectionKey, maneuverId);
+      await ManeuverService.execute(actor, maneuverId, {
+        modifier: 0,
+        damageValue: 0
+      });
+    });
+  }
+
+  anchor.insertAdjacentElement("afterend", panel);
+}
+
+function getManeuverSelectionKey(actor) {
+  return actor?.uuid ?? actor?.id ?? actor?.name ?? "unknown";
+}
+
+function buildManeuverPanelHtml(selectedManeuverId) {
+  const options = ManeuverService.list().map((maneuver) => {
+    const label = game.i18n.localize(maneuver.labelKey);
+    const selected = maneuver.id === selectedManeuverId ? " selected" : "";
+    return `<option value="${maneuver.id}"${selected}>${escapeHtml(label)}</option>`;
+  }).join("");
+
+  return `
+    <div class="item-list">
+      <div class="item-header">
+        <b class="name">${game.i18n.localize("TENEBRE.Maneuvers.Title")}</b>
+      </div>
+      <div class="items">
+        <div class="item tenebre-maneuver-row">
+          <select class="tenebre-maneuver-select" aria-label="${game.i18n.localize("TENEBRE.Maneuvers.Select")}">
+            ${options}
+          </select>
+          <button type="button" class="tenebre-maneuver-roll">
+            <i class="fas fa-dice-d20"></i> ${game.i18n.localize("TENEBRE.Maneuvers.Roll")}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 // Funções auxiliares
 

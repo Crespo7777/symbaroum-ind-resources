@@ -15,9 +15,9 @@ Esta nota resume a leitura do modulo, do sistema Foundry `symbaroum` 6.1.6 e dos
 - Projeto: `C:\Projetos\symbaroum-ind-resources`.
 - Foundry: `C:\Users\ruanc\OneDrive\Documentos\FoundryVTT`.
 - Sistema: `C:\Users\ruanc\OneDrive\Documentos\FoundryVTT\Data\systems\symbaroum`.
-- Livros:
-  - `Symbaroum-Livro-Basico-v4 (1) (1).txt`
-  - `Symbaroum Guia Avancado do Jogador - Kcire (2).txt`
+- Livros oficiais locais: `C:\Users\ruanc\OneDrive\Documentos\Symbaroum Livros`.
+  - `C:\Users\ruanc\OneDrive\Documentos\Symbaroum Livros\Symbaroum-Livro-Basico-v4 (1) (1).txt`
+  - `C:\Users\ruanc\OneDrive\Documentos\Symbaroum Livros\Symbaroum Guia Avancado do Jogador - Kcire (2).txt`
 
 ## Regras importantes dos livros para este modulo
 
@@ -27,6 +27,8 @@ Esta nota resume a leitura do modulo, do sistema Foundry `symbaroum` 6.1.6 e dos
 - Sobrecarga e itens: recipientes leves nao contam por si, so conteudo; recipientes volumosos contam por si e somam conteudo; objetos pequenos contam em lotes de 50; armadura vestida usa Obstrutiva em vez de contar como carga; arma segurada nao conta; arma carregada conta; Macica conta como dois itens.
 - Recuperacao de flechas/virotes: no Guia Avancado, regra opcional. Projeteis comuns quebram em resultado maior que 10 no d20; com qualidade quebram acima de 15; com qualidades misticas quebram acima de 17. O modulo modela isso como recupera com `<= 10`, `<= 15`, `<= 17`.
 - Flechas/virotes especiais: Guia Avancado lista Arpeu, Cabeca de Martelo, Cauda de Andorinha Sangrenta, Cortador de Corda, Flecha Flamejante, Flecha de Laco, Flecha de Precisao, Ponta Perfurante de Armadura e Sibilante. Flecha Certeira e Raio Atordoante entram como elixires/alquimicos.
+- Manobras: no Guia Avancado, sao regra alternativa. Agarrar usa `[Vigoroso<-Vigoroso]`; Robusto soma +2/+4/+8 para quem agarra e tambem favorece o alvo Robusto; sucesso prende, falha abre Ataque Livre e manter o agarramento impede outras acoes. Desarmar usa `[Preciso<-Vigoroso]`, nao causa dano, sucesso faz largar arma/escudo e falha abre Ataque Livre. Nocaute exige ataque com Vantagem antes; no lugar do dano rola `1d12`, e se o resultado for menor que o dano o alvo fica inconsciente. Defesa Total da segunda chance em Defesa e impede ataques no turno. Ofensiva Total da segunda chance em ataques corpo a corpo e segunda chance de falhar em Defesa no turno. Empurrao deve iniciar o turno e gastar acao de combate e movimento; no sucesso causa metade do dano e empurra 5 metros; falha abre Ataque Livre. Veneno em Armas usa Teste de Astuto para aplicar uma dose a um unico golpe; resultado 20 envenena o usuario.
+- Automacao de efeitos das manobras: Adiar a Iniciativa aplica `Iniciativa Adiada`; Agarrar aplica `Agarrado` no alvo e `Mantendo Agarrar` no ator; Desarmar aplica `Desarmado` no alvo ou `Aberto a Ataque Livre` no ator se falhar; Defesa Total aplica `Defesa Total`; Empurrao aplica `Empurrado` no alvo e metade do dano informado, ou abertura se falhar; Encontrão aplica `Derrubado` no alvo se vencer e no ator se falhar no teste de Rapido; Investida aplica `Investida` no ator e abertura se falhar; Mira Cuidadosa aplica `Mira Cuidadosa`, da favor no proximo ataque a distancia e consome o efeito apos a rolagem; Nocaute aplica `Nocauteado`; Ofensiva Total aplica `Ofensiva Total`; Veneno em Armas aplica `Arma Envenenada`, aplica `Envenenado` no alvo quando acertar e consome o efeito; Tomar a Iniciativa aplica `Tomando a Iniciativa` sempre, e `Iniciativa +5`/bonus no combate se o teste passar.
 - Fome: a implementacao atual parece ser uma regra de mesa/modulo inspirada em viagem, privacao e cura natural, nao uma regra oficial exatamente igual encontrada nos trechos relevantes dos livros.
 
 ## Pontos tecnicos do sistema Foundry/Symbaroum

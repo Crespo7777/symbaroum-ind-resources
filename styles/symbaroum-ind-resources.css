@@ -31,24 +31,119 @@
 /* ── Rest dialog ────────────────────────────────────────────────────── */
 
 .tenebre-rest-dialog {
-  padding: 4px 0 8px;
-  display: grid;
-  gap: 10px;
+  padding-top: 5px;
 }
 
-.tenebre-rest-actor {
-  font-size: 1.05em;
-  color: var(--color-text-dark-primary);
+.application:has(.tenebre-rest-dialog) .window-content,
+.window-app:has(.tenebre-rest-dialog) .window-content {
+  background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat !important;
+  color: var(--color-text);
+  font-family: var(--font-text);
 }
 
-.tenebre-rest-row {
+.application:has(.tenebre-rest-dialog) .standard-form,
+.window-app:has(.tenebre-rest-dialog) .standard-form {
+  gap: 0;
+}
+
+.tenebre-rest-dialog .damagemodifier {
+  display: flex;
+  flex-direction: row;
+  flex-basis: 100%;
+  align-items: center;
+  height: 28px;
+  margin: 5px 10px;
+}
+
+.tenebre-rest-dialog label {
+  box-sizing: border-box;
+  flex: 1 1 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  min-width: 0;
+  width: auto;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 5px;
+  background: url("/systems/symbaroum/asset/image/background/title.webp") repeat;
+  color: var(--color-label);
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 28px;
+  text-align: center;
 }
 
-.tenebre-rest-row label { flex: 1; }
-.tenebre-rest-row input { width: 70px; }
+.tenebre-rest-dialog input[type=number],
+.tenebre-rest-dialog input[type=text] {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 5px;
+  border: 1px solid var(--color-border);
+  border-left: 0;
+  border-radius: 0;
+  background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat;
+  box-shadow: inset 0 0 6px black;
+  color: var(--color-text);
+  font-family: var(--font-text);
+  font-size: 14px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.tenebre-rest-dialog input[disabled] {
+  opacity: 1;
+}
+
+.tenebre-rest-dialog input[type=number]::-webkit-outer-spin-button,
+.tenebre-rest-dialog input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.application:has(.tenebre-rest-dialog) footer,
+.window-app:has(.tenebre-rest-dialog) footer,
+.application:has(.tenebre-rest-dialog) .form-footer,
+.window-app:has(.tenebre-rest-dialog) .form-footer,
+.application:has(.tenebre-rest-dialog) .dialog-buttons,
+.window-app:has(.tenebre-rest-dialog) .dialog-buttons {
+  display: flex;
+  gap: 5px;
+  margin: 5px 10px 10px;
+}
+
+.application:has(.tenebre-rest-dialog) footer button,
+.window-app:has(.tenebre-rest-dialog) footer button,
+.application:has(.tenebre-rest-dialog) .form-footer button,
+.window-app:has(.tenebre-rest-dialog) .form-footer button,
+.application:has(.tenebre-rest-dialog) .dialog-buttons button,
+.window-app:has(.tenebre-rest-dialog) .dialog-buttons button {
+  height: 34px;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: url("/systems/symbaroum/asset/image/background/not-editable.webp") repeat !important;
+  box-shadow: inset 0 0 6px black;
+  color: var(--color-text);
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 16px;
+}
+
+.application:has(.tenebre-rest-dialog) footer button:hover,
+.window-app:has(.tenebre-rest-dialog) footer button:hover,
+.application:has(.tenebre-rest-dialog) .form-footer button:hover,
+.window-app:has(.tenebre-rest-dialog) .form-footer button:hover,
+.application:has(.tenebre-rest-dialog) .dialog-buttons button:hover,
+.window-app:has(.tenebre-rest-dialog) .dialog-buttons button:hover {
+  box-shadow: inset 0 0 6px black, 0 0 5px #ff6f5f;
+}
 
 .tenebre-rest-preview,
 .tenebre-rest-corruption {
@@ -271,6 +366,247 @@ body .dice-tooltip-collapser {
 }
 
 /* ── Encumbrance indicator (actor gear tab) ─────────────────────────── */
+
+/* Maneuvers */
+
+.tenebre-maneuver-panel {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 100%;
+  margin: 5px;
+}
+
+.symbaroum.sheet.actor .player .main .combat .weapons.tenebre-has-maneuvers {
+  height: auto;
+  min-height: 120px;
+}
+
+.symbaroum.sheet.actor .player .main .combat .weapons.tenebre-has-maneuvers .item-list .items {
+  min-height: 0;
+}
+
+.symbaroum.sheet.actor .player .main .combat .armor .item-list .items,
+.symbaroum.sheet.actor .player .main .combat .weapons .item-list .items,
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-panel .item-list .items {
+  overflow-y: visible;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-panel .item-header {
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-panel .item-list .name {
+  display: flex;
+  flex-basis: 100%;
+  justify-content: center;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-panel .item-list .items {
+  background: #000000 !important;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 28px;
+  margin-bottom: 5px;
+  background-color: #000000 !important;
+  background-image: url("/systems/symbaroum/asset/image/background/title.webp") !important;
+  background-repeat: repeat !important;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 0;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  padding: 0 26px 0 8px;
+  border: none;
+  border-radius: 0;
+  background-color: #000000 !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #ffffff 50%),
+    linear-gradient(135deg, #ffffff 50%, transparent 50%),
+    url("/systems/symbaroum/asset/image/background/title.webp");
+  background-position:
+    calc(100% - 13px) 12px,
+    calc(100% - 8px) 12px,
+    0 0;
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size: 5px 5px, 5px 5px, auto;
+  color: #ffffff !important;
+  box-shadow: none;
+  color-scheme: dark;
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 28px;
+  overflow: hidden;
+  text-align: center;
+  text-align-last: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-select option {
+  background: #111111 !important;
+  color: #ffffff !important;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-select option:checked {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-roll {
+  width: 90px;
+  height: 28px;
+  margin: 0;
+  padding: 0 6px;
+  border: none;
+  border-radius: 0;
+  background-color: #000000 !important;
+  background-image: url("/systems/symbaroum/asset/image/background/title.webp") !important;
+  background-repeat: repeat !important;
+  color: #ffffff !important;
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 28px;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-roll i {
+  color: #ffffff !important;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-select:hover,
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-select:focus,
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-roll:hover {
+  color: #ffffff !important;
+  text-shadow: 0 0 10px var(--color-active);
+  box-shadow: none;
+}
+
+.tenebre-maneuver-card h3 i {
+  margin-right: 4px;
+}
+
+.tenebre-maneuver-card p {
+  margin: 2px 0;
+}
+
+.tenebre-maneuver-notes {
+  margin-top: 6px !important;
+}
+
+.tenebre-maneuver-success h3 {
+  color: #2b6b2b;
+}
+
+.tenebre-maneuver-failure h3 {
+  color: #8b2f20;
+}
+
+.application:has(.tenebre-maneuver-damage-dialog) .window-content,
+.window-app:has(.tenebre-maneuver-damage-dialog) .window-content {
+  background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat !important;
+  color: var(--color-text);
+  font-family: var(--font-text);
+}
+
+.application:has(.tenebre-maneuver-damage-dialog) .standard-form,
+.window-app:has(.tenebre-maneuver-damage-dialog) .standard-form {
+  gap: 0;
+}
+
+.tenebre-maneuver-damage-dialog {
+  padding-top: 5px;
+}
+
+.tenebre-maneuver-damage-dialog .damagemodifier {
+  display: flex;
+  flex-direction: row;
+  flex-basis: 100%;
+  margin: 5px 10px;
+}
+
+.tenebre-maneuver-damage-dialog label {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--color-label);
+  font-family: var(--font-text);
+  background: url("/systems/symbaroum/asset/image/background/title.webp") repeat;
+  width: 10em;
+  min-width: 10em;
+  text-align: center;
+  padding: 5px;
+}
+
+.tenebre-maneuver-damage-dialog input[type=number] {
+  background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat;
+  border: 1px solid var(--color-border);
+  border-left: 0;
+  border-radius: 0;
+  box-shadow: inset 0 0 6px black;
+  color: var(--color-text);
+  font-family: var(--font-text);
+  font-size: 14px;
+  height: auto;
+  line-height: 16px;
+  text-align: center;
+  width: 100%;
+}
+
+.tenebre-maneuver-damage-dialog input[type=number]::-webkit-outer-spin-button,
+.tenebre-maneuver-damage-dialog input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.application:has(.tenebre-maneuver-damage-dialog) footer,
+.window-app:has(.tenebre-maneuver-damage-dialog) footer,
+.application:has(.tenebre-maneuver-damage-dialog) .form-footer,
+.window-app:has(.tenebre-maneuver-damage-dialog) .form-footer,
+.application:has(.tenebre-maneuver-damage-dialog) .dialog-buttons,
+.window-app:has(.tenebre-maneuver-damage-dialog) .dialog-buttons {
+  display: flex;
+  gap: 5px;
+  margin: 5px 10px 10px;
+}
+
+.application:has(.tenebre-maneuver-damage-dialog) footer button,
+.window-app:has(.tenebre-maneuver-damage-dialog) footer button,
+.application:has(.tenebre-maneuver-damage-dialog) .form-footer button,
+.window-app:has(.tenebre-maneuver-damage-dialog) .form-footer button,
+.application:has(.tenebre-maneuver-damage-dialog) .dialog-buttons button,
+.window-app:has(.tenebre-maneuver-damage-dialog) .dialog-buttons button {
+  background: url("/systems/symbaroum/asset/image/background/not-editable.webp") repeat !important;
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: inset 0 0 6px black;
+  color: var(--color-text);
+  font-family: var(--font-text);
+  font-size: 14px;
+  font-weight: bold;
+  height: 34px;
+  line-height: 16px;
+  margin: 0;
+}
+
+.application:has(.tenebre-maneuver-damage-dialog) footer button:hover,
+.window-app:has(.tenebre-maneuver-damage-dialog) footer button:hover,
+.application:has(.tenebre-maneuver-damage-dialog) .form-footer button:hover,
+.window-app:has(.tenebre-maneuver-damage-dialog) .form-footer button:hover,
+.application:has(.tenebre-maneuver-damage-dialog) .dialog-buttons button:hover,
+.window-app:has(.tenebre-maneuver-damage-dialog) .dialog-buttons button:hover {
+  box-shadow: inset 0 0 6px black, 0 0 5px #ff6f5f;
+}
 
 .tenebre-enc-indicator {
   display: inline;

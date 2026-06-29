@@ -11,12 +11,14 @@ import { VerseService } from "./verses.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { HungerService } from "./hunger.mjs";
 import { ContainerService } from "./containers.mjs";
+import { ManeuverService } from "./maneuvers.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
   registerKeybindings();
 
   HungerService.registerStatusEffect();
+  ManeuverService.registerStatusEffects();
 });
 
 Hooks.on("createItem", (item) => {
@@ -52,14 +54,17 @@ Hooks.once("ready", async () => {
   registerSheetHooks();
   HotbarService.register();
   HungerService.registerHooks();
+  ManeuverService.registerHooks();
   patchSymbaroumRollDialogs();
   patchSymbaroumActorUsePower();
   patchSymbaroumDerivedPenalties();
+  ManeuverService.registerStatusEffects();
 
   // Aplica desvantagem de Fome para a rota simples de atributo.
   if (game.symbaroum?.api?.rollAttribute) {
     const originalRollAttribute = game.symbaroum.api.rollAttribute;
     game.symbaroum.api.rollAttribute = function(actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier) {
+      favour = ManeuverService.applyRollFavour(actor, actingAttributeName, favour, weapon);
       favour = HungerService.applyDisfavour(favour, actor);
       return originalRollAttribute.call(this, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier);
     };
@@ -74,6 +79,7 @@ Hooks.once("ready", async () => {
     encumbrance: EncumbranceService,
     hunger: HungerService,
     containers: ContainerService,
+    maneuvers: ManeuverService,
 
     inspectActorResources,
     diagnostics: {
@@ -220,7 +226,7 @@ function wrapDialogRollButton(dialog) {
 
   const originalCallback = rollButton.callback;
   rollButton.callback = async function tenebreRollDialogCallback(html, ...args) {
-    applyHungerDisfavourToDialog(html, dialog._tenebreHungerActorId);
+    applyStatusFavourToDialog(html, dialog);
     return originalCallback.call(this, html, ...args);
   };
   rollButton.callback._tenebreWrapped = true;
@@ -235,19 +241,55 @@ function extractActorIdFromDialogContent(content) {
   return actors.find((actor) => dialogId.startsWith(actor.id))?.id ?? null;
 }
 
-function applyHungerDisfavourToDialog(html, actorId) {
+function applyStatusFavourToDialog(html, dialog) {
   const root = html?.[0] ?? html;
   if (!root?.querySelectorAll) return;
 
   const favours = Array.from(root.querySelectorAll("input[name='favour']"));
   if (!favours.length) return;
 
-  const favourValue = getHungerFavourValue(actorId);
-  if (favourValue === null) return;
+  const actorId = dialog?._tenebreHungerActorId;
+  const activeWeaponRoll = game.tenebreResources?.activeManeuverWeaponRoll;
+  const actor = game.actors?.get?.(actorId) ?? activeWeaponRoll?.actor;
+  const weapon = activeWeaponRoll?.actor === actor ? activeWeaponRoll.weapon : null;
+  const attribute = getDialogActingAttribute(root, dialog);
+  const currentFavour = Number(favours.find((input) => input.checked)?.value ?? 0) || 0;
+
+  let nextFavour = currentFavour;
+  if (actor) {
+    nextFavour = ManeuverService.applyRollFavour(actor, attribute, nextFavour, weapon);
+    nextFavour = HungerService.applyDisfavour(nextFavour, actor);
+  }
+
+  const targetFavour = getHungerFavourValue(actorId);
+  if (targetFavour !== null) nextFavour = Number(targetFavour) || 0;
 
   for (const input of favours) {
-    input.checked = String(input.value) === favourValue;
+    input.checked = Number(input.value) === nextFavour;
   }
+}
+
+function getDialogActingAttribute(root, dialog) {
+  const selectors = [
+    "select[name='actingAttribute']",
+    "select[name='actingAttributeName']",
+    "select[id^='actingAttribute-']",
+    "input[name='actingAttribute']",
+    "input[name='actingAttributeName']"
+  ];
+
+  for (const selector of selectors) {
+    const element = root.querySelector(selector);
+    if (element?.value) return element.value;
+  }
+
+  const title = normalizeText(dialog?.data?.title ?? dialog?.title ?? "");
+  if (title.includes("defesa") || title.includes("defense")) return "defense";
+
+  const text = normalizeText(root.textContent ?? "");
+  if (text.includes("teste de defesa") || text.includes("defense test")) return "defense";
+
+  return "";
 }
 
 function getHungerFavourValue(actorId) {
@@ -258,4 +300,12 @@ function getHungerFavourValue(actorId) {
   if (actor?.type === "monster" && hungryTarget) return "1";
 
   return null;
+}
+
+function normalizeText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 }
