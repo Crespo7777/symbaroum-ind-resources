@@ -206,42 +206,41 @@ function getPlayersBoundaryRect() {
   const players = document.getElementById("players");
   if (!players) return null;
 
-  const elements = [players, ...players.querySelectorAll("*")];
-  const visibleRects = elements
-    .map((element) => element.getBoundingClientRect?.())
-    .filter((rect) => {
-      return rect
-        && rect.width > 0
-        && rect.height > 0
-        && rect.left < window.innerWidth * 0.45
-        && rect.top > window.innerHeight - 180;
-    });
+  let boundary = null;
+  const includeElement = (element) => {
+    const rect = element.getBoundingClientRect?.();
+    if (
+      !rect
+      || rect.width <= 0
+      || rect.height <= 0
+      || rect.left >= window.innerWidth * 0.45
+      || rect.top <= window.innerHeight - 180
+    ) {
+      return;
+    }
 
-  if (!visibleRects.length) return players.getBoundingClientRect();
+    if (!boundary) {
+      boundary = {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        width: 0,
+        height: 0
+      };
+      return;
+    }
 
-  return {
-    left: Math.min(...visibleRects.map((rect) => rect.left)),
-    right: Math.max(...visibleRects.map((rect) => rect.right)),
-    top: Math.min(...visibleRects.map((rect) => rect.top)),
-    bottom: Math.max(...visibleRects.map((rect) => rect.bottom)),
-    width: 0,
-    height: 0
+    boundary.left = Math.min(boundary.left, rect.left);
+    boundary.right = Math.max(boundary.right, rect.right);
+    boundary.top = Math.min(boundary.top, rect.top);
+    boundary.bottom = Math.max(boundary.bottom, rect.bottom);
   };
-}
 
-function getChatBoundaryRect() {
-  const selectors = [
-    "#chat-form",
-    "#chat-message",
-    "#chat .chat-form",
-    "#sidebar"
-  ];
-
-  for (const selector of selectors) {
-    const element = document.querySelector(selector);
-    const rect = element?.getBoundingClientRect?.();
-    if (rect && rect.width > 0 && rect.height > 0) return rect;
+  includeElement(players);
+  for (const element of players.querySelectorAll("*")) {
+    includeElement(element);
   }
 
-  return null;
+  return boundary ?? players.getBoundingClientRect();
 }

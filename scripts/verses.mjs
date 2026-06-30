@@ -1,6 +1,6 @@
 export const VerseService = {
   async load() {
-    const url = "modules/symbaroum-ind-resources/data/aroaleta-verses-pt.json";
+    const url = "modules/symbaroum-ind-resources/data/aroaleta-verses.json";
     return foundry.utils.fetchJsonWithTimeout(url);
   },
 

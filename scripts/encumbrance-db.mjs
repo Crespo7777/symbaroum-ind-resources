@@ -129,18 +129,28 @@ const DEFAULT_WEIGHT_CONFIG = { version: 2, items: {}, bundles: {} };
 let baseWeightConfig = DEFAULT_WEIGHT_CONFIG;
 let dynamicWeightConfig = emptyWeightConfig();
 let weightConfig = DEFAULT_WEIGHT_CONFIG;
+let baseWeightConfigFingerprint = JSON.stringify(DEFAULT_WEIGHT_CONFIG);
 
 export async function loadEncumbranceWeights(moduleId) {
   const url = `modules/${moduleId}/data/encumbrance-weights.json`;
   try {
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    baseWeightConfig = sanitizeWeightConfig(await response.json());
+    const nextConfig = sanitizeWeightConfig(await response.json());
+    const nextFingerprint = JSON.stringify(nextConfig);
+    if (nextFingerprint === baseWeightConfigFingerprint) return false;
+    baseWeightConfig = nextConfig;
+    baseWeightConfigFingerprint = nextFingerprint;
   } catch (err) {
+    const nextFingerprint = JSON.stringify(DEFAULT_WEIGHT_CONFIG);
+    const changed = baseWeightConfigFingerprint !== nextFingerprint;
     baseWeightConfig = DEFAULT_WEIGHT_CONFIG;
+    baseWeightConfigFingerprint = nextFingerprint;
     console.warn(`Tenebre Resources | Could not load ${url}; using built-in encumbrance weights.`, err);
+    if (!changed) return false;
   }
   rebuildWeightConfig();
+  return true;
 }
 
 export function applyDynamicEncumbranceWeights(config) {

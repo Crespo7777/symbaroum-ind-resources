@@ -127,6 +127,7 @@ let dynamicWeightFileWatcher = null;
 let dynamicWeightFileMissing = false;
 let activeWeightConfigFingerprint = null;
 let weightConfigModuleId = null;
+const WEIGHT_FILE_WATCH_INTERVAL_MS = 10000;
 
 export class EncumbranceService {
   static async loadWeightConfig(moduleId) {
@@ -156,19 +157,21 @@ export class EncumbranceService {
     return true;
   }
 
-  static startDynamicWeightFileWatcher(intervalMs = 1000) {
+  static startDynamicWeightFileWatcher(intervalMs = WEIGHT_FILE_WATCH_INTERVAL_MS) {
+    if (!globalThis.game?.user?.isGM) return false;
     if (dynamicWeightFileWatcher) return false;
 
     dynamicWeightFileWatcher = globalThis.setInterval(async () => {
       try {
+        let baseChanged = false;
         if (weightConfigModuleId) {
-          await loadEncumbranceWeights(weightConfigModuleId);
+          baseChanged = await loadEncumbranceWeights(weightConfigModuleId);
         }
 
         const config = await readDynamicWeightConfig();
         this.applyDynamicWeightConfig(config);
         const fingerprint = fingerprintWeightConfig(getMergedEncumbranceWeights());
-        if (fingerprint === activeWeightConfigFingerprint) return;
+        if (!baseChanged && fingerprint === activeWeightConfigFingerprint) return;
 
         activeWeightConfigFingerprint = fingerprint;
         dynamicWeightFileFingerprint = fingerprintWeightConfig(getDynamicEncumbranceWeights());

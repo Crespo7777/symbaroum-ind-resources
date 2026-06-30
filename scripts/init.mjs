@@ -31,10 +31,6 @@ Hooks.on("createItem", (item) => {
   }
 });
 
-Hooks.on("updateItem", (_item) => {
-  if (!TenebreSettings.get("enableEncumbrance")) return;
-});
-
 Hooks.once("ready", async () => {
   if (game.system.id !== "symbaroum") {
     console.warn(`${MODULE_ID} | This module currently supports only the Symbaroum system.`);
