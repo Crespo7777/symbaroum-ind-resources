@@ -806,3 +806,53 @@ body .dice-tooltip-collapser {
 .tenebre-hidden-stored-item {
   display: none !important;
 }
+
+/* ── Bithir Mod Styles (Inspiration Dice & Generator UI) ───────────────── */
+
+.bithirmod h1 {
+  display: block;
+}
+
+.form-group.bithirmod .dialogHeader {
+  flex-basis: auto;
+  flex-direction: row;
+  display: flex;
+}
+
+.form-group.bithirmod .dialogEntry {
+  width: 10em;
+  min-width: 10em;
+}
+
+.form-group.bithirmod .inspirationInput {
+  width: 5em;
+}
+
+div .bithirmod .locationdie img {
+  background-color: #b9fb9d;
+  background-blend-mode: multiply;
+}
+
+div .bithirmod .eventdie > img {
+  background-color: #f5adff;
+  background-blend-mode: multiply;
+}
+
+div .bithirmod .creaturedie > img {
+  background-color: #fca1a1;
+  background-blend-mode: multiply;
+}
+
+div .bithirmod .rewarddie > img {
+  background-color: #ffd500;
+  background-blend-mode: multiply;
+}
+
+div .bithirmod .inspirationdie > img {
+  width: 32px;
+  margin-top: 5px;
+  margin-right: 5px;
+  float: left;
+  vertical-align: top;
+}
+

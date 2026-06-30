@@ -12,6 +12,7 @@ import { EncumbranceService } from "./encumbrance.mjs";
 import { HungerService } from "./hunger.mjs";
 import { ContainerService } from "./containers.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
+import { setupBithirMod } from "./bithir-macros.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -19,6 +20,7 @@ Hooks.once("init", () => {
 
   HungerService.registerStatusEffect();
   ManeuverService.registerStatusEffects();
+  setupBithirMod();
 });
 
 Hooks.on("createItem", (item) => {
@@ -80,6 +82,7 @@ Hooks.once("ready", async () => {
     hunger: HungerService,
     containers: ContainerService,
     maneuvers: ManeuverService,
+    bithir: game.bithirmod,
 
     inspectActorResources,
     diagnostics: {
