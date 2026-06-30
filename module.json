@@ -25,8 +25,19 @@
           "verified": "6.1.6"
         }
       }
+    ],
+    "requires": [
+      {
+        "id": "socketlib",
+        "type": "module",
+        "compatibility": {
+          "minimum": "1.1.0",
+          "verified": "1.1.4"
+        }
+      }
     ]
   },
+  "socket": true,
   "esmodules": [
     "scripts/init.mjs"
   ],

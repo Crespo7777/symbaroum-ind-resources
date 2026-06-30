@@ -2,6 +2,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { escapeHtml } from "./utils.mjs";
 import { evaluateRoll, rollTotal } from "./dice.mjs";
+import { SocketService } from "./sockets.mjs";
 
 export const HUNGER_STATUS_ID = "hunger";
 export const HUNGER_EFFECT_ID = "tenebreHunger001";
@@ -127,7 +128,7 @@ export class HungerService {
     const nextPenalty = currentPenalty + amount;
     const currentTemporaryMod = Number(actor.system?.attributes?.strong?.temporaryMod ?? 0) || 0;
 
-    await actor.update({
+    await SocketService.updateDocument(actor, {
       "system.attributes.strong.temporaryMod": currentTemporaryMod + amount,
       [`flags.${MODULE_ID}.${STRONG_PENALTY_FLAG}`]: nextPenalty
     });
@@ -140,7 +141,7 @@ export class HungerService {
     if (!actor || penalty === 0) return;
 
     const currentTemporaryMod = Number(actor.system?.attributes?.strong?.temporaryMod ?? 0) || 0;
-    await actor.update({
+    await SocketService.updateDocument(actor, {
       "system.attributes.strong.temporaryMod": currentTemporaryMod - penalty,
       [`flags.${MODULE_ID}.-=${STRONG_PENALTY_FLAG}`]: null
     });
@@ -171,7 +172,7 @@ export class HungerService {
       updates[`flags.${MODULE_ID}.-=${STRONG_PENALTY_FLAG}`] = null;
     }
 
-    await actor.update(updates);
+    await SocketService.updateDocument(actor, updates);
     await HungerService.postRecoveryMessage(actor, recovered, source);
     return recovered;
   }
@@ -234,6 +235,15 @@ export class HungerService {
 
   static async markDead(actor) {
     if (!actor) return;
+    if (!game.user?.isGM && SocketService.active && SocketService.hasActiveGM()) {
+      try {
+        await SocketService.markActorDead(actor);
+        return;
+      } catch (error) {
+        console.warn(`${MODULE_ID} | Failed to mark actor dead through socketlib; falling back to local handling.`, error);
+      }
+    }
+
     if (HungerService.#hasDeadCondition(actor)) {
       await HungerService.#markActiveTokensDead(actor);
       return;
@@ -319,7 +329,7 @@ export class HungerService {
           || candidate.actor?.id === actor.id;
       });
       if (combatant && !combatant.defeated && typeof combatant.update === "function") {
-        await combatant.update({ defeated: true });
+        await SocketService.updateCombatant(combatant, { defeated: true });
       }
     }
   }

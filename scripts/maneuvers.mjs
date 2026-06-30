@@ -1,5 +1,6 @@
 import { MODULE_ID } from "./constants.mjs";
 import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs";
+import { SocketService } from "./sockets.mjs";
 
 export const MANEUVER_EFFECTS = {
   DELAYED_INITIATIVE: "tenebre-maneuver-delayed-initiative",
@@ -265,12 +266,14 @@ export class ManeuverService {
 
   static registerHooks() {
     Hooks.on("updateCombat", () => {
+      if (!SocketService.isPrimaryGM()) return;
       ManeuverService.cleanupExpiredEffects().catch((error) => {
         console.error(`${MODULE_ID} | Failed to clean expired maneuver effects.`, error);
       });
     });
 
     Hooks.on("deleteCombat", () => {
+      if (!SocketService.isPrimaryGM()) return;
       ManeuverService.cleanupExpiredEffects({ forceTurnEffects: true }).catch((error) => {
         console.error(`${MODULE_ID} | Failed to clean maneuver effects after combat ended.`, error);
       });
@@ -278,6 +281,7 @@ export class ManeuverService {
 
     Hooks.on("deleteActiveEffect", async (effect) => {
       try {
+        if (!SocketService.isPrimaryGM()) return;
         if (getManeuverEffectId(effect) === MANEUVER_EFFECTS.INITIATIVE_BONUS) {
           await revertTemporaryInitiativeBonus(effect.parent);
         }
@@ -341,7 +345,7 @@ export class ManeuverService {
     const effects = ManeuverService.getActiveEffects(actor);
     if (!effects.length) return 0;
     await prepareManeuverEffectsForRemoval(actor, effects);
-    await actor.deleteEmbeddedDocuments("ActiveEffect", effects.map((effect) => effect.id), { render: true });
+    await SocketService.deleteEmbeddedDocuments(actor, "ActiveEffect", effects.map((effect) => effect.id), { render: true });
     return effects.length;
   }
 
@@ -359,7 +363,7 @@ export class ManeuverService {
       if (!expired.length) continue;
 
       await prepareManeuverEffectsForRemoval(actor, expired);
-      await actor.deleteEmbeddedDocuments("ActiveEffect", expired.map((effect) => effect.id), { render: true });
+      await SocketService.deleteEmbeddedDocuments(actor, "ActiveEffect", expired.map((effect) => effect.id), { render: true });
     }
   }
 
@@ -668,7 +672,7 @@ async function resolveShoveDamage(targetActor, maneuver) {
   const currentToughness = Number(targetActor.system?.health?.toughness?.value ?? 0) || 0;
   const nextToughness = Math.max(0, currentToughness - appliedDamage);
 
-  await targetActor.update({ "system.health.toughness.value": nextToughness });
+  await SocketService.updateDocument(targetActor, { "system.health.toughness.value": nextToughness });
 
   return {
     normalDamage,
@@ -871,12 +875,13 @@ async function applyManeuverEffect(actor, effectId, { sourceActor = null, rounds
 
   if (existing) {
     if (rounds && typeof existing.update === "function") {
-      await existing.update({
+      await SocketService.updateEmbeddedDocuments(actor, "ActiveEffect", [{
+        _id: existing.id,
         duration: getEffectDuration(rounds),
         flags: {
           [MODULE_ID]: getEffectAutomationFlags(effectId, sourceActor, rounds, effectExpiration)
         }
-      });
+      }], { render: true });
     }
     return game.i18n.format("TENEBRE.Maneuvers.EffectAlreadyActive", { effect: effectLabel, actor: actor.name });
   }
@@ -898,7 +903,7 @@ async function applyManeuverEffect(actor, effectId, { sourceActor = null, rounds
   };
 
   try {
-    await actor.createEmbeddedDocuments("ActiveEffect", [effectData], { render: true });
+    await SocketService.createEmbeddedDocuments(actor, "ActiveEffect", [effectData], { render: true });
     return game.i18n.format("TENEBRE.Maneuvers.EffectApplied", { effect: effectLabel, actor: actor.name });
   } catch (error) {
     console.error(`${MODULE_ID} | Failed to apply maneuver effect ${effectId}.`, error);
@@ -910,7 +915,7 @@ async function removeManeuverEffect(actor, effectId) {
   const existing = findActorEffect(actor, effectId);
   if (!existing) return false;
   await prepareManeuverEffectsForRemoval(actor, [existing]);
-  await existing.delete();
+  await SocketService.deleteEmbeddedDocuments(actor, "ActiveEffect", [existing.id], { render: true });
   return true;
 }
 
@@ -922,8 +927,8 @@ async function applyCombatInitiativeBonus(actor, bonus) {
 
   const previous = Number(combatant.initiative) || 0;
   const next = previous + bonus;
-  await combatant.update({ initiative: next });
-  await actor.setFlag(MODULE_ID, "maneuverInitiativeBonus", {
+  await SocketService.updateCombatant(combatant, { initiative: next });
+  await SocketService.setFlag(actor, MODULE_ID, "maneuverInitiativeBonus", {
     combatId: game.combat.id,
     combatantId: combatant.id,
     previous,
@@ -976,10 +981,10 @@ async function revertTemporaryInitiativeBonus(actor) {
     const next = current === Number(data.next)
       ? Number(data.previous)
       : current - (Number(data.bonus) || 0);
-    await combatant.update({ initiative: next });
+    await SocketService.updateCombatant(combatant, { initiative: next });
   }
 
-  await actor.unsetFlag?.(MODULE_ID, "maneuverInitiativeBonus");
+  await SocketService.unsetFlag(actor, MODULE_ID, "maneuverInitiativeBonus");
   return true;
 }
 

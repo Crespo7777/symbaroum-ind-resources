@@ -3,6 +3,7 @@ import { TenebreSettings } from "./settings.mjs";
 import { HungerService } from "./hunger.mjs";
 import { escapeHtml } from "./utils.mjs";
 import { createChatMessageAfterDice } from "./dice.mjs";
+import { SocketService } from "./sockets.mjs";
 
 // Gerenciamento de descanso de personagens
 export class RestService {
@@ -154,7 +155,7 @@ export class RestService {
       }
     }
 
-    await actor.update(updates);
+    await SocketService.updateDocument(actor, updates);
     if (results.hungerResults.some(hr => hr.dead)) {
       await HungerService.markDead(actor);
     }

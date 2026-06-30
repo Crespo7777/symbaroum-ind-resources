@@ -9,6 +9,7 @@ import { ContainerService } from "./containers.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
 import { normalize } from "./utils.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
+import { SocketService } from "./sockets.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -504,7 +505,7 @@ async function clearActorEffects(actor) {
   const effects = Array.from(actor?.effects ?? []).filter((effect) => effect?.id);
   if (!actor || !effects.length) return 0;
   await ManeuverService.prepareEffectsForRemoval(actor, effects);
-  await actor.deleteEmbeddedDocuments("ActiveEffect", effects.map((effect) => effect.id), { render: true });
+  await SocketService.deleteEmbeddedDocuments(actor, "ActiveEffect", effects.map((effect) => effect.id), { render: true });
   return effects.length;
 }
 

@@ -13,10 +13,13 @@ import { HungerService } from "./hunger.mjs";
 import { ContainerService } from "./containers.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
 import { setupBithirMod } from "./bithir-macros.mjs";
+import { SocketService } from "./sockets.mjs";
+import { TokenActionHudIntegration } from "./token-action-hud.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
   registerKeybindings();
+  TokenActionHudIntegration.register();
 
   HungerService.registerStatusEffect();
   ManeuverService.registerStatusEffects();
@@ -78,6 +81,8 @@ Hooks.once("ready", async () => {
     hunger: HungerService,
     containers: ContainerService,
     maneuvers: ManeuverService,
+    tokenActionHud: TokenActionHudIntegration,
+    sockets: SocketService,
     bithir: game.bithirmod,
 
     inspectActorResources,
