@@ -1,6 +1,6 @@
 import { FLAG_SCOPE } from "./constants.mjs";
 import { actorItems, changeItemQuantity, itemQuantity } from "./item-flags.mjs";
-import { escapeHtml, normalize } from "./utils.mjs";
+import { escapeHtml, normalize, promptDialog } from "./utils.mjs";
 
 const STORABLE_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
 const ACCESSIBLE_STATES = new Set(["equipped", "active"]);
@@ -151,28 +151,14 @@ export class ContainerService {
       </form>
     `;
 
-    const result = await new Promise((resolve) => {
-      new Dialog({
-        title: game.i18n.localize("TENEBRE.Containers.StoreTitle"),
-        content,
-        buttons: {
-          ok: {
-            icon: '<i class="fas fa-box"></i>',
-            label: game.i18n.localize("TENEBRE.Common.Confirm"),
-            callback: (html) => resolve({
-              containerId: html.find('[name="containerId"]').val(),
-              quantity: Number(html.find('[name="quantity"]').val() || quantity)
-            })
-          },
-          cancel: {
-            icon: '<i class="fas fa-times"></i>',
-            label: game.i18n.localize("TENEBRE.Common.Cancel"),
-            callback: () => resolve(null)
-          }
-        },
-        default: "ok",
-        close: () => resolve(null)
-      }).render(true);
+    const result = await promptDialog({
+      title: game.i18n.localize("TENEBRE.Containers.StoreTitle"),
+      content,
+      okIcon: "fas fa-box",
+      callback: (element) => ({
+        containerId: element.querySelector('[name="containerId"]')?.value,
+        quantity: Number(element.querySelector('[name="quantity"]')?.value || quantity)
+      })
     });
 
     if (!result) return;
@@ -278,25 +264,11 @@ export class ContainerService {
       </form>
     `;
 
-    const amount = await new Promise((resolve) => {
-      new Dialog({
-        title: game.i18n.localize("TENEBRE.Containers.WithdrawTitle"),
-        content,
-        buttons: {
-          ok: {
-            icon: '<i class="fas fa-box-open"></i>',
-            label: game.i18n.localize("TENEBRE.Common.Confirm"),
-            callback: (html) => resolve(Number(html.find('[name="quantity"]').val() || quantity))
-          },
-          cancel: {
-            icon: '<i class="fas fa-times"></i>',
-            label: game.i18n.localize("TENEBRE.Common.Cancel"),
-            callback: () => resolve(null)
-          }
-        },
-        default: "ok",
-        close: () => resolve(null)
-      }).render(true);
+    const amount = await promptDialog({
+      title: game.i18n.localize("TENEBRE.Containers.WithdrawTitle"),
+      content,
+      okIcon: "fas fa-box-open",
+      callback: (element) => Number(element.querySelector('[name="quantity"]')?.value || quantity)
     });
 
     if (amount === null) return;

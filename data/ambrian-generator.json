@@ -3,8 +3,8 @@
     "folderName":"Gerador de Ambrianos",
     "shadow":"civilised",
     "gender": [
-        "Feminino",
-        "Masculino"
+        "feminine",
+        "masculine"
     ],
     "includedItems" : [ "light armor", "1handed"],
     "statBlocks" : [ { 

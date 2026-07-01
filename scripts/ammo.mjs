@@ -2,7 +2,7 @@ import { AMMO_TYPES, FLAG_SCOPE } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver, isAmmo, getQuiverLoadedAmmo, getQuiverLoadedTotal } from "./item-flags.mjs";
 import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryThreshold } from "./special-ammo.mjs";
-import { escapeHtml } from "./utils.mjs";
+import { escapeHtml, promptDialog } from "./utils.mjs";
 import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs";
 
 const RECOVERY_ROLL_DELAY_MS = 1800;
@@ -146,46 +146,18 @@ export class AmmoService {
       </div>
     `;
 
-    const result = await new Promise((resolve) => {
-      new Dialog({
-        title: game.i18n.localize("TENEBRE.Ammo.ReloadTitle"),
-        content: content,
-        buttons: {
-          ok: {
-            icon: '<i class="fas fa-check"></i>',
-            label: game.i18n.localize("TENEBRE.Common.Confirm") || "Confirmar",
-            callback: (html) => {
-              const ammoId = html.find('[name="ammoId"]').val();
-              const quantity = parseInt(html.find('[name="quantity"]').val()) || 0;
-              resolve({ ammoId, quantity });
-            }
-          },
-          cancel: {
-            icon: '<i class="fas fa-times"></i>',
-            label: game.i18n.localize("TENEBRE.Common.Cancel") || "Cancelar",
-            callback: () => resolve(null)
-          }
-        },
-        default: "ok",
-        render: (html) => {
-          const select = html.find('[name="ammoId"]');
-          const input = html.find('[name="quantity"]');
-          const updateMax = () => {
-            const selectedId = select.val();
-            const selectedItem = looseAmmoItems.find(i => i.id === selectedId);
-            if (selectedItem) {
-              const available = itemQuantity(selectedItem);
-              const maxToLoad = Math.min(remainingCapacity, available);
-              input.attr("max", maxToLoad);
-              if (parseInt(input.val()) > maxToLoad) {
-                input.val(maxToLoad);
-              }
-            }
-          };
-          select.on("change", updateMax);
-        },
-        close: () => resolve(null)
-      }).render(true);
+    const result = await promptDialog({
+      title: game.i18n.localize("TENEBRE.Ammo.ReloadTitle"),
+      content,
+      okLabel: game.i18n.localize("TENEBRE.Common.Confirm"),
+      cancelLabel: game.i18n.localize("TENEBRE.Common.Cancel"),
+      callback: (element) => {
+        const ammoId = element.querySelector('[name="ammoId"]')?.value;
+        const selectedItem = looseAmmoItems.find(i => i.id === ammoId);
+        const maxToLoad = selectedItem ? Math.min(remainingCapacity, itemQuantity(selectedItem)) : remainingCapacity;
+        const quantity = Math.min(parseInt(element.querySelector('[name="quantity"]')?.value) || 0, maxToLoad);
+        return { ammoId, quantity };
+      }
     });
 
     if (!result) return;

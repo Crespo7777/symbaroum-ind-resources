@@ -1,16 +1,16 @@
 {
-    "name":"Gerador de B?rbaros",
-    "folderName":"B?rbaros Gerados",
+    "name":"Gerador de Bárbaros",
+    "folderName":"Bárbaros Gerados",
     "shadow":"natural",
     "gender": [
-        "Feminino",
-        "Masculino"
+        "feminine",
+        "masculine"
     ],
     "includedItems" : [ "light armor", "1handed"],
     "statBlocks" : [ { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
-            "occupation": "Guerreiro forte e r?pido",
+            "race":"bárbaro",
+            "occupation": "Guerreiro forte e rápido",
             "attributes": {
                 "accurate":7,
                 "cunning":10,
@@ -41,7 +41,7 @@
         },
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
+            "race":"bárbaro",
             "occupation": "Guerreiro forte e preciso",
             "attributes": {
                 "accurate":13,
@@ -80,7 +80,7 @@
         },
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
+            "race":"bárbaro",
             "occupation": "Guerreiro preciso e discreto",
             "attributes": {
                 "accurate":15,
@@ -117,7 +117,7 @@
         },
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
+            "race":"bárbaro",
             "occupation": "Guerreiro resoluto e discreto",
             "attributes": {
                 "accurate":10,
@@ -151,8 +151,8 @@
         },
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
-            "occupation": "Guerreiro/m?stico discreto e resoluto",
+            "race":"bárbaro",
+            "occupation": "Guerreiro/místico discreto e resoluto",
             "attributes": {
                 "accurate":11,
                 "cunning":10,
@@ -186,8 +186,8 @@
         },
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
-            "occupation": "M?stico resoluto e r?pido",
+            "race":"bárbaro",
+            "occupation": "Místico resoluto e rápido",
             "attributes": {
                 "accurate":11,
                 "cunning":10,
@@ -216,8 +216,8 @@
         },    
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
-            "occupation": "M?stico resoluto e astuto",
+            "race":"bárbaro",
+            "occupation": "Místico resoluto e astuto",
             "attributes": {
                 "accurate":11,
                 "cunning":13,
@@ -247,7 +247,7 @@
         }, 
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
+            "race":"bárbaro",
             "occupation": "Guerreiro preciso e forte",
             "attributes": {
                 "accurate":15,
@@ -287,7 +287,7 @@
         },
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
+            "race":"bárbaro",
             "occupation": "Guerreiro persuasivo e forte",
             "attributes": {
                 "accurate":7,
@@ -323,8 +323,8 @@
         },
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
-            "occupation": "Combatente ? dist?ncia vigilante e r?pido",
+            "race":"bárbaro",
+            "occupation": "Combatente à distância vigilante e rápido",
             "attributes": {
                 "accurate":7,
                 "cunning":9,
@@ -350,8 +350,8 @@
         },
         { 
             "name": "{@generateNames[barbarian]}",
-            "race":"b?rbaro",
-            "occupation": "M?stico astuto e resoluto",
+            "race":"bárbaro",
+            "occupation": "Místico astuto e resoluto",
             "attributes": {
                 "accurate":7,
                 "cunning":15,

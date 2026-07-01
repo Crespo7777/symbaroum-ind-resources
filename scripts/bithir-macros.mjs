@@ -2,6 +2,7 @@
 // Adapted for modern ES Modules (V11/V12/V13 compatible)
 
 import { TenebreSettings } from "./settings.mjs";
+import { escapeHtml, normalize, promptDialog } from "./utils.mjs";
 
 const moduleId = 'symbaroum-ind-resources';
 const i18nPath = 'BITHIRMOD.';
@@ -9,7 +10,7 @@ const basePath = `modules/${moduleId}`;
 const assetPath = `${basePath}/assets`;
 const templatePath = `${basePath}/templates`;
 const BaseDie = globalThis.foundry?.dice?.terms?.Die ?? globalThis.Die;
-const translationMigrationVersion = 2;
+const translationMigrationVersion = 3;
 
 const folderNameMigrations = {
     'Ind Resouces - Utilidades': 'Ind Resources - Utilidades',
@@ -39,6 +40,127 @@ const tableResultTextMigrations = {
     'Forest Events - On the path': 'Eventos na Floresta - Na trilha',
     'Nothing of interest': 'Nada de interessante'
 };
+
+const forestEventTableIds = {
+    'Forest Events': 'imQ9P3r4J2Shdmsp',
+    'Forest Events - Horror': 'p7dVGKcMXTK8x162',
+    'Forest Events - Mundane': 'mnmGh1osFoA9K30k',
+    'Forest Events - Mystical / Inspiring': 'UaqVIVb8HpGtOmkf',
+    'Forest Events - On the path': '6K7GwP737QdEhjPe'
+};
+
+const forestEventMacroCommand = 'await game.tenebreResources?.bithir?.macros?.rollForestEvents?.();';
+let forestEventTranslationsCache = null;
+
+function tableResultContent(result) {
+    return result?.description || result?.name || result?._source?.description || result?._source?.name || result?._source?.text || "";
+}
+
+async function promptUtilityDialog(options) {
+    return promptDialog({ ...options, contentClass: "tenebre-bithir-dialog" });
+}
+
+async function loadForestEventTranslations() {
+    if (forestEventTranslationsCache) return forestEventTranslationsCache;
+    try {
+        forestEventTranslationsCache = await foundry.utils.fetchJsonWithTimeout(`${basePath}/data/forest-events-pt-BR.json`);
+    } catch (error) {
+        console.error(`${moduleId} | Failed to load forest event translations`, error);
+        forestEventTranslationsCache = {};
+    }
+    return forestEventTranslationsCache;
+}
+
+function forestEventTableKeyForName(name, translations = {}) {
+    const normalizedName = normalize(name);
+    if (!normalizedName) return null;
+
+    for (const [key, data] of Object.entries(translations)) {
+        const candidates = [
+            key,
+            data?.name,
+            tableNameMigrations[key],
+            tableResultTextMigrations[key]
+        ].filter(Boolean);
+
+        if (candidates.some(candidate => normalize(candidate) === normalizedName)) return key;
+    }
+
+    return null;
+}
+
+function sortedTableResults(table) {
+    return Array.from(table?.results ?? []).sort((a, b) => {
+        const aMin = Number(a.range?.[0] ?? 0);
+        const bMin = Number(b.range?.[0] ?? 0);
+        return aMin - bMin;
+    });
+}
+
+function translatedForestResult(tableKey, result, table, translations, fallback) {
+    const results = translations?.[tableKey]?.results ?? [];
+    const index = sortedTableResults(table).findIndex(candidate => candidate.id === result?.id);
+    return results[index] || fallback || tableResultContent(result);
+}
+
+function findForestEventTable(tableKey, translations = {}) {
+    const tableId = forestEventTableIds[tableKey];
+    if (tableId && game.tables?.get?.(tableId)) return game.tables.get(tableId);
+
+    const names = [
+        tableKey,
+        translations?.[tableKey]?.name,
+        tableNameMigrations[tableKey],
+        tableResultTextMigrations[tableKey]
+    ].filter(Boolean);
+
+    for (const name of names) {
+        const table = game.tables?.getName?.(name);
+        if (table) return table;
+    }
+
+    const normalizedNames = new Set(names.map(name => normalize(name)));
+    return Array.from(game.tables ?? []).find(table => normalizedNames.has(normalize(table.name))) ?? null;
+}
+
+function splitForestEventText(text) {
+    const value = String(text ?? "").trim();
+    const colonIndex = value.indexOf(":");
+    if (colonIndex > 0 && colonIndex <= 80) {
+        return {
+            title: value.slice(0, colonIndex).trim(),
+            body: value.slice(colonIndex + 1).trim()
+        };
+    }
+
+    return { title: "", body: value };
+}
+
+function renderForestEventCard({ eventText, category, mainRoll, eventRoll }) {
+    const { title, body } = splitForestEventText(eventText);
+    const rollSummary = eventRoll && eventRoll !== mainRoll
+        ? `${mainRoll?.total ?? "-"} / ${eventRoll.total ?? "-"}`
+        : `${mainRoll?.total ?? "-"}`;
+
+    return `
+        <div class="tenebre-chat-card tenebre-forest-event-card symbaroum-mod">
+            ${title ? `<h3><i class="fas fa-tree"></i> ${escapeHtml(title)}</h3>` : ""}
+            ${body ? `<p>${escapeHtml(body)}</p>` : ""}
+            <ul>
+                ${category ? `<li><strong>${game.i18n.localize("BITHIRMOD.FOREST_EVENTS_CATEGORY")}:</strong> ${escapeHtml(category)}</li>` : ""}
+                <li><strong>${game.i18n.localize("BITHIRMOD.FOREST_EVENTS_ROLL")}:</strong> ${escapeHtml(rollSummary)}</li>
+            </ul>
+        </div>`;
+}
+
+function isForestEventsMacro(macro) {
+    const name = normalize(macro?.name);
+    const command = String(macro?.command ?? "");
+    return ["eventos de floresta", "eventos na floresta", "forest events"].includes(name) ||
+        command.includes("imQ9P3r4J2Shdmsp") ||
+        command.includes("Forest Events") ||
+        command.includes("Eventos na Floresta");
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIGURATION
@@ -135,7 +257,7 @@ export class BithirApi {
                 return "";
             }
             const rollResult = await table.roll();
-            return rollResult.results[0]?.text ?? rollResult.results[0]?.description ?? rollResult.results[0]?.name ?? "";
+            return tableResultContent(rollResult.results[0]);
         });
         if (newStr === str) return newStr;
         return await this.parseSimpleElement(type, attributes, newStr);
@@ -408,27 +530,23 @@ export class BithirMacros {
             <br/>        
         </div>`;
         
-        const x = new Dialog({
+        const result = await promptUtilityDialog({
             content: dialog_content,
-            buttons: {
-                Ok: { 
-                    label: api.localize(`OK`), 
-                    callback: async (html) => {
-                        const generatorConfigName = html.find('#generator')[0].value;
-                        const expLevelName = html.find('#expLevel')[0].value;
-                        const selectedExpLevel = BithirConfig.resistanceLevels.find(resistLv => resistLv.name === expLevelName);
-                        if (selectedExpLevel) {
-                            await this.generateNPC(generatorConfigName, selectedExpLevel);
-                        }
-                    }
-                },
-                Cancel: { label: api.localize(`CANCEL`) }
+            okLabel: api.localize(`OK`),
+            cancelLabel: api.localize(`CANCEL`),
+            width: 350,
+            callback: async (element) => {
+                const generatorConfigName = element.querySelector('#generator')?.value;
+                const expLevelName = element.querySelector('#expLevel')?.value;
+                return { generatorConfigName, expLevelName };
             }
         });
-        
-        x.options.width = 200;
-        x.position.width = 350;
-        x.render(true);
+
+        if (!result) return;
+        const selectedExpLevel = BithirConfig.resistanceLevels.find(resistLv => resistLv.name === result.expLevelName);
+        if (result.generatorConfigName && selectedExpLevel) {
+            await this.generateNPC(result.generatorConfigName, selectedExpLevel);
+        }
     }
 
     async generateNPC(generatorConfigName, xpLevel) {        
@@ -563,9 +681,10 @@ export class BithirMacros {
                 let itemName = null;
                 for (let tr of tableDraw.results) {
                     if (tr.documentUuid) {
-                        itemToAdd = (await fromUuid(tr.documentUuid)).toObject();
+                        const document = await fromUuid(tr.documentUuid);
+                        if (document) itemToAdd = document.toObject();
                     } else {
-                        itemName = tr.description ?? tr.text ?? tr.name;
+                        itemName = tableResultContent(tr);
                     }
                 }
                 if (!itemToAdd) { continue; }
@@ -692,64 +811,116 @@ export class BithirMacros {
         <br/>
         </div>`;
         
-        let x = new Dialog({
+        const result = await promptUtilityDialog({
             title: api.localize('inspiration_title'),
             content: dialog_content,
-            buttons: {
-                Ok: { 
-                    label: api.localize('OK'), 
-                    callback: async (html) => {             
-                        let location = parseInt(html.find("input[name='location']")[0].value);
-                        let event = parseInt(html.find("input[name='event']")[0].value);
-                        let creature = parseInt(html.find("input[name='creature']")[0].value);
-                        let reward = parseInt(html.find("input[name='reward']")[0].value);
-                        let rollString = [];
-                        if (!isNaN(location) && location !== 0) { rollString.push(`${location}dl`); }
-                        if (!isNaN(event) && event !== 0) { rollString.push(`${event}de`); }
-                        if (!isNaN(creature) && creature !== 0) { rollString.push(`${creature}dc`); }
-                        if (!isNaN(reward) && reward !== 0) { rollString.push(`${reward}dr`); }
-                        
-                        let rolls = await new Roll(rollString.join('+')).evaluate();
-                        let rollData = {
-                            formula: rolls.formula,
-                            rolls: this.assembleInspirationResults(rolls)
-                        };
-                        const template = await foundry.applications.handlebars.renderTemplate(`${templatePath}/inspirationroll.hbs`, rollData);
-
-                        let chatData = {
-                            user: game.user.id,
-                            speaker: ChatMessage.getSpeaker({ alias: api.localize('inspiration_results') }),
-                            roll: JSON.stringify(rolls),
-                            rolls: [rolls],
-                            rollMode: game.settings.get('core', 'rollMode'),
-                            content: template,
-                        };
-                        
-                        if (game.modules.get("dice-so-nice")?.active) {
-                            const dsnsettings = game.user.getFlag("dice-so-nice", "settings");
-                            if (!dsnsettings || dsnsettings.hideAfterRoll) {
-                                if (!dsnsettings) {
-                                    await game.user.setFlag('dice-so-nice', 'settings', game.dice3d.constructor.CONFIG());
-                                }
-                                const timeout = parseInt(game.user.getFlag("dice-so-nice", "settings").timeBeforeHide);
-                                if (!isNaN(timeout)) {
-                                    game.user.getFlag("dice-so-nice", "settings").hideAfterRoll = false;
-                                    setTimeout(() => { 
-                                        game.user.getFlag("dice-so-nice", "settings").hideAfterRoll = true;
-                                    }, timeout + 500);
-                                }
-                            }
-                        }
-                        ChatMessage.create(chatData);
-                    }
-                },
-                Cancel: { label: api.localize('CANCEL') }
-            }  
+            okLabel: api.localize('OK'),
+            cancelLabel: api.localize('CANCEL'),
+            width: 300,
+            callback: async (element) => ({
+                location: parseInt(element.querySelector("input[name='location']")?.value),
+                event: parseInt(element.querySelector("input[name='event']")?.value),
+                creature: parseInt(element.querySelector("input[name='creature']")?.value),
+                reward: parseInt(element.querySelector("input[name='reward']")?.value)
+            })
         });
+
+        if (!result) return;
+        let rollString = [];
+        if (!isNaN(result.location) && result.location !== 0) { rollString.push(`${result.location}dl`); }
+        if (!isNaN(result.event) && result.event !== 0) { rollString.push(`${result.event}de`); }
+        if (!isNaN(result.creature) && result.creature !== 0) { rollString.push(`${result.creature}dc`); }
+        if (!isNaN(result.reward) && result.reward !== 0) { rollString.push(`${result.reward}dr`); }
+        if (rollString.length === 0) return;
+
+        let rolls = await new Roll(rollString.join('+')).evaluate();
+        let rollData = {
+            formula: rolls.formula,
+            rolls: this.assembleInspirationResults(rolls)
+        };
+        const template = await foundry.applications.handlebars.renderTemplate(`${templatePath}/inspirationroll.hbs`, rollData);
+
+        let chatData = {
+            user: game.user.id,
+            speaker: ChatMessage.getSpeaker({ alias: api.localize('inspiration_results') }),
+            roll: JSON.stringify(rolls),
+            rolls: [rolls],
+            rollMode: game.settings.get('core', 'rollMode'),
+            content: template,
+        };
         
-        x.options.width = 200;
-        x.position.width = 300;
-        x.render(true);
+        if (game.modules.get("dice-so-nice")?.active) {
+            const dsnsettings = game.user.getFlag("dice-so-nice", "settings");
+            if (!dsnsettings || dsnsettings.hideAfterRoll) {
+                if (!dsnsettings) {
+                    await game.user.setFlag('dice-so-nice', 'settings', game.dice3d.constructor.CONFIG());
+                }
+                const timeout = parseInt(game.user.getFlag("dice-so-nice", "settings").timeBeforeHide);
+                if (!isNaN(timeout)) {
+                    game.user.getFlag("dice-so-nice", "settings").hideAfterRoll = false;
+                    setTimeout(() => {
+                        game.user.getFlag("dice-so-nice", "settings").hideAfterRoll = true;
+                    }, timeout + 500);
+                }
+            }
+        }
+        ChatMessage.create(chatData);
+    }
+
+    async rollForestEvents() {
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
+        const translations = await loadForestEventTranslations();
+        const mainTable = findForestEventTable('Forest Events', translations);
+        if (!mainTable) {
+            ui.notifications.warn(api.localizeFallback('FOREST_EVENTS_NO_TABLE', 'Forest Events table not found.'));
+            return null;
+        }
+
+        const mainRollData = await mainTable.roll();
+        const mainResult = mainRollData?.results?.[0];
+        if (!mainResult) return null;
+
+        const rawCategory = tableResultContent(mainResult);
+        const translatedCategory = translatedForestResult('Forest Events', mainResult, mainTable, translations, rawCategory);
+        let categoryKey = forestEventTableKeyForName(rawCategory, translations) ||
+            forestEventTableKeyForName(translatedCategory, translations);
+        let eventTable = categoryKey ? findForestEventTable(categoryKey, translations) : null;
+
+        if (!eventTable && mainResult.documentUuid) {
+            const document = await fromUuid(mainResult.documentUuid);
+            if (document?.documentName === "RollTable") {
+                eventTable = document;
+                categoryKey = forestEventTableKeyForName(document.name, translations) ?? categoryKey;
+            }
+        }
+
+        let eventRollData = null;
+        let eventText = translatedCategory;
+        let category = null;
+
+        if (eventTable && categoryKey && categoryKey !== 'Forest Events') {
+            category = translations?.[categoryKey]?.name ?? eventTable.name;
+            eventRollData = await eventTable.roll();
+            const eventResult = eventRollData?.results?.[0];
+            eventText = translatedForestResult(categoryKey, eventResult, eventTable, translations, tableResultContent(eventResult));
+        }
+
+        const rolls = [mainRollData?.roll, eventRollData?.roll].filter(Boolean);
+        await ChatMessage.create({
+            user: game.user.id,
+            speaker: ChatMessage.getSpeaker({ alias: api.localizeFallback('FOREST_EVENTS_TITLE', 'Forest Events') }),
+            rolls,
+            rollMode: CONST.DICE_ROLL_MODES.PRIVATE,
+            content: renderForestEventCard({
+                eventText,
+                category,
+                mainRoll: mainRollData?.roll,
+                eventRoll: eventRollData?.roll
+            })
+        });
+
+        return { mainTable, eventTable, mainRollData, eventRollData, eventText };
     }
 
     assembleInspirationResults(rolls) {
@@ -775,6 +946,7 @@ async function migrateImportedUtilityTranslations() {
     if (currentVersion >= translationMigrationVersion) return;
 
     try {
+        const forestEventTranslations = await loadForestEventTranslations();
         const folderUpdates = game.folders
             .filter(folder => folderNameMigrations[folder.name])
             .map(folder => ({ _id: folder.id, name: folderNameMigrations[folder.name] }));
@@ -784,23 +956,43 @@ async function migrateImportedUtilityTranslations() {
         }
 
         for (const table of game.tables ?? []) {
-            const migratedTableName = tableNameMigrations[table.name];
+            const forestEventKey = forestEventTableKeyForName(table.name, forestEventTranslations);
+            const migratedTableName = forestEventKey
+                ? forestEventTranslations?.[forestEventKey]?.name
+                : tableNameMigrations[table.name];
+
             if (migratedTableName) {
                 await table.update({ name: migratedTableName });
             }
 
             const resultUpdates = [];
-            for (const result of table.results ?? []) {
-                const text = result.text ?? result.description;
-                const migratedText = tableResultTextMigrations[text];
+            const sortedResults = sortedTableResults(table);
+            for (const result of sortedResults) {
+                const text = tableResultContent(result);
+                const index = sortedResults.findIndex(candidate => candidate.id === result.id);
+                const migratedText = forestEventKey
+                    ? forestEventTranslations?.[forestEventKey]?.results?.[index]
+                    : tableResultTextMigrations[text];
                 if (migratedText) {
-                    resultUpdates.push({ _id: result.id, text: migratedText, description: migratedText });
+                    resultUpdates.push({ _id: result.id, name: migratedText, description: migratedText });
                 }
             }
 
             if (resultUpdates.length > 0 && typeof table.updateEmbeddedDocuments === 'function') {
                 await table.updateEmbeddedDocuments('TableResult', resultUpdates);
             }
+        }
+
+        const macroUpdates = Array.from(game.macros ?? [])
+            .filter(isForestEventsMacro)
+            .map(macro => ({
+                _id: macro.id,
+                name: api.localizeFallback('FOREST_EVENTS_TITLE', 'Eventos de Floresta'),
+                command: forestEventMacroCommand
+            }));
+
+        if (macroUpdates.length > 0) {
+            await Macro.updateDocuments(macroUpdates);
         }
 
         await game.settings.set(moduleId, 'utilityTranslationMigrationVersion', translationMigrationVersion);
@@ -891,32 +1083,25 @@ export function setupBithirMod() {
                 </div><br/>
             </div>`;
             
-            const x = new Dialog({
+            const result = await promptUtilityDialog({
                 content: dialog_content,
-                buttons: {
-                    Ok: { 
-                        label: api.localize(`OK`), 
-                        callback: async (html) => {
-                            const selectedShadow = html.find('#shadow')[0].value;
-                            if (selectedShadow === 'restoreshadow') {
-                                let originalShadow = await actor.getFlag(moduleId, 'originalShadow');
-                                actor.update({ 'system.bio.shadow': originalShadow });
-                            } else {
-                                if (actor.system.bio?.shadow && actor.system.bio.shadow !== '') {
-                                    await actor.setFlag(moduleId, 'originalShadow', actor.system.bio.shadow);
-                                }
-                                const newShadow = await api.generateShadow(selectedShadow, actor);
-                                actor.update({ 'system.bio.shadow': newShadow.capitalize() });
-                            }
-                        }
-                    },
-                    Cancel: { label: api.localize(`CANCEL`) }
-                }
+                okLabel: api.localize(`OK`),
+                cancelLabel: api.localize(`CANCEL`),
+                width: 300,
+                callback: async (element) => element.querySelector('#shadow')?.value
             });
-            
-            x.options.width = 200;
-            x.position.width = 300;
-            x.render(true);        
+
+            if (!result) return;
+            if (result === 'restoreshadow') {
+                let originalShadow = await actor.getFlag(moduleId, 'originalShadow');
+                actor.update({ 'system.bio.shadow': originalShadow });
+            } else {
+                if (actor.system.bio?.shadow && actor.system.bio.shadow !== '') {
+                    await actor.setFlag(moduleId, 'originalShadow', actor.system.bio.shadow);
+                }
+                const newShadow = await api.generateShadow(result, actor);
+                actor.update({ 'system.bio.shadow': newShadow.capitalize() });
+            }
         });
         
         let titleElement = html.closest('.app').find('.window-title');
