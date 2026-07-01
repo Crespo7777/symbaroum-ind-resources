@@ -1,7 +1,7 @@
 {
     "name":"Gerador de Ambrianos",
     "folderName":"Gerador de Ambrianos",
-    "shadow":"Civilizado",
+    "shadow":"civilised",
     "gender": [
         "Feminino",
         "Masculino"
@@ -215,7 +215,7 @@
         },    
         { 
             "name": "{@generateNames[ambrian]}",
-            "race":"ambrian",
+            "race":"ambriano",
             "occupation": "Místico resoluto e astuto",
             "attributes": {
                 "accurate":11,
@@ -288,7 +288,7 @@
         },
         { 
             "name": "{@generateNames[ambrian]}",
-            "race":"ambrian",
+            "race":"ambriano",
             "occupation": "Guerreiro persuasivo e forte",
             "attributes": {
                 "accurate":7,

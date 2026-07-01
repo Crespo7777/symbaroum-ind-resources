@@ -6,6 +6,37 @@ const i18nPath = 'BITHIRMOD.';
 const basePath = `modules/${moduleId}`;
 const assetPath = `${basePath}/assets`;
 const templatePath = `${basePath}/templates`;
+const BaseDie = globalThis.foundry?.dice?.terms?.Die ?? globalThis.Die;
+const translationMigrationVersion = 2;
+
+const folderNameMigrations = {
+    'Ind Resouces - Utilidades': 'Ind Resources - Utilidades',
+    'Equipmentos': 'Equipamentos'
+};
+
+const tableNameMigrations = {
+    'Forest Events': 'Eventos na Floresta',
+    'Forest Events - Horror': 'Eventos na Floresta - Horror',
+    'Forest Events - Mundane': 'Eventos na Floresta - Mundano',
+    'Forest Events - Mystical / Inspiring': 'Eventos na Floresta - Místico / Inspirador',
+    'Eventos na Floresta - Mistico / Inspirador': 'Eventos na Floresta - Místico / Inspirador',
+    'Forest Events - On the path': 'Eventos na Floresta - Na trilha',
+    'armadura corrompida': 'corrupt-armor',
+    'corrupt-armorname': 'corrupt-armor-name',
+    'nome-da-armadura-corrompida': 'corrupt-armor-name',
+    'arma corrompida': 'corrupt-weapon',
+    'corrupt-weaponname': 'corrupt-weapon-name',
+    'nome-de-arma-corrompida': 'corrupt-weapon-name'
+};
+
+const tableResultTextMigrations = {
+    'Forest Events - Horror': 'Eventos na Floresta - Horror',
+    'Forest Events - Mundane': 'Eventos na Floresta - Mundano',
+    'Forest Events - Mystical / Inspiring': 'Eventos na Floresta - Místico / Inspirador',
+    'Eventos na Floresta - Mistico / Inspirador': 'Eventos na Floresta - Místico / Inspirador',
+    'Forest Events - On the path': 'Eventos na Floresta - Na trilha',
+    'Nothing of interest': 'Nada de interessante'
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIGURATION
@@ -35,6 +66,19 @@ export const BithirConfig = {
 export class BithirApi {
     localize(key) {
         return game.i18n.localize(`${i18nPath}${key}`);
+    }
+
+    localizeFallback(key, fallback) {
+        const localized = this.localize(key);
+        return localized === `${i18nPath}${key}` ? fallback : localized;
+    }
+
+    localizeVerseTitle(title) {
+        const key = title
+            .replace(/[^a-zA-Z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .toUpperCase();
+        return this.localizeFallback(`VERSE_${key}`, title);
     }
 
     async replaceAsync(string, regex, replacerFunction) {
@@ -89,7 +133,7 @@ export class BithirApi {
                 return "";
             }
             const rollResult = await table.roll();
-            return rollResult.results[0]?.text ?? rollResult.results[0]?.name ?? "";
+            return rollResult.results[0]?.text ?? rollResult.results[0]?.description ?? rollResult.results[0]?.name ?? "";
         });
         if (newStr === str) return newStr;
         return await this.parseSimpleElement(type, attributes, newStr);
@@ -101,7 +145,7 @@ const api = new BithirApi();
 // ─────────────────────────────────────────────────────────────────────────────
 // CUSTOM DICE TERMS
 // ─────────────────────────────────────────────────────────────────────────────
-export class InspirationDie extends Die {
+export class InspirationDie extends BaseDie {
     constructor(termData) {
         termData.faces = 6;
         super(termData);
@@ -318,7 +362,7 @@ export class BithirMacros {
             <p class="symbaroum-mod fancytext">
                 “${aroaletaText}”
             </p>
-            <p class="symbaroum-mod fancytext">${selectedKey}</p>
+            <p class="symbaroum-mod fancytext">${api.localizeVerseTitle(selectedKey)}</p>
             <div style="display: flex;align-items: center;justify-content: center;"><span style="display:flex" class="symbaroum-mod fancyheader">&nbsp;</span></div>
         </blockquote>`;
         
@@ -335,12 +379,12 @@ export class BithirMacros {
         for (let i = 0; i < files.length; i++) {
             let mymatch = files[i].match(generatorFileRegex);
             if (mymatch == null) { continue; }
-            generatorList += `<option value="${mymatch[1]}">${mymatch[1]}</option>`;
+            generatorList += `<option value="${mymatch[1]}">${api.localizeFallback(`GENERATOR_${mymatch[1]}`, mymatch[1])}</option>`;
         }
         
         let expLevel = '';
         for (let resistLv of BithirConfig.resistanceLevels) {
-            expLevel += `<option value="${resistLv.name}">${resistLv.name}</option>`;
+            expLevel += `<option value="${resistLv.name}">${api.localizeFallback(`RESISTANCE_${resistLv.name.toUpperCase()}`, resistLv.name)}</option>`;
         }
         
         let dialog_content = `  
@@ -350,7 +394,7 @@ export class BithirMacros {
             <div style="flex-basis: auto;flex-direction: row;display: flex;">
                 <div class="dialogEntry"><select id="generator" name="generator">${generatorList}</select></div>
             </div><br/>
-            <h2>Select generator resistance level</h2>
+            <h2>${api.localize('GENERATOR_SELECTRESISTANCELEVEL')}</h2>
             <br />
             <div style="flex-basis: auto;flex-direction: row;display: flex;">
                 <div class="dialogEntry"><select id="expLevel" name="expLevel">${expLevel}</select></div>
@@ -513,7 +557,7 @@ export class BithirMacros {
                     if (tr.documentUuid) {
                         itemToAdd = (await fromUuid(tr.documentUuid)).toObject();
                     } else {
-                        itemName = tr.text ?? tr.name;
+                        itemName = tr.description ?? tr.text ?? tr.name;
                     }
                 }
                 if (!itemToAdd) { continue; }
@@ -624,16 +668,16 @@ export class BithirMacros {
         let dialog_content = `  
         <div class="form-group bithirmod">
         <div class="dialogHeader">
-            <div class="dialogEntry"><label for="location" class="dialogEntry">Location dice</label></div><div><input type="text" name="location" value="1" class="inspirationInput"></div>
+            <div class="dialogEntry"><label for="location" class="dialogEntry">${api.localize('inspiration_location_dice')}</label></div><div><input type="text" name="location" value="1" class="inspirationInput"></div>
         </div>
         <div class="dialogHeader">
-            <div class="dialogEntry"><label for="event" class="dialogEntry">Event dice</label></div><div><input type="text" name="event" value="1" class="inspirationInput"></div>
+            <div class="dialogEntry"><label for="event" class="dialogEntry">${api.localize('inspiration_event_dice')}</label></div><div><input type="text" name="event" value="1" class="inspirationInput"></div>
         </div>
         <div class="dialogHeader">
-            <div class="dialogEntry"><label for="creature" class="dialogEntry">Creature dice</label></div><div><input type="text" name="creature" value="1" class="inspirationInput"></div>
+            <div class="dialogEntry"><label for="creature" class="dialogEntry">${api.localize('inspiration_creature_dice')}</label></div><div><input type="text" name="creature" value="1" class="inspirationInput"></div>
         </div>
         <div class="dialogHeader">
-            <div class="dialogEntry"><label for="reward" class="dialogEntry">Reward dice</label></div><div><input type="text" name="reward" value="1" class="inspirationInput"></div>
+            <div class="dialogEntry"><label for="reward" class="dialogEntry">${api.localize('inspiration_reward_dice')}</label></div><div><input type="text" name="reward" value="1" class="inspirationInput"></div>
         </div>
         <br/>
         </div>`;
@@ -714,6 +758,47 @@ export class BithirMacros {
 // ─────────────────────────────────────────────────────────────────────────────
 // REGISTRATION HOOKS & SETUP
 // ─────────────────────────────────────────────────────────────────────────────
+async function migrateImportedUtilityTranslations() {
+    if (!game.user?.isGM) return;
+
+    const currentVersion = game.settings.get(moduleId, 'utilityTranslationMigrationVersion') ?? 0;
+    if (currentVersion >= translationMigrationVersion) return;
+
+    try {
+        const folderUpdates = game.folders
+            .filter(folder => folderNameMigrations[folder.name])
+            .map(folder => ({ _id: folder.id, name: folderNameMigrations[folder.name] }));
+
+        if (folderUpdates.length > 0) {
+            await Folder.updateDocuments(folderUpdates);
+        }
+
+        for (const table of game.tables ?? []) {
+            const migratedTableName = tableNameMigrations[table.name];
+            if (migratedTableName) {
+                await table.update({ name: migratedTableName });
+            }
+
+            const resultUpdates = [];
+            for (const result of table.results ?? []) {
+                const text = result.text ?? result.description;
+                const migratedText = tableResultTextMigrations[text];
+                if (migratedText) {
+                    resultUpdates.push({ _id: result.id, text: migratedText, description: migratedText });
+                }
+            }
+
+            if (resultUpdates.length > 0 && typeof table.updateEmbeddedDocuments === 'function') {
+                await table.updateEmbeddedDocuments('TableResult', resultUpdates);
+            }
+        }
+
+        await game.settings.set(moduleId, 'utilityTranslationMigrationVersion', translationMigrationVersion);
+    } catch (error) {
+        console.error(`${moduleId} | Failed to migrate imported utility translations`, error);
+    }
+}
+
 export function setupBithirMod() {
     // Register settings
     game.settings.register(moduleId, 'hideShadowGeneration', {
@@ -733,6 +818,15 @@ export function setupBithirMod() {
         default: false,
         type: Boolean
     });
+
+    game.settings.register(moduleId, 'utilityTranslationMigrationVersion', {
+        scope: "world",
+        config: false,
+        default: 0,
+        type: Number
+    });
+
+    Hooks.once('ready', migrateImportedUtilityTranslations);
 
     // Register Custom Dice Terms
     CONFIG.Dice.terms[LocationDie.DENOMINATION] = LocationDie;
