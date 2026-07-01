@@ -1,6 +1,8 @@
 // Bithir's Symbaroum Mods integration for Symbaroum Ind Resources
 // Adapted for modern ES Modules (V11/V12/V13 compatible)
 
+import { TenebreSettings } from "./settings.mjs";
+
 const moduleId = 'symbaroum-ind-resources';
 const i18nPath = 'BITHIRMOD.';
 const basePath = `modules/${moduleId}`;
@@ -352,6 +354,8 @@ export class RewardDie extends InspirationDie {
 // ─────────────────────────────────────────────────────────────────────────────
 export class BithirMacros {
     async thusSpoke() {
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
         let data = await foundry.utils.fetchJsonWithTimeout(`${basePath}/data/aroaleta-verses.json`);
         const keys = Object.keys(data);
         const selectedKey = BithirConfig.randomElement(keys);
@@ -373,6 +377,8 @@ export class BithirMacros {
     }
 
     async generateNPCMacro() {
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
         const generatorFileRegex = /.*\/(.*)-generator.json/;
         let generatorList = '';
         const { files } = await foundry.applications.apps.FilePicker.browse("data", `${basePath}/data/`);
@@ -426,6 +432,8 @@ export class BithirMacros {
     }
 
     async generateNPC(generatorConfigName, xpLevel) {        
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
         const generatorConfig = await foundry.utils.fetchJsonWithTimeout(`${basePath}/data/${generatorConfigName}-generator.json`);
         const folderId = await this.getFolderID(generatorConfig.folderName);        
         
@@ -665,6 +673,8 @@ export class BithirMacros {
     }
 
     async rollRollInspiration() {
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
         let dialog_content = `  
         <div class="form-group bithirmod">
         <div class="dialogHeader">
@@ -801,25 +811,25 @@ async function migrateImportedUtilityTranslations() {
 
 export function setupBithirMod() {
     // Register settings
-    game.settings.register(moduleId, 'hideShadowGeneration', {
+    registerBithirSetting('hideShadowGeneration', {
         name: 'BITHIRMOD.SHADOW_hideGeneration',
         hint: 'BITHIRMOD.SHADOW_hideGeneration_hint',
         scope: "world",
-        config: true,
+        config: false,
         default: false,
         type: Boolean
     });
 
-    game.settings.register(moduleId, 'hideShadowLabel', {
+    registerBithirSetting('hideShadowLabel', {
         name: 'BITHIRMOD.SHADOW_hideLabel',
         hint: 'BITHIRMOD.SHADOW_hideLabel_hint',
         scope: "world",
-        config: true,
+        config: false,
         default: false,
         type: Boolean
     });
 
-    game.settings.register(moduleId, 'utilityTranslationMigrationVersion', {
+    registerBithirSetting('utilityTranslationMigrationVersion', {
         scope: "world",
         config: false,
         default: 0,
@@ -848,7 +858,11 @@ export function setupBithirMod() {
 
     // Character Sheet Generate Shadow UI button
     Hooks.on('renderActorSheet', (app, html, data) => {
-        if (game.settings.get(moduleId, 'hideShadowGeneration') || 
+        html.closest('.app').find('.bithirmod-generate-shadow').remove();
+
+        if (!isBithirUtilitiesEnabled() ||
+            !isGenerateShadowEnabled() ||
+            game.settings.get(moduleId, 'hideShadowGeneration') ||
             !app.object.testUserPermission(game.user, foundry.CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER)) {
             return;
         }
@@ -905,7 +919,6 @@ export function setupBithirMod() {
             x.render(true);        
         });
         
-        html.closest('.app').find('.bithirmod-generate-shadow').remove();
         let titleElement = html.closest('.app').find('.window-title');
         openBtn.insertAfter(titleElement);
     });
@@ -914,11 +927,52 @@ export function setupBithirMod() {
     const bithirObj = {
         config: BithirConfig,
         macros: new BithirMacros(),
-        api: api
+        api: api,
+        refreshOpenActorSheets: rerenderOpenActorSheets
     };
 
     if (game.tenebreResources) {
         game.tenebreResources.bithir = bithirObj;
     }
     game.bithirmod = bithirObj; // keep same namespace for backwards compatibility inside table roll commands
+}
+
+function registerBithirSetting(key, data) {
+    if (game.settings.settings.has(`${moduleId}.${key}`)) return;
+    game.settings.register(moduleId, key, data);
+}
+
+function isBithirUtilitiesEnabled() {
+    return getTenebreSetting("enableBithirUtilities", true);
+}
+
+function isGenerateShadowEnabled() {
+    return getTenebreSetting("enableGenerateShadow", true);
+}
+
+function getTenebreSetting(key, fallback) {
+    try {
+        if (!game.settings.settings.has(`${moduleId}.${key}`)) return fallback;
+        return TenebreSettings.get(key);
+    } catch (_error) {
+        return fallback;
+    }
+}
+
+function warnBithirDisabled() {
+    ui.notifications.warn(game.i18n.localize("TENEBRE.Settings.BithirUtilitiesDisabled"));
+    return null;
+}
+
+function rerenderOpenActorSheets() {
+    for (const app of Object.values(ui.windows ?? {})) {
+        if (app?.actor || app?.document?.documentName === "Actor") app.render?.(false);
+    }
+
+    const instances = foundry.applications?.instances;
+    if (instances && typeof instances[Symbol.iterator] === "function") {
+        for (const app of instances) {
+            if (app?.document?.documentName === "Actor") app.render?.({ force: false });
+        }
+    }
 }

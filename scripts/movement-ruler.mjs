@@ -4,7 +4,6 @@ import { HUNGER_STATUS_ID } from "./hunger.mjs";
 import { MANEUVER_EFFECTS } from "./maneuvers.mjs";
 import { TenebreSettings } from "./settings.mjs";
 
-const BASE_ACTION_DISTANCE = 10;
 const COLORS = {
   walk: 0x24c768,
   double: 0xe6c229,
@@ -91,7 +90,7 @@ export class MovementService {
         ].filter(Boolean).join(" ");
 
         const limit = movementState === "walk" ? profile.actionDistance : profile.doubleDistance;
-        context.cost.units = canvas.grid.units;
+        context.cost.units = MovementService.getUnits();
         context.cost.total = `${context.cost.total}/${formatDistance(limit)}`;
         return context;
       }
@@ -143,7 +142,7 @@ export class MovementService {
       actor: actor.name,
       distance: formatDistance(totalCost),
       limit: formatDistance(profile.doubleDistance),
-      units: canvas.grid.units
+      units: this.getUnits()
     }));
     return false;
   }
@@ -152,7 +151,7 @@ export class MovementService {
     const effects = Array.from(actor?.effects ?? []);
     const reasons = [];
     let multiplier = 1;
-    let actionDistance = BASE_ACTION_DISTANCE;
+    let actionDistance = this.getBaseActionDistance();
     let movementActions = 2;
     let blocked = false;
     let hungerMultiplierApplied = false;
@@ -205,7 +204,7 @@ export class MovementService {
     return {
       actionDistance: movementActions >= 1 ? actionDistance : 0,
       doubleDistance: movementActions >= 2 ? actionDistance * 2 : (movementActions >= 1 ? actionDistance : 0),
-      baseActionDistance: BASE_ACTION_DISTANCE,
+      baseActionDistance: this.getBaseActionDistance(),
       multiplier,
       movementActions,
       blocked,
@@ -239,6 +238,23 @@ export class MovementService {
       blocked: profile.blocked,
       reasons: profile.reasons
     };
+  }
+
+  static getUnitSystem() {
+    const value = TenebreSettings.get("movementUnitSystem");
+    return value === "feet" ? "feet" : "meters";
+  }
+
+  static getBaseActionDistance() {
+    const key = this.getUnitSystem() === "feet" ? "movementBaseFeet" : "movementBaseMeters";
+    const value = Number(TenebreSettings.get(key));
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+  }
+
+  static getUnits() {
+    return this.getUnitSystem() === "feet"
+      ? game.i18n.localize("TENEBRE.Movement.UnitFeet")
+      : game.i18n.localize("TENEBRE.Movement.UnitMeters");
   }
 }
 

@@ -14,5 +14,8 @@ export const WEAPON_AMMO_TYPES = {
 
 export const DEFAULTS = {
   rationUses: 7,
-  restHealing: 1
+  restHealing: 1,
+  movementBaseMeters: 10,
+  movementBaseFeet: 30,
+  movementUnitSystem: "meters"
 };

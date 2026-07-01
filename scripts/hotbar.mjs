@@ -51,6 +51,13 @@ export class HotbarService {
 }
 
 function renderRecoveryHud(panel, actor) {
+  if (!TenebreSettings.get("enableAmmoRecovery") || !TenebreSettings.get("enableHitTracking") || !TenebreSettings.get("showAmmoRecoveryHud")) {
+    panel.dataset.empty = "true";
+    panel.innerHTML = "";
+    panel.hidden = true;
+    return;
+  }
+
   const count = actor ? Math.max(0, Number(AmmoService.getTrackedHits(actor).ammoHit ?? 0) || 0) : 0;
   const visible = count > 0;
 
@@ -93,6 +100,11 @@ function renderRecoveryHud(panel, actor) {
 
 function renderQuiverHud(panel, actor) {
   panel.innerHTML = "";
+  if (!TenebreSettings.get("enableAmmoConsumption") || !TenebreSettings.get("showQuiverHud")) {
+    panel.dataset.empty = "true";
+    panel.hidden = true;
+    return;
+  }
 
   const quivers = actorItems(actor).filter((item) => {
     return isQuiver(item)

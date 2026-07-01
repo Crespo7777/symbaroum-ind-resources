@@ -51,6 +51,7 @@ export function registerSheetHooks() {
   Hooks.on("renderDialog", onRenderDialog);
   Hooks.on("renderTemplate", onRenderTemplate);
   Hooks.on("closeDialog", onCloseDialog);
+  Hooks.on(`${MODULE_ID}.settingsChanged`, onTenebreSettingChanged);
   patchContextMenu();
   patchPlayerSheetHeaderButtons();
 }
@@ -125,7 +126,7 @@ function patchContextMenu() {
           icon: `<i class="fas fa-box-open" style="color: currentColor;"></i>`,
           isVisible: (item) => {
             const actor = this.myParent?.actor;
-            return TenebreSettings.get("enableEncumbrance")
+            return TenebreSettings.get("enableContainers")
               && ContainerService.canAttemptStoreItem(item)
               && ContainerService.getContainers(actor, item).length > 0;
           },
@@ -143,7 +144,7 @@ function patchContextMenu() {
           name: "TENEBRE.Containers.OpenContextMenu",
           icon: `<i class="fas fa-box" style="color: currentColor;"></i>`,
           isVisible: (item) => {
-            return TenebreSettings.get("enableEncumbrance") && ContainerService.isContainer(item);
+            return TenebreSettings.get("enableContainers") && ContainerService.isContainer(item);
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);
@@ -245,12 +246,80 @@ function onRenderActorSheet(app, html) {
   if (!actor || actor.type !== "player") return;
   if (!actor.isOwner && !game.user.isGM) return;
 
-  hideStoredItemRows(app, html, actor);
-  injectContainerInlineLists(app, html, actor);
+  if (TenebreSettings.get("enableContainers")) {
+    hideStoredItemRows(app, html, actor);
+    injectContainerInlineLists(app, html, actor);
+  }
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
   injectEncumbrancePanel(app, html, actor);
   injectManeuverPanel(app, html, actor);
+  syncPlayerSheetHeaderButtons(app);
+}
+
+function onTenebreSettingChanged(key) {
+  if (!["enableRestButton", "enableClearEffectsButton"].includes(key)) return;
+  window.setTimeout(syncOpenPlayerSheetHeaders, 50);
+  window.setTimeout(syncOpenPlayerSheetHeaders, 800);
+}
+
+function syncOpenPlayerSheetHeaders() {
+  for (const app of Object.values(ui.windows ?? {})) {
+    syncPlayerSheetHeaderButtons(app);
+  }
+
+  const instances = foundry.applications?.instances;
+  if (instances && typeof instances[Symbol.iterator] === "function") {
+    for (const app of instances) syncPlayerSheetHeaderButtons(app);
+  }
+}
+
+function syncPlayerSheetHeaderButtons(app) {
+  const actor = app?.actor ?? app?.document;
+  if (!isPlayerActor(actor)) return;
+  if (!actor.isOwner && !game.user.isGM) return;
+
+  const root = getRoot(app.element);
+  const header = root?.querySelector(".window-header, header");
+  if (!header) return;
+
+  header.querySelectorAll(".tenebre-rest, .tenebre-clear-effects").forEach((button) => button.remove());
+
+  const insertBefore = header.querySelector(".death-roll, .recover-death-roll, .configure-sheet, .close");
+
+  if (TenebreSettings.get("enableClearEffectsButton") && hasActorEffects(actor)) {
+    insertHeaderButton(header, insertBefore, {
+      className: "tenebre-clear-effects",
+      icon: "fas fa-eraser",
+      label: game.i18n.localize("TENEBRE.Maneuvers.ClearEffects"),
+      onClick: async (ev) => {
+        ev.preventDefault();
+        const count = await clearActorEffects(actor);
+        ui.notifications.info(game.i18n.format("TENEBRE.Maneuvers.ClearEffectsDone", { count }));
+        app.render?.(false);
+      }
+    });
+  }
+
+  if (TenebreSettings.get("enableRestButton")) {
+    insertHeaderButton(header, insertBefore, {
+      className: "tenebre-rest",
+      icon: "fas fa-bed",
+      label: game.i18n.localize("TENEBRE.Rest.DialogTitle") || "Descanso",
+      onClick: async (ev) => {
+        ev.preventDefault();
+        await RestService.openRestDialog(actor);
+      }
+    });
+  }
+}
+
+function insertHeaderButton(header, before, { className, icon, label, onClick }) {
+  const button = document.createElement("a");
+  button.className = `header-button control ${className}`;
+  button.innerHTML = `<i class="${icon}"></i>${escapeHtml(label)}`;
+  button.addEventListener("click", onClick);
+  header.insertBefore(button, before ?? null);
 }
 
 function hideStoredItemRows(app, html, actor) {
@@ -274,7 +343,7 @@ function hideStoredItemRows(app, html, actor) {
 }
 
 function injectContainerInlineLists(app, html, actor) {
-  if (!TenebreSettings.get("enableEncumbrance")) return;
+  if (!TenebreSettings.get("enableContainers")) return;
 
   const el = getRoot(html);
   if (!el) return;
@@ -395,6 +464,7 @@ function rerenderActorSheets(actor) {
 // Injeta quantidade e usos de aljavas na ficha
 function updateQuiverQuantityDisplay(app, html, actor) {
   if (!isPlayerActor(actor)) return;
+  if (!TenebreSettings.get("enableAmmoConsumption")) return;
 
   const el = getRoot(html);
   if (!el) return;
@@ -452,17 +522,19 @@ function patchPlayerSheetHeaderButtons() {
   const handler = function(wrapped) {
     const buttons = wrapped.call(this);
     if (this.actor?.isOwner) {
-      buttons.unshift({
-        label: game.i18n.localize("TENEBRE.Rest.DialogTitle") || "Descanso",
-        class: "tenebre-rest",
-        icon: "fas fa-bed",
-        onclick: async (ev) => {
-          ev.preventDefault();
-          await RestService.openRestDialog(this.actor);
-        }
-      });
+      if (TenebreSettings.get("enableRestButton")) {
+        buttons.unshift({
+          label: game.i18n.localize("TENEBRE.Rest.DialogTitle") || "Descanso",
+          class: "tenebre-rest",
+          icon: "fas fa-bed",
+          onclick: async (ev) => {
+            ev.preventDefault();
+            await RestService.openRestDialog(this.actor);
+          }
+        });
+      }
 
-      if (hasActorEffects(this.actor)) {
+      if (TenebreSettings.get("enableClearEffectsButton") && hasActorEffects(this.actor)) {
         buttons.unshift({
           label: game.i18n.localize("TENEBRE.Maneuvers.ClearEffects"),
           class: "tenebre-clear-effects",
@@ -754,6 +826,11 @@ function injectManeuverPanel(app, html, actor) {
   if (previousSelection) selectedManeuversByActor.set(selectionKey, previousSelection);
 
   el.querySelectorAll(".tenebre-maneuver-panel").forEach((panel) => panel.remove());
+
+  if (!TenebreSettings.get("enableManeuvers")) {
+    el.querySelectorAll(".tenebre-has-maneuvers").forEach((node) => node.classList.remove("tenebre-has-maneuvers"));
+    return;
+  }
 
   const anchor = el.querySelector(".combat .weapons");
   if (!anchor) return;

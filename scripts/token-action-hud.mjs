@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
 import { SocketService } from "./sockets.mjs";
+import { TenebreSettings } from "./settings.mjs";
 
 const TAH_CORE_ID = "token-action-hud-core";
 const TAH_SYMBAROUM_ID = "token-action-hud-symbaroum";
@@ -33,6 +34,7 @@ export class TokenActionHudIntegration {
 
   static extendDefaults(defaults) {
     if (!isTokenActionHudAvailable()) return;
+    if (!TenebreSettings.get("enableTokenActionHudIntegration") || !TenebreSettings.get("enableManeuvers")) return;
     if (!defaults?.layout || !defaults?.groups) return;
 
     const label = game.i18n.localize("TENEBRE.Maneuvers.Title") || "Manobras";
@@ -81,6 +83,7 @@ export class TokenActionHudIntegration {
   }
 
   static buildActions(actor) {
+    if (!TenebreSettings.get("enableTokenActionHudIntegration") || !TenebreSettings.get("enableManeuvers")) return [];
     if (actor?.type !== "player") return [];
 
     const actionTypeName = game.i18n.localize("TENEBRE.Maneuvers.Title") || "Manobras";
@@ -119,6 +122,7 @@ export class TokenActionHudIntegration {
 }
 
 async function addManeuverActions(handler) {
+  if (!TenebreSettings.get("enableTokenActionHudIntegration") || !TenebreSettings.get("enableManeuvers")) return;
   const actor = getHandlerActor(handler);
   if (actor?.type !== "player") return;
 

@@ -27,8 +27,11 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
   };
 
   async _prepareContext(_options) {
+    const settings = TenebreSettings.export();
     return {
-      settings: TenebreSettings.export(),
+      settings,
+      movementUnitMetersSelected: settings.movementUnitSystem === "meters",
+      movementUnitFeetSelected: settings.movementUnitSystem === "feet",
       isGM: game.user.isGM
     };
   }
@@ -41,16 +44,32 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableAmmoConsumption",
       "enableHitTracking",
       "enableAmmoRecovery",
+      "showAmmoRecoveryHud",
+      "showQuiverHud",
       "showSpecialAmmoInChat",
       "enableHunger",
       "enableRestHealing",
       "enableEncumbrance",
-      "enableMovementRuler"
+      "enableContainers",
+      "enableMovementRuler",
+      "enableManeuvers",
+      "enableRestButton",
+      "enableClearEffectsButton",
+      "enableTokenActionHudIntegration",
+      "enableBithirUtilities",
+      "enableGenerateShadow",
+      "hideShadowLabel"
     ];
 
     const numbers = [
       "rationUses",
-      "restHealing"
+      "restHealing",
+      "movementBaseMeters",
+      "movementBaseFeet"
+    ];
+
+    const strings = [
+      "movementUnitSystem"
     ];
 
     for (const key of booleans) {
@@ -60,6 +79,12 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
     for (const key of numbers) {
       if (key in data) {
         data[key] = Number(data[key]);
+      }
+    }
+
+    for (const key of strings) {
+      if (key in data) {
+        data[key] = String(data[key] ?? "");
       }
     }
 
@@ -89,13 +114,33 @@ export class TenebreSettings {
     register("enableAmmoConsumption", Boolean, true, "TENEBRE.Settings.EnableAmmoConsumption", "TENEBRE.Settings.EnableAmmoConsumptionHint");
     register("enableHitTracking", Boolean, true, "TENEBRE.Settings.EnableHitTracking", "TENEBRE.Settings.EnableHitTrackingHint");
     register("enableAmmoRecovery", Boolean, true, "TENEBRE.Settings.EnableAmmoRecovery", "TENEBRE.Settings.EnableAmmoRecoveryHint");
+    register("showAmmoRecoveryHud", Boolean, true, "TENEBRE.Settings.ShowAmmoRecoveryHud", "TENEBRE.Settings.ShowAmmoRecoveryHudHint");
+    register("showQuiverHud", Boolean, true, "TENEBRE.Settings.ShowQuiverHud", "TENEBRE.Settings.ShowQuiverHudHint");
     register("showSpecialAmmoInChat", Boolean, true, "TENEBRE.Settings.ShowSpecialAmmoInChat", "TENEBRE.Settings.ShowSpecialAmmoInChatHint");
     register("enableHunger", Boolean, true, "TENEBRE.Settings.EnableHunger", "TENEBRE.Settings.EnableHungerHint");
     register("enableRestHealing", Boolean, true, "TENEBRE.Settings.EnableRestHealing", "TENEBRE.Settings.EnableRestHealingHint");
     register("restHealing", Number, DEFAULTS.restHealing, "TENEBRE.Settings.RestHealing", "TENEBRE.Settings.RestHealingHint");
+    register("enableRestButton", Boolean, true, "TENEBRE.Settings.EnableRestButton", "TENEBRE.Settings.EnableRestButtonHint");
 
     register("enableEncumbrance", Boolean, true, "TENEBRE.Settings.EnableEncumbrance", "TENEBRE.Settings.EnableEncumbranceHint");
+    register("enableContainers", Boolean, true, "TENEBRE.Settings.EnableContainers", "TENEBRE.Settings.EnableContainersHint");
     register("enableMovementRuler", Boolean, true, "TENEBRE.Settings.EnableMovementRuler", "TENEBRE.Settings.EnableMovementRulerHint");
+    register("movementUnitSystem", String, DEFAULTS.movementUnitSystem, "TENEBRE.Settings.MovementUnitSystem", "TENEBRE.Settings.MovementUnitSystemHint", {
+      choices: {
+        meters: "TENEBRE.Settings.MovementUnitMeters",
+        feet: "TENEBRE.Settings.MovementUnitFeet"
+      }
+    });
+    register("movementBaseMeters", Number, DEFAULTS.movementBaseMeters, "TENEBRE.Settings.MovementBaseMeters", "TENEBRE.Settings.MovementBaseMetersHint");
+    register("movementBaseFeet", Number, DEFAULTS.movementBaseFeet, "TENEBRE.Settings.MovementBaseFeet", "TENEBRE.Settings.MovementBaseFeetHint");
+
+    register("enableManeuvers", Boolean, true, "TENEBRE.Settings.EnableManeuvers", "TENEBRE.Settings.EnableManeuversHint");
+    register("enableClearEffectsButton", Boolean, true, "TENEBRE.Settings.EnableClearEffectsButton", "TENEBRE.Settings.EnableClearEffectsButtonHint");
+    register("enableTokenActionHudIntegration", Boolean, true, "TENEBRE.Settings.EnableTokenActionHudIntegration", "TENEBRE.Settings.EnableTokenActionHudIntegrationHint");
+    register("enableBithirUtilities", Boolean, true, "TENEBRE.Settings.EnableBithirUtilities", "TENEBRE.Settings.EnableBithirUtilitiesHint");
+    register("enableGenerateShadow", Boolean, true, "TENEBRE.Settings.EnableGenerateShadow", "TENEBRE.Settings.EnableGenerateShadowHint");
+    register("hideShadowGeneration", Boolean, false, "BITHIRMOD.SHADOW_hideGeneration", "BITHIRMOD.SHADOW_hideGeneration_hint");
+    register("hideShadowLabel", Boolean, false, "BITHIRMOD.SHADOW_hideLabel", "BITHIRMOD.SHADOW_hideLabel_hint");
     register("encumbranceDiscoveredWeights", Object, { version: 2, items: {}, bundles: {} }, "TENEBRE.Settings.EncumbranceDiscoveredWeights", "TENEBRE.Settings.EncumbranceDiscoveredWeightsHint");
   }
 
@@ -113,7 +158,9 @@ export class TenebreSettings {
   }
 }
 
-function register(key, type, defaultValue, name, hint) {
+function register(key, type, defaultValue, name, hint, extra = {}) {
+  if (game.settings.settings.has(`${MODULE_ID}.${key}`)) return;
+
   game.settings.register(MODULE_ID, key, {
     name,
     hint,
@@ -121,12 +168,21 @@ function register(key, type, defaultValue, name, hint) {
     config: false,
     default: defaultValue,
     type,
+    ...extra,
     onChange: (value) => onSettingChanged(key, value)
   });
 }
 
 function onSettingChanged(key, value) {
   Hooks.callAll(MODULE_ID + ".settingsChanged", key, value);
+  const requiresForcedSheetRender = [
+    "enableRestButton",
+    "enableClearEffectsButton",
+    "enableBithirUtilities",
+    "enableGenerateShadow",
+    "hideShadowGeneration",
+    "hideShadowLabel"
+  ].includes(key);
 
   if (key === "enableHunger") {
     if (value) game.tenebreResources?.hunger?.registerStatusEffect?.();
@@ -149,14 +205,33 @@ function onSettingChanged(key, value) {
     game.tenebreResources?.movement?.register?.();
   }
 
+  if (key === "enableBithirUtilities" || key === "enableGenerateShadow" || key === "hideShadowGeneration" || key === "hideShadowLabel") {
+    game.tenebreResources?.bithir?.refreshOpenActorSheets?.();
+  }
+
+  if (key === "enableTokenActionHudIntegration" || key === "enableManeuvers") {
+    refreshTokenActionHud();
+  }
+
   game.tenebreResources?.hotbar?.refresh?.();
-  rerenderOpenSheets();
+  rerenderOpenSheets({ force: requiresForcedSheetRender });
 }
 
-function rerenderOpenSheets() {
+function refreshTokenActionHud() {
+  Hooks.callAll(`${MODULE_ID}.refreshTokenActionHud`);
+  Hooks.callAll("forceUpdateTokenActionHud", { moduleId: MODULE_ID });
+
+  const hud = globalThis.game?.tokenActionHud;
+  if (typeof hud?.update === "function") {
+    Promise.resolve(hud.update({ type: "hook", name: `${MODULE_ID}.settingsChanged` }))
+      .catch((error) => console.warn(`${MODULE_ID} | Token Action HUD refresh failed.`, error));
+  }
+}
+
+function rerenderOpenSheets({ force = false } = {}) {
   for (const app of Object.values(ui.windows ?? {})) {
     if (app?.actor || app?.item || app?.document?.documentName === "Actor" || app?.document?.documentName === "Item") {
-      app.render?.(false);
+      app.render?.(force);
     }
   }
 
@@ -164,7 +239,7 @@ function rerenderOpenSheets() {
   if (instances && typeof instances[Symbol.iterator] === "function") {
     for (const app of instances) {
       if (app?.document?.documentName === "Actor" || app?.document?.documentName === "Item") {
-        app.render?.({ force: false });
+        app.render?.({ force });
       }
     }
   }

@@ -24,25 +24,30 @@ export function patchWeaponRolls() {
     }
 
     const ammoType = getWeaponAmmoType(weapon);
-    if (ManeuverService.blocksAttacks(this)) {
+    const maneuversEnabled = TenebreSettings.get("enableManeuvers");
+    if (maneuversEnabled && ManeuverService.blocksAttacks(this)) {
       ui.notifications.warn(game.i18n.localize("TENEBRE.Maneuvers.AttackBlocked"));
       return undefined;
     }
 
-    const maneuverRollState = {
-      actor: this,
-      weapon,
-      isRanged: Boolean(ammoType)
-    };
-    game.tenebreResources.activeManeuverWeaponRoll = maneuverRollState;
+    const maneuverRollState = maneuversEnabled
+      ? {
+          actor: this,
+          weapon,
+          isRanged: Boolean(ammoType)
+        }
+      : null;
+    if (maneuverRollState) {
+      game.tenebreResources.activeManeuverWeaponRoll = maneuverRollState;
+    }
 
     if (!ammoType || !TenebreSettings.get("enableAmmoConsumption")) {
       try {
         const result = await originalRollWeapon.call(this, weapon, ...args);
-        await ManeuverService.afterWeaponRoll(this, result);
+        if (maneuversEnabled) await ManeuverService.afterWeaponRoll(this, result);
         return result;
       } finally {
-        if (game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
+        if (maneuverRollState && game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
           game.tenebreResources.activeManeuverWeaponRoll = null;
         }
       }
@@ -53,7 +58,7 @@ export function patchWeaponRolls() {
       const targets = Array.from(game.user.targets);
       if (targets.length !== 1) {
         ui.notifications.warn(game.i18n.localize("ABILITY_ERROR.TARGET"));
-        if (game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
+        if (maneuverRollState && game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
           game.tenebreResources.activeManeuverWeaponRoll = null;
         }
         return undefined;
@@ -83,7 +88,7 @@ export function patchWeaponRolls() {
         }
       }
 
-      await ManeuverService.afterWeaponRoll(this, result);
+      if (maneuversEnabled) await ManeuverService.afterWeaponRoll(this, result);
       return result;
     } catch (err) {
       if (err === "Cancelled") {
@@ -91,7 +96,7 @@ export function patchWeaponRolls() {
       }
       throw err;
     } finally {
-      if (game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
+      if (maneuverRollState && game.tenebreResources?.activeManeuverWeaponRoll === maneuverRollState) {
         game.tenebreResources.activeManeuverWeaponRoll = null;
       }
       setTimeout(() => {

@@ -25,6 +25,14 @@
     <input type="checkbox" name="enableAmmoRecovery" {{checked settings.enableAmmoRecovery}}>
   </label>
   <label>
+    <span>{{localize "TENEBRE.Settings.ShowAmmoRecoveryHud"}}</span>
+    <input type="checkbox" name="showAmmoRecoveryHud" {{checked settings.showAmmoRecoveryHud}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.ShowQuiverHud"}}</span>
+    <input type="checkbox" name="showQuiverHud" {{checked settings.showQuiverHud}}>
+  </label>
+  <label>
     <span>{{localize "TENEBRE.Settings.ShowSpecialAmmoInChat"}}</span>
     <input type="checkbox" name="showSpecialAmmoInChat" {{checked settings.showSpecialAmmoInChat}}>
   </label>
@@ -33,6 +41,10 @@
   <label>
     <span>{{localize "TENEBRE.Settings.EnableHunger"}}</span>
     <input type="checkbox" name="enableHunger" {{checked settings.enableHunger}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableRestButton"}}</span>
+    <input type="checkbox" name="enableRestButton" {{checked settings.enableRestButton}}>
   </label>
   <label>
     <span>{{localize "TENEBRE.Settings.EnableRestHealing"}}</span>
@@ -48,11 +60,62 @@
     <span>{{localize "TENEBRE.Settings.EnableEncumbrance"}}</span>
     <input type="checkbox" name="enableEncumbrance" {{checked settings.enableEncumbrance}}>
   </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableContainers"}}</span>
+    <input type="checkbox" name="enableContainers" {{checked settings.enableContainers}}>
+  </label>
 
   <h2>{{localize "TENEBRE.Settings.MovementGroup"}}</h2>
   <label>
     <span>{{localize "TENEBRE.Settings.EnableMovementRuler"}}</span>
     <input type="checkbox" name="enableMovementRuler" {{checked settings.enableMovementRuler}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.MovementUnitSystem"}}</span>
+    <select name="movementUnitSystem">
+      <option value="meters" {{#if movementUnitMetersSelected}}selected{{/if}}>{{localize "TENEBRE.Settings.MovementUnitMeters"}}</option>
+      <option value="feet" {{#if movementUnitFeetSelected}}selected{{/if}}>{{localize "TENEBRE.Settings.MovementUnitFeet"}}</option>
+    </select>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.MovementBaseMeters"}}</span>
+    <input type="number" name="movementBaseMeters" value="{{settings.movementBaseMeters}}" min="0" step="0.5">
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.MovementBaseFeet"}}</span>
+    <input type="number" name="movementBaseFeet" value="{{settings.movementBaseFeet}}" min="0" step="5">
+  </label>
+
+  <h2>{{localize "TENEBRE.Settings.CombatGroup"}}</h2>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableManeuvers"}}</span>
+    <input type="checkbox" name="enableManeuvers" {{checked settings.enableManeuvers}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableClearEffectsButton"}}</span>
+    <input type="checkbox" name="enableClearEffectsButton" {{checked settings.enableClearEffectsButton}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableTokenActionHudIntegration"}}</span>
+    <input type="checkbox" name="enableTokenActionHudIntegration" {{checked settings.enableTokenActionHudIntegration}}>
+  </label>
+
+  <h2>{{localize "TENEBRE.Settings.UtilitiesGroup"}}</h2>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableBithirUtilities"}}</span>
+    <input type="checkbox" name="enableBithirUtilities" {{checked settings.enableBithirUtilities}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.EnableGenerateShadow"}}</span>
+    <input type="checkbox" name="enableGenerateShadow" {{checked settings.enableGenerateShadow}}>
+  </label>
+  <label>
+    <span>{{localize "BITHIRMOD.SHADOW_hideGeneration"}}</span>
+    <input type="checkbox" name="hideShadowGeneration" {{checked settings.hideShadowGeneration}}>
+  </label>
+  <label>
+    <span>{{localize "BITHIRMOD.SHADOW_hideLabel"}}</span>
+    <input type="checkbox" name="hideShadowLabel" {{checked settings.hideShadowLabel}}>
   </label>
 
   <footer class="sheet-footer flexrow">

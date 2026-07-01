@@ -264,6 +264,10 @@ export class ManeuverService {
     return MANEUVERS;
   }
 
+  static isEnabled() {
+    return TenebreSettings.get("enableManeuvers");
+  }
+
   static registerHooks() {
     Hooks.on("updateCombat", () => {
       if (!SocketService.isPrimaryGM()) return;
@@ -296,6 +300,11 @@ export class ManeuverService {
   }
 
   static async execute(actor, maneuverId, options = {}) {
+    if (!ManeuverService.isEnabled()) {
+      ui.notifications.warn(game.i18n.localize("TENEBRE.Maneuvers.Disabled"));
+      return null;
+    }
+
     if (actor?.type !== "player") {
       ui.notifications.warn(game.i18n.localize("TENEBRE.Maneuvers.PlayerOnly"));
       return null;
@@ -368,11 +377,14 @@ export class ManeuverService {
   }
 
   static blocksAttacks(actor) {
+    if (!ManeuverService.isEnabled()) return false;
     return ManeuverService.hasEffect(actor, MANEUVER_EFFECTS.TOTAL_DEFENSE)
       || ManeuverService.hasEffect(actor, MANEUVER_EFFECTS.MAINTAINING_GRAPPLE);
   }
 
   static applyRollFavour(actor, actingAttributeName, favour, weapon = null) {
+    if (!ManeuverService.isEnabled()) return Number(favour) || 0;
+
     let nextFavour = Number(favour) || 0;
 
     if (actingAttributeName === "defense") {
@@ -396,6 +408,7 @@ export class ManeuverService {
   }
 
   static async afterWeaponRoll(actor, result) {
+    if (!ManeuverService.isEnabled()) return;
     if (!actor || actor.type !== "player") return;
 
     if (ManeuverService.hasEffect(actor, MANEUVER_EFFECTS.CAREFUL_AIM) && isCurrentRangedWeaponRoll(actor)) {
