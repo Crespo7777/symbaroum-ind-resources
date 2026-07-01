@@ -32,11 +32,13 @@ O módulo oferece suporte mecânico completo para todos os projéteis especiais 
 
 ### 4. 🎲 Recuperação Oficial por Projétil (Individual d20)
 O sistema antigo de porcentagem estática foi substituído pela regra oficial de recuperação individual por d20:
-* Ao clicar em "Recuperar Munição" após o combate, o sistema resolve **um projétil por clique**. Se 7 ataques acertaram, há 7 testes pendentes; cada clique rola 1d20 para uma flecha ou virote e deixa os demais para os próximos cliques:
+* Ao clicar em **"Recuperar Munição"** após o combate, o sistema resolve todos os projéteis pendentes em uma fila automática. Se 7 ataques acertaram, há 7 testes pendentes; o jogador clica uma vez e o módulo rola 1d20 para cada projétil, um depois do outro, aguardando o resultado de cada rolagem antes de iniciar a próxima:
   * **Projétil Comum (sem qualidades):** Recupera se rolar **10 ou menos** (`d20 <= 10`).
   * **Projétil com Qualidade (Precisa, Flamejante, etc.):** Recupera se rolar **15 ou menos** (`d20 <= 15`).
   * **Projétil Místico/Alquímico (Certeira, Atordoante):** Recupera se rolar **17 ou menos** (`d20 <= 17`).
-* Exibe no chat o d20 daquele projétil, informa se foi recuperado ou quebrou e mostra quantos testes ainda faltam, mantendo o suspense a cada clique.
+* O mesmo fluxo sequencial é usado tanto pelo botão de recuperação próximo à hotbar quanto pela ação de botão direito na arma.
+* Exibe no chat o d20 de cada projétil, informa se foi recuperado ou quebrou e mostra a evolução da fila até todos os testes terminarem.
+* Todo o sistema de aljavas, munição carregada, consumo de munição e recuperação automática é aplicado apenas a fichas de **Jogador**. NPCs, monstros e outras fichas continuam usando o fluxo normal do sistema.
 
 ### 5. 🍲 Regra Opcional de Fome (Hunger)
 * **Status Effect HUD:** Adiciona o status **Fome** (ícone monocromático próprio) na paleta de efeitos de status do Token no HUD do Foundry.
@@ -79,9 +81,27 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 * Permite configurar a quantidade de **Dias de descanso** e a taxa de **Cura por dia**.
 * Zera os testes de morte falhos e remove a **Corrupção Temporária** (caso o personagem sobreviva aos testes de inanição).
 
+### 9. ⚔️ Manobras de Combate
+* **Seção nativa na ficha:** Adiciona uma linha de **Manobras** abaixo da seção de armas, seguindo o visual da ficha de Symbaroum.
+* **Seleção e rolagem:** O jogador escolhe uma manobra em uma lista e clica em **Rolar**. A seleção permanece na última manobra usada.
+* **Manobras automatizadas:** Inclui Adiar a Iniciativa, Agarrar, Desarmar, Encontrão, Investida, Mira Cuidadosa, Nocaute, Defesa Total, Ofensiva Total, Empurrão, Veneno em Armas e Tomar a Iniciativa.
+* **Aplicação de efeitos:** Efeitos positivos e negativos são aplicados automaticamente no ator correto quando a regra permite. Efeitos com duração de turno ou combate são removidos automaticamente quando expiram.
+* **Limpeza de efeitos:** O botão **Limpar efeitos** remove efeitos ativos da ficha, incluindo efeitos de manobra e Fome.
+* **Restrição de tipo de ficha:** A automação de manobras está disponível apenas para fichas de **Jogador**.
+
+### 10. 🧩 Compatibilidade com Token Action HUD Symbaroum
+* Integra automaticamente com **Token Action HUD Core** e **Token Action HUD Symbaroum RPG** quando esses módulos estão ativos.
+* Adiciona um grupo **Manobras** no Token Action HUD para fichas de Jogador, usando os mesmos cálculos, alvos, prompts e efeitos da seção de manobras da ficha.
+* Não altera os arquivos do Token Action HUD; a integração usa hooks oficiais do Core.
+* Monstros e NPCs não recebem ações de manobra no HUD.
+
 ---
 
 ## 💾 Instalação
+
+### Dependências
+* **Obrigatória:** `socketlib` (declarado no `module.json`).
+* **Opcional:** `token-action-hud-core` + `token-action-hud-symbaroum`, caso o grupo queira rolar ações pelo Token Action HUD.
 
 Copie o link abaixo e cole no campo **Manifest URL** dentro da aba *Add-on Modules* do Foundry VTT:
 
@@ -97,7 +117,7 @@ https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module
 1. No menu lateral direito do Foundry VTT, vá na aba **Configurações de Jogo** (ícone de engrenagem).
 2. Clique em **Configurar Ajustes** (Configure Settings).
 3. Na aba **Ajustes do Sistema** (System Settings), clique em **Symbaroum Ind Resources**.
-4. Configure os controles de Pão de Viagem, consumo de munição, rastreamento de acertos, recuperação de munição, Fome, descanso e Sobrecarga.
+4. Configure os controles de Pão de Viagem, consumo de munição, rastreamento de acertos, recuperação de munição, Fome, descanso, Sobrecarga e demais automações do módulo.
 
 ### Atalhos de Teclado (Keybindings)
 * **Abrir Diálogo de Descanso** (para o PJ controlado — padrão: `Ctrl + Shift + R`).
