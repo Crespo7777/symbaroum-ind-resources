@@ -63,7 +63,14 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 * **Edição Manual Flexível:** Armas, armaduras e equipamentos exibem o campo **Peso** na descrição do item, abaixo de **Número**, permitindo ajuste manual quando necessário.
 * **Mecânicas de Capacidade:** A capacidade básica é o valor de Vigoroso. O dom **Transportador** (Porter) multiplica a capacidade por 1.5. A cada espaço acima do limite, o sistema avisa o jogador e indica um redutor na **Defesa** equivalente ao sobrepeso. Ultrapassar o dobro do Vigoroso imobiliza o personagem.
 
-### 7. 🎒 Recipientes e Itens Guardados (Containers)
+### 7. 📏 Régua de Movimento Symbaroum
+* **Régua própria:** Colore a régua nativa de movimento do token usando as distâncias de Symbaroum.
+* **Cores de alcance:** Verde indica movimento dentro da Ação de Movimento padrão (`10 m`), amarelo indica uso da Ação de Movimento + Ação de Combate como movimento adicional (`20 m`) e vermelho indica deslocamento acima do limite atual.
+* **Interação com efeitos:** Fome reduz o deslocamento pela metade. Sobrecarga acima do máximo imobiliza. Manobras como Agarrar, Derrubado, Nocauteado e Mira Cuidadosa ajustam ou bloqueiam o movimento automaticamente.
+* **Validação em combate:** Durante combate ativo, movimentos acima do limite calculado são bloqueados, exceto deslocamentos/teleportes do próprio Foundry.
+* **API de diagnóstico:** `game.tenebreResources.movement.getMovementSummary(actor)` mostra o limite atual, multiplicadores e motivos aplicados.
+
+### 8. 🎒 Recipientes e Itens Guardados (Containers)
 * **Recipientes Detectados:** Mochilas, sacos, sacolas, bolsas, alforjes, cestos, jarros, baús, caixas e barris são reconhecidos como recipientes.
 * **Guardar Item:** Clique com o **botão direito** em um item e selecione **Guardar**. O sistema permite escolher o recipiente de destino e, quando o item possuir pilha, a quantidade a guardar.
 * **Estado Necessário:** Só é possível guardar itens e retirar itens de recipientes quando o item/recipiente estiver em **Equipado** ou **Ativo**. Itens ou recipientes em **Outro** bloqueiam a ação e exibem aviso.
@@ -76,12 +83,12 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 * **Pilhas Parciais:** Se guardar ou retirar apenas parte de uma pilha, o sistema divide ou junta automaticamente com uma pilha visível igual quando possível.
 * **Fase Atual:** Esta é a fase 1 da função de containers. O fluxo usa menus de botão direito e sublista expansível na ficha. Drag-and-drop direto para dentro de recipientes fica para uma fase posterior.
 
-### 8. 🛏️ Descanso Avançado (botão "Descanso")
+### 9. 🛏️ Descanso Avançado (botão "Descanso")
 * Adiciona um botão dedicado **Descanso** na barra de cabeçalho da ficha do PJ.
 * Permite configurar a quantidade de **Dias de descanso** e a taxa de **Cura por dia**.
 * Zera os testes de morte falhos e remove a **Corrupção Temporária** (caso o personagem sobreviva aos testes de inanição).
 
-### 9. ⚔️ Manobras de Combate
+### 10. ⚔️ Manobras de Combate
 * **Seção nativa na ficha:** Adiciona uma linha de **Manobras** abaixo da seção de armas, seguindo o visual da ficha de Symbaroum.
 * **Seleção e rolagem:** O jogador escolhe uma manobra em uma lista e clica em **Rolar**. A seleção permanece na última manobra usada.
 * **Manobras automatizadas:** Inclui Adiar a Iniciativa, Agarrar, Desarmar, Encontrão, Investida, Mira Cuidadosa, Nocaute, Defesa Total, Ofensiva Total, Empurrão, Veneno em Armas e Tomar a Iniciativa.
@@ -89,7 +96,7 @@ O sistema antigo de porcentagem estática foi substituído pela regra oficial de
 * **Limpeza de efeitos:** O botão **Limpar efeitos** remove efeitos ativos da ficha, incluindo efeitos de manobra e Fome.
 * **Restrição de tipo de ficha:** A automação de manobras está disponível apenas para fichas de **Jogador**.
 
-### 10. 🧩 Compatibilidade com Token Action HUD Symbaroum
+### 11. 🧩 Compatibilidade com Token Action HUD Symbaroum
 * Integra automaticamente com **Token Action HUD Core** e **Token Action HUD Symbaroum RPG** quando esses módulos estão ativos.
 * Adiciona um grupo **Manobras** no Token Action HUD para fichas de Jogador, usando os mesmos cálculos, alvos, prompts e efeitos da seção de manobras da ficha.
 * Não altera os arquivos do Token Action HUD; a integração usa hooks oficiais do Core.

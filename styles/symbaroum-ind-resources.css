@@ -856,3 +856,31 @@ div .bithirmod .inspirationdie > img {
   vertical-align: top;
 }
 
+/* Movement ruler */
+#measurement .waypoint-label.tenebre-movement-walk {
+  border-color: #24c768;
+  box-shadow: 0 0 8px rgba(36, 199, 104, 0.55);
+}
+
+#measurement .waypoint-label.tenebre-movement-double {
+  border-color: #e6c229;
+  box-shadow: 0 0 8px rgba(230, 194, 41, 0.55);
+}
+
+#measurement .waypoint-label.tenebre-movement-blocked {
+  border-color: #d64040;
+  box-shadow: 0 0 8px rgba(214, 64, 64, 0.6);
+}
+
+#measurement .waypoint-label.tenebre-movement-walk .total-measurement {
+  color: #9ff0b8;
+}
+
+#measurement .waypoint-label.tenebre-movement-double .total-measurement {
+  color: #ffe27a;
+}
+
+#measurement .waypoint-label.tenebre-movement-blocked .total-measurement {
+  color: #ff9d9d;
+}
+

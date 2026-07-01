@@ -1046,8 +1046,31 @@ function getEffectAutomationFlags(effectId, sourceActor, rounds, expiration) {
     rounds: rounds ?? null,
     startRound: combat?.round ?? null,
     startTurn: combat?.turn ?? null,
-    combatId: combat?.id ?? null
+    combatId: combat?.id ?? null,
+    ...getMovementAutomationFlags(effectId)
   };
+}
+
+function getMovementAutomationFlags(effectId) {
+  if ([
+    MANEUVER_EFFECTS.GRAPPLED,
+    MANEUVER_EFFECTS.MAINTAINING_GRAPPLE,
+    MANEUVER_EFFECTS.KNOCKED_DOWN,
+    MANEUVER_EFFECTS.KNOCKED_OUT
+  ].includes(effectId)) {
+    return {
+      movementBlocked: true,
+      movementActions: 0
+    };
+  }
+
+  if (effectId === MANEUVER_EFFECTS.CAREFUL_AIM) {
+    return {
+      movementActions: 0
+    };
+  }
+
+  return {};
 }
 
 function shouldExpireEffect(effect, combat, { forceTurnEffects = false } = {}) {

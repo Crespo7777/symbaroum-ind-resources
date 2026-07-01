@@ -15,6 +15,7 @@ import { ManeuverService } from "./maneuvers.mjs";
 import { setupBithirMod } from "./bithir-macros.mjs";
 import { SocketService } from "./sockets.mjs";
 import { TokenActionHudIntegration } from "./token-action-hud.mjs";
+import { MovementService } from "./movement-ruler.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -23,6 +24,7 @@ Hooks.once("init", () => {
 
   HungerService.registerStatusEffect();
   ManeuverService.registerStatusEffects();
+  MovementService.register();
   setupBithirMod();
 });
 
@@ -56,6 +58,7 @@ Hooks.once("ready", async () => {
   HotbarService.register();
   HungerService.registerHooks();
   ManeuverService.registerHooks();
+  MovementService.register();
   patchSymbaroumRollDialogs();
   patchSymbaroumActorUsePower();
   patchSymbaroumDerivedPenalties();
@@ -81,6 +84,7 @@ Hooks.once("ready", async () => {
     hunger: HungerService,
     containers: ContainerService,
     maneuvers: ManeuverService,
+    movement: MovementService,
     tokenActionHud: TokenActionHudIntegration,
     sockets: SocketService,
     bithir: game.bithirmod,

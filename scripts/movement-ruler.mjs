@@ -1,0 +1,275 @@
+import { MODULE_ID } from "./constants.mjs";
+import { EncumbranceService } from "./encumbrance.mjs";
+import { HUNGER_STATUS_ID } from "./hunger.mjs";
+import { MANEUVER_EFFECTS } from "./maneuvers.mjs";
+import { TenebreSettings } from "./settings.mjs";
+
+const BASE_ACTION_DISTANCE = 10;
+const COLORS = {
+  walk: 0x24c768,
+  double: 0xe6c229,
+  blocked: 0xd64040,
+  neutral: 0xffffff
+};
+
+const IMMOBILIZING_EFFECTS = new Set([
+  MANEUVER_EFFECTS.GRAPPLED,
+  MANEUVER_EFFECTS.MAINTAINING_GRAPPLE,
+  MANEUVER_EFFECTS.KNOCKED_DOWN,
+  MANEUVER_EFFECTS.KNOCKED_OUT
+]);
+
+const MOVEMENT_SPENT_EFFECTS = new Set([
+  MANEUVER_EFFECTS.CAREFUL_AIM
+]);
+
+let originalTokenRulerClass = null;
+let originalPreUpdateMovement = null;
+
+export class MovementService {
+  static register() {
+    if (!TenebreSettings.get("enableMovementRuler")) return;
+    this.patchTokenRuler();
+    this.patchMovementValidation();
+  }
+
+  static patchTokenRuler() {
+    if (!globalThis.CONFIG?.Token?.rulerClass) return false;
+    if (CONFIG.Token.rulerClass._tenebreMovementRuler) return true;
+
+    originalTokenRulerClass = CONFIG.Token.rulerClass;
+
+    class TenebreTokenRuler extends originalTokenRulerClass {
+      _getSegmentStyle(waypoint) {
+        const style = super._getSegmentStyle(waypoint);
+        if (!TenebreSettings.get("enableMovementRuler")) return style;
+        const token = this.token;
+        const profile = MovementService.getProfile(token?.actor);
+        const state = MovementService.getWaypointState(waypoint, profile);
+        return {
+          ...style,
+          color: COLORS[state] ?? style.color,
+          alpha: state === "blocked" ? 0.9 : style.alpha
+        };
+      }
+
+      _getGridHighlightStyle(waypoint, offset) {
+        const style = super._getGridHighlightStyle(waypoint, offset);
+        if (!TenebreSettings.get("enableMovementRuler")) return style;
+        if (!(style.alpha > 0)) return style;
+
+        const profile = MovementService.getProfile(this.token?.actor);
+        const state = MovementService.getWaypointState(waypoint, profile);
+        return {
+          ...style,
+          color: COLORS[state] ?? style.color,
+          alpha: state === "blocked" ? 0.55 : 0.45
+        };
+      }
+
+      _getWaypointStyle(waypoint) {
+        const style = super._getWaypointStyle(waypoint);
+        if (!TenebreSettings.get("enableMovementRuler")) return style;
+        const profile = MovementService.getProfile(this.token?.actor);
+        const state = MovementService.getWaypointState(waypoint, profile);
+        return {
+          ...style,
+          color: COLORS[state] ?? style.color
+        };
+      }
+
+      _getWaypointLabelContext(waypoint, state) {
+        const context = super._getWaypointLabelContext(waypoint, state);
+        if (!context) return context;
+        if (!TenebreSettings.get("enableMovementRuler")) return context;
+
+        const profile = MovementService.getProfile(this.token?.actor);
+        const movementState = MovementService.getWaypointState(waypoint, profile);
+        context.cssClass = [
+          context.cssClass,
+          `tenebre-movement-${movementState}`
+        ].filter(Boolean).join(" ");
+
+        const limit = movementState === "walk" ? profile.actionDistance : profile.doubleDistance;
+        context.cost.units = canvas.grid.units;
+        context.cost.total = `${context.cost.total}/${formatDistance(limit)}`;
+        return context;
+      }
+    }
+
+    TenebreTokenRuler._tenebreMovementRuler = true;
+    CONFIG.Token.rulerClass = TenebreTokenRuler;
+    return true;
+  }
+
+  static patchMovementValidation() {
+    const TokenDocumentClass = CONFIG.Token?.documentClass;
+    if (!TokenDocumentClass?.prototype?._preUpdateMovement) return false;
+    if (TokenDocumentClass.prototype._preUpdateMovement._tenebreMovementWrapped) return true;
+
+    originalPreUpdateMovement = TokenDocumentClass.prototype._preUpdateMovement;
+    TokenDocumentClass.prototype._preUpdateMovement = async function tenebrePreUpdateMovement(movement, operation) {
+      const originalResult = await originalPreUpdateMovement.call(this, movement, operation);
+      if (originalResult === false) return false;
+      return MovementService.validateMovement(this, movement, operation) === false ? false : originalResult;
+    };
+    TokenDocumentClass.prototype._preUpdateMovement._tenebreMovementWrapped = true;
+    return true;
+  }
+
+  static validateMovement(tokenDocument, movement, operation = {}) {
+    if (!TenebreSettings.get("enableMovementRuler")) return true;
+    if (!game.combat?.started) return true;
+    if (operation?.isUndo || operation?.isPaste) return true;
+
+    const actor = tokenDocument?.actor;
+    if (!actor) return true;
+
+    const combatant = game.combat.combatants?.find?.((entry) => {
+      if (entry.token?.id === tokenDocument.id) return true;
+      if (entry.tokenId === tokenDocument.id) return true;
+      return entry.actor?.id === actor.id || entry.actorId === actor.id;
+    });
+    if (!combatant) return true;
+
+    const passed = movement?.passed?.waypoints ?? [];
+    if (passed.every((waypoint) => waypoint.action === "displace" || waypoint.actionConfig?.teleport)) return true;
+
+    const profile = this.getProfile(actor);
+    const totalCost = Number(movement?.history?.cost ?? 0) + Number(movement?.passed?.cost ?? 0);
+    if (totalCost <= profile.doubleDistance + 0.001) return true;
+
+    ui.notifications.warn(game.i18n.format("TENEBRE.Movement.Blocked", {
+      actor: actor.name,
+      distance: formatDistance(totalCost),
+      limit: formatDistance(profile.doubleDistance),
+      units: canvas.grid.units
+    }));
+    return false;
+  }
+
+  static getProfile(actor) {
+    const effects = Array.from(actor?.effects ?? []);
+    const reasons = [];
+    let multiplier = 1;
+    let actionDistance = BASE_ACTION_DISTANCE;
+    let movementActions = 2;
+    let blocked = false;
+    let hungerMultiplierApplied = false;
+
+    if (hasStatus(actor, HUNGER_STATUS_ID) || hasStatus(actor, "fome")) {
+      multiplier *= 0.5;
+      hungerMultiplierApplied = true;
+      reasons.push(game.i18n.localize("TENEBRE.Hunger.EffectName") || "Fome");
+    }
+
+    if (TenebreSettings.get("enableEncumbrance")) {
+      const load = EncumbranceService.calculateLoad(actor);
+      if (load.isImmobilized) {
+        blocked = true;
+        reasons.push(game.i18n.localize("TENEBRE.Encumbrance.Immobilized") || "Imobilizado");
+      }
+    }
+
+    for (const effect of effects) {
+      const effectId = getEffectId(effect);
+      const flags = effect.flags?.[MODULE_ID] ?? {};
+      const flagMultiplier = Number(flags.movementMultiplier);
+      const isHungerEffect = effectId === HUNGER_STATUS_ID || effectId === "fome" || flags.hunger === true;
+      if (Number.isFinite(flagMultiplier) && flagMultiplier >= 0 && !(isHungerEffect && hungerMultiplierApplied)) {
+        multiplier *= flagMultiplier;
+      }
+
+      if (Number.isFinite(Number(flags.movementActionDistance))) {
+        actionDistance = Number(flags.movementActionDistance);
+      }
+
+      if (Number.isFinite(Number(flags.movementActions))) {
+        movementActions = Math.min(movementActions, Math.max(0, Number(flags.movementActions)));
+      }
+
+      if (flags.movementBlocked === true || IMMOBILIZING_EFFECTS.has(effectId)) {
+        blocked = true;
+        reasons.push(effect.name ?? effect.label ?? effectId);
+      }
+
+      if (MOVEMENT_SPENT_EFFECTS.has(effectId)) {
+        movementActions = 0;
+        reasons.push(effect.name ?? effect.label ?? effectId);
+      }
+    }
+
+    actionDistance = Math.max(0, actionDistance * multiplier);
+    if (blocked) movementActions = 0;
+
+    return {
+      actionDistance: movementActions >= 1 ? actionDistance : 0,
+      doubleDistance: movementActions >= 2 ? actionDistance * 2 : (movementActions >= 1 ? actionDistance : 0),
+      baseActionDistance: BASE_ACTION_DISTANCE,
+      multiplier,
+      movementActions,
+      blocked,
+      reasons
+    };
+  }
+
+  static getWaypointState(waypoint, profile) {
+    const cost = Number(waypoint?.measurement?.cost ?? waypoint?.cost ?? 0);
+    if (!Number.isFinite(cost)) return "blocked";
+    if (cost <= profile.actionDistance + 0.001) return "walk";
+    if (cost <= profile.doubleDistance + 0.001) return "double";
+    return "blocked";
+  }
+
+  static getColorForActorDistance(actor, distance) {
+    const profile = this.getProfile(actor);
+    if (distance <= profile.actionDistance + 0.001) return COLORS.walk;
+    if (distance <= profile.doubleDistance + 0.001) return COLORS.double;
+    return COLORS.blocked;
+  }
+
+  static getMovementSummary(actor) {
+    const profile = this.getProfile(actor);
+    return {
+      actor: actor?.name ?? null,
+      actionDistance: profile.actionDistance,
+      doubleDistance: profile.doubleDistance,
+      multiplier: profile.multiplier,
+      movementActions: profile.movementActions,
+      blocked: profile.blocked,
+      reasons: profile.reasons
+    };
+  }
+}
+
+function getEffectId(effect) {
+  const flags = effect?.flags ?? {};
+  const moduleId = flags[MODULE_ID]?.effectId;
+  if (moduleId) return moduleId;
+  if (flags.core?.statusId) return flags.core.statusId;
+  if (effect?.statuses) {
+    for (const status of effect.statuses) return status;
+  }
+  return effect?.id ?? null;
+}
+
+function hasStatus(actor, statusId) {
+  if (!actor || !statusId) return false;
+  if (actor.statuses?.has?.(statusId)) return true;
+  return Array.from(actor.effects ?? []).some((effect) => {
+    if (effect.statuses?.has?.(statusId)) return true;
+    if (effect.statuses?.includes?.(statusId)) return true;
+    if (effect.flags?.core?.statusId === statusId) return true;
+    if (effect.flags?.[MODULE_ID]?.effectId === statusId) return true;
+    return false;
+  });
+}
+
+function formatDistance(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "infinito";
+  const rounded = typeof number.toNearest === "function"
+    ? number.toNearest(0.01)
+    : Math.round(number * 100) / 100;
+  return rounded.toLocaleString?.(game.i18n.lang) ?? String(rounded);
+}

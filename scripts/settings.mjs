@@ -44,7 +44,8 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "showSpecialAmmoInChat",
       "enableHunger",
       "enableRestHealing",
-      "enableEncumbrance"
+      "enableEncumbrance",
+      "enableMovementRuler"
     ];
 
     const numbers = [
@@ -94,6 +95,7 @@ export class TenebreSettings {
     register("restHealing", Number, DEFAULTS.restHealing, "TENEBRE.Settings.RestHealing", "TENEBRE.Settings.RestHealingHint");
 
     register("enableEncumbrance", Boolean, true, "TENEBRE.Settings.EnableEncumbrance", "TENEBRE.Settings.EnableEncumbranceHint");
+    register("enableMovementRuler", Boolean, true, "TENEBRE.Settings.EnableMovementRuler", "TENEBRE.Settings.EnableMovementRulerHint");
     register("encumbranceDiscoveredWeights", Object, { version: 2, items: {}, bundles: {} }, "TENEBRE.Settings.EncumbranceDiscoveredWeights", "TENEBRE.Settings.EncumbranceDiscoveredWeightsHint");
   }
 
@@ -141,6 +143,10 @@ function onSettingChanged(key, value) {
 
   if (key === "encumbranceDiscoveredWeights") {
     game.tenebreResources?.encumbrance?.applyDynamicWeightConfig?.(value);
+  }
+
+  if (key === "enableMovementRuler" && value) {
+    game.tenebreResources?.movement?.register?.();
   }
 
   game.tenebreResources?.hotbar?.refresh?.();
