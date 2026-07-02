@@ -53,6 +53,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableContainers",
       "enableMovementRuler",
       "enableManeuvers",
+      "enableChatItemUse",
       "enableRestButton",
       "enableClearEffectsButton",
       "enableTokenActionHudIntegration",
@@ -135,12 +136,15 @@ export class TenebreSettings {
     register("movementBaseFeet", Number, DEFAULTS.movementBaseFeet, "TENEBRE.Settings.MovementBaseFeet", "TENEBRE.Settings.MovementBaseFeetHint");
 
     register("enableManeuvers", Boolean, true, "TENEBRE.Settings.EnableManeuvers", "TENEBRE.Settings.EnableManeuversHint");
+    register("enableChatItemUse", Boolean, true, "TENEBRE.Settings.EnableChatItemUse", "TENEBRE.Settings.EnableChatItemUseHint");
     register("enableClearEffectsButton", Boolean, true, "TENEBRE.Settings.EnableClearEffectsButton", "TENEBRE.Settings.EnableClearEffectsButtonHint");
     register("enableTokenActionHudIntegration", Boolean, true, "TENEBRE.Settings.EnableTokenActionHudIntegration", "TENEBRE.Settings.EnableTokenActionHudIntegrationHint");
     register("enableBithirUtilities", Boolean, true, "TENEBRE.Settings.EnableBithirUtilities", "TENEBRE.Settings.EnableBithirUtilitiesHint");
     register("enableGenerateShadow", Boolean, true, "TENEBRE.Settings.EnableGenerateShadow", "TENEBRE.Settings.EnableGenerateShadowHint");
     register("hideShadowGeneration", Boolean, false, "BITHIRMOD.SHADOW_hideGeneration", "BITHIRMOD.SHADOW_hideGeneration_hint");
     register("hideShadowLabel", Boolean, false, "BITHIRMOD.SHADOW_hideLabel", "BITHIRMOD.SHADOW_hideLabel_hint");
+    register("hideCompatibilityNotice", Boolean, false, "TENEBRE.Settings.HideCompatibilityNotice", "TENEBRE.Settings.HideCompatibilityNoticeHint", { scope: "client" });
+    register("compatibilityNoticeAcknowledged", Object, { version: 1, signatures: [] }, "TENEBRE.Settings.CompatibilityNoticeAcknowledged", "TENEBRE.Settings.CompatibilityNoticeAcknowledgedHint", { scope: "client" });
     register("encumbranceDiscoveredWeights", Object, { version: 2, items: {}, bundles: {} }, "TENEBRE.Settings.EncumbranceDiscoveredWeights", "TENEBRE.Settings.EncumbranceDiscoveredWeightsHint");
   }
 

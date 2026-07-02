@@ -10,6 +10,8 @@ import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.
 import { normalize } from "./utils.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
 import { SocketService } from "./sockets.mjs";
+import { ChatItemUseService } from "./chat-item-use.mjs";
+import { CompatibilityService } from "./compatibility.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -43,6 +45,7 @@ const selectedManeuversByActor = new Map();
 
 export function registerSheetHooks() {
   patchSymbaroumSheetListeners();
+  patchSymbaroumItemChatSender();
   for (const hook of ACTOR_SHEET_HOOKS) Hooks.on(hook, onRenderActorSheet);
   for (const hook of ITEM_SHEET_HOOKS) {
     Hooks.on(hook, onRenderItemSheet);
@@ -54,6 +57,25 @@ export function registerSheetHooks() {
   Hooks.on(`${MODULE_ID}.settingsChanged`, onTenebreSettingChanged);
   patchContextMenu();
   patchPlayerSheetHeaderButtons();
+}
+
+function patchSymbaroumItemChatSender() {
+  for (const type of ["ability", "ritual", "mysticalPower", "mystical-power", "trait", "boon", "burden", "artifact", "equipment", "weapon", "armor"]) {
+    for (const SheetClass of getSymbaroumSheetClasses("Item", type)) {
+      if (!SheetClass?.prototype?.sendToChat || SheetClass.prototype.sendToChat._tenebreWrapped) continue;
+
+      const original = SheetClass.prototype.sendToChat;
+      SheetClass.prototype.sendToChat = async function tenebreSendToChat(...args) {
+        const item = this.item ?? this.document ?? this.object;
+        const actor = item?.parent;
+        if (TenebreSettings.get("enableChatItemUse") && actor && ChatItemUseService.canSend(item)) {
+          return ChatItemUseService.send(actor, item);
+        }
+        return original.apply(this, args);
+      };
+      SheetClass.prototype.sendToChat._tenebreWrapped = true;
+    }
+  }
 }
 
 /**
@@ -86,12 +108,13 @@ function patchSheetActivateListeners(SheetClass, callback) {
 
   const original = SheetClass.prototype.activateListeners;
   SheetClass.prototype.activateListeners = function tenebreActivateListeners(html) {
-    original.call(this, html);
+    const result = original?.call(this, html);
     try {
       callback(this, html);
     } catch (err) {
       console.error(`${MODULE_ID} | Sheet UI injection failed (${SheetClass.name}):`, err);
     }
+    return result;
   };
 }
 
@@ -116,6 +139,10 @@ function getActorFromDom(elem) {
 }
 
 function patchContextMenu() {
+  const ContextMenuClass = foundry.applications?.ux?.ContextMenu;
+  if (!ContextMenuClass?.prototype?.render) return;
+  if (ContextMenuClass.prototype.render._tenebreContextMenuWrapped && !CompatibilityService.canUseLibWrapper()) return;
+
   const handler = function(wrapped, html) {
     if (this.constructor.name === "CMPowerMenu") {
       if (!this._tenebrePatched) {
@@ -189,6 +216,22 @@ function patchContextMenu() {
         });
 
         this.originalMenuItems.push({
+          name: "TENEBRE.ChatItemUse.ContextMenu",
+          icon: `<i class="fas fa-comment-dots" style="color: currentColor;"></i>`,
+          isVisible: (item) => {
+            return TenebreSettings.get("enableChatItemUse") && ChatItemUseService.canSend(item);
+          },
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
+            if (actor && item) {
+              ChatItemUseService.send(actor, item);
+            }
+          }
+        });
+
+        this.originalMenuItems.push({
           name: "TENEBRE.Ammo.ReloadQuiverContextMenu",
           icon: `<i class="fas fa-redo" style="color: currentColor;"></i>`,
           isVisible: (item) => {
@@ -226,16 +269,17 @@ function patchContextMenu() {
     return wrapped.call(this, html);
   };
 
-  if (game.modules.get("libWrapper")?.active) {
+  if (CompatibilityService.canUseLibWrapper()) {
     libWrapper.register(MODULE_ID, "foundry.applications.ux.ContextMenu.prototype.render", function(wrapped, html) {
       return handler.call(this, wrapped, html);
     }, "WRAPPER");
   } else {
-    const originalRender = foundry.applications.ux.ContextMenu.prototype.render;
-    foundry.applications.ux.ContextMenu.prototype.render = function(html) {
+    const originalRender = ContextMenuClass.prototype.render;
+    ContextMenuClass.prototype.render = function tenebreContextMenuRender(html) {
       const wrapped = (h) => originalRender.call(this, h);
       return handler.call(this, wrapped, html);
     };
+    ContextMenuClass.prototype.render._tenebreContextMenuWrapped = true;
   }
 }
 
@@ -254,7 +298,39 @@ function onRenderActorSheet(app, html) {
   updateQuiverQuantityDisplay(app, html, actor);
   injectEncumbrancePanel(app, html, actor);
   injectManeuverPanel(app, html, actor);
+  wireChatItemUseIconFallback(app, html, actor);
   syncPlayerSheetHeaderButtons(app);
+}
+
+function wireChatItemUseIconFallback(app, html, actor) {
+  if (!TenebreSettings.get("enableChatItemUse")) return;
+
+  const el = getRoot(html);
+  if (!el) return;
+
+  for (const button of el.querySelectorAll(".activate-ability")) {
+    if (button.dataset.tenebreChatItemUse === "true") continue;
+    const row = button.closest("[data-item-id]");
+    const item = row ? actor.items.get(row.dataset.itemId) : null;
+    if (!shouldUseChatItemFromIcon(item)) continue;
+
+    button.dataset.tenebreChatItemUse = "true";
+    button.classList.add("tenebre-chat-use-available");
+    button.title = game.i18n.localize("TENEBRE.ChatItemUse.ContextMenu");
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      await ChatItemUseService.send(actor, item);
+      app.render?.(false);
+    }, { capture: true });
+  }
+}
+
+function shouldUseChatItemFromIcon(item) {
+  if (!ChatItemUseService.canSend(item)) return false;
+  if (item?.system?.isRitual) return true;
+  return item?.system?.isPower === true && item?.system?.hasScript !== true;
 }
 
 function onTenebreSettingChanged(key) {
@@ -551,22 +627,14 @@ function patchPlayerSheetHeaderButtons() {
     return buttons;
   };
 
-  if (game.modules.get("libWrapper")?.active) {
-    libWrapper.register(
-      MODULE_ID,
-      "CONFIG.Actor.sheetClasses.player.symbaroum.PlayerSheet.cls.prototype._getHeaderButtons",
-      function(wrapped) {
-        return handler.call(this, wrapped);
-      },
-      "WRAPPER"
-    );
-  } else {
-    const original = PlayerSheetClass.prototype._getHeaderButtons;
-    PlayerSheetClass.prototype._getHeaderButtons = function() {
-      const wrapped = () => original.call(this);
-      return handler.call(this, wrapped);
-    };
-  }
+  if (PlayerSheetClass.prototype._getHeaderButtons?._tenebreWrapped) return;
+
+  const original = PlayerSheetClass.prototype._getHeaderButtons;
+  PlayerSheetClass.prototype._getHeaderButtons = function tenebreGetHeaderButtons() {
+    const wrapped = () => original.call(this);
+    return handler.call(this, wrapped);
+  };
+  PlayerSheetClass.prototype._getHeaderButtons._tenebreWrapped = true;
 }
 
 function hasActorEffects(actor) {

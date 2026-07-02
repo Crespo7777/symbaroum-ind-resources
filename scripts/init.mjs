@@ -16,15 +16,17 @@ import { setupBithirMod } from "./bithir-macros.mjs";
 import { SocketService } from "./sockets.mjs";
 import { TokenActionHudIntegration } from "./token-action-hud.mjs";
 import { MovementService } from "./movement-ruler.mjs";
+import { ChatItemUseService } from "./chat-item-use.mjs";
+import { CompatibilityService } from "./compatibility.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
+  CompatibilityService.register();
   registerKeybindings();
   TokenActionHudIntegration.register();
 
   HungerService.registerStatusEffect();
   ManeuverService.registerStatusEffects();
-  MovementService.register();
   setupBithirMod();
 });
 
@@ -62,16 +64,26 @@ Hooks.once("ready", async () => {
   patchSymbaroumRollDialogs();
   patchSymbaroumActorUsePower();
   patchSymbaroumDerivedPenalties();
+  Hooks.on("preCreateChatMessage", applyPowerChatContextToMessage);
   ManeuverService.registerStatusEffects();
 
   // Aplica desvantagem de Fome para a rota simples de atributo.
   if (game.symbaroum?.api?.rollAttribute) {
     const originalRollAttribute = game.symbaroum.api.rollAttribute;
-    game.symbaroum.api.rollAttribute = function(actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier) {
+    const wrappedRollAttribute = function(wrapped, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier) {
       favour = ManeuverService.applyRollFavour(actor, actingAttributeName, favour, weapon);
       favour = HungerService.applyDisfavour(favour, actor);
-      return originalRollAttribute.call(this, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier);
+      return wrapped.call(this, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier);
     };
+
+    if (CompatibilityService.canUseLibWrapper()) {
+      libWrapper.register(MODULE_ID, "game.symbaroum.api.rollAttribute", wrappedRollAttribute, "WRAPPER");
+    } else if (!originalRollAttribute._tenebreWrapped) {
+      game.symbaroum.api.rollAttribute = function tenebreRollAttribute(...args) {
+        return wrappedRollAttribute.call(this, originalRollAttribute, ...args);
+      };
+      game.symbaroum.api.rollAttribute._tenebreWrapped = true;
+    }
   }
 
   game.tenebreResources = {
@@ -85,13 +97,16 @@ Hooks.once("ready", async () => {
     containers: ContainerService,
     maneuvers: ManeuverService,
     movement: MovementService,
+    chatItemUse: ChatItemUseService,
+    compatibility: CompatibilityService,
     tokenActionHud: TokenActionHudIntegration,
     sockets: SocketService,
     bithir: game.bithirmod,
 
     inspectActorResources,
     diagnostics: {
-      version: game.modules.get(MODULE_ID)?.version ?? null
+      version: game.modules.get(MODULE_ID)?.version ?? null,
+      compatibility: CompatibilityService.refresh()
     }
   };
 
@@ -104,6 +119,10 @@ Hooks.once("ready", async () => {
       }
     }
   }
+
+  window.setTimeout(() => {
+    void CompatibilityService.showStartupNotice();
+  }, 500);
 
   console.log(`${MODULE_ID} | v${game.modules.get(MODULE_ID)?.version} ready.`);
 });
@@ -168,23 +187,39 @@ function registerKeybindings() {
 
 let rollDialogsPatched = false;
 let pendingDialogActorId = null;
+let pendingPowerUseContext = null;
+let activePowerChatContext = null;
+let activePowerChatContextTimer = null;
+let activePowerChatContextToken = 0;
 
 function patchSymbaroumRollDialogs() {
   if (rollDialogsPatched || !globalThis.Dialog?.prototype?.render) return;
 
   const originalRender = Dialog.prototype.render;
-  Dialog.prototype.render = function tenebreRenderDialog(...args) {
+  const wrappedRender = function(wrapped, ...args) {
     const content = String(this.data?.content ?? this.content ?? "");
     if (content.includes("symbaroum dialog") && hasFavourRollOptions(content)) {
       const actorId = pendingDialogActorId ?? extractActorIdFromDialogContent(content);
       if (actorId) {
         this._tenebreHungerActorId = actorId;
       }
+      if (pendingPowerUseContext) {
+        this._tenebrePowerChatContext = foundry.utils.deepClone(pendingPowerUseContext);
+      }
       wrapDialogRollButton(this);
     }
 
-    return originalRender.apply(this, args);
+    return wrapped.apply(this, args);
   };
+
+  if (CompatibilityService.canUseLibWrapper()) {
+    libWrapper.register(MODULE_ID, "Dialog.prototype.render", wrappedRender, "WRAPPER");
+  } else {
+    Dialog.prototype.render = function tenebreRenderDialog(...args) {
+      return wrappedRender.call(this, originalRender, ...args);
+    };
+    Dialog.prototype.render._tenebreWrapped = true;
+  }
 
   rollDialogsPatched = true;
 }
@@ -201,16 +236,31 @@ function patchSymbaroumActorUsePower() {
   if (!ActorClass?.prototype?.usePower || ActorClass.prototype.usePower._tenebreWrapped) return;
 
   const originalUsePower = ActorClass.prototype.usePower;
-  ActorClass.prototype.usePower = async function tenebreUsePower(...args) {
+  const wrappedUsePower = async function(wrapped, ...args) {
     const previousActorId = pendingDialogActorId;
+    const previousPowerContext = pendingPowerUseContext;
+    const powerContext = buildPowerUseChatContext(this, args[0]);
     pendingDialogActorId = this.id;
+    pendingPowerUseContext = powerContext;
+    setActivePowerChatContext(powerContext);
     try {
-      return await originalUsePower.apply(this, args);
+      return await wrapped.apply(this, args);
     } finally {
       pendingDialogActorId = previousActorId;
+      pendingPowerUseContext = previousPowerContext;
+      if (activePowerChatContext?.itemUuid === powerContext?.itemUuid) {
+        setActivePowerChatContext(null);
+      }
     }
   };
-  ActorClass.prototype.usePower._tenebreWrapped = true;
+  if (CompatibilityService.canUseLibWrapper()) {
+    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.usePower", wrappedUsePower, "WRAPPER");
+  } else {
+    ActorClass.prototype.usePower = async function tenebreUsePower(...args) {
+      return wrappedUsePower.call(this, originalUsePower, ...args);
+    };
+    ActorClass.prototype.usePower._tenebreWrapped = true;
+  }
 }
 
 function patchSymbaroumDerivedPenalties() {
@@ -218,14 +268,21 @@ function patchSymbaroumDerivedPenalties() {
   if (!ActorClass?.prototype?.prepareDerivedData || ActorClass.prototype.prepareDerivedData._tenebreWrapped) return;
 
   const originalPrepareDerivedData = ActorClass.prototype.prepareDerivedData;
-  ActorClass.prototype.prepareDerivedData = function tenebrePrepareDerivedData(...args) {
-    const result = originalPrepareDerivedData.apply(this, args);
+  const wrappedPrepareDerivedData = function(wrapped, ...args) {
+    const result = wrapped.apply(this, args);
     if (TenebreSettings.get("enableEncumbrance") && this.type === "player") {
       EncumbranceService.applyDefensePenalty(this);
     }
     return result;
   };
-  ActorClass.prototype.prepareDerivedData._tenebreWrapped = true;
+  if (CompatibilityService.canUseLibWrapper()) {
+    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.prepareDerivedData", wrappedPrepareDerivedData, "WRAPPER");
+  } else {
+    ActorClass.prototype.prepareDerivedData = function tenebrePrepareDerivedData(...args) {
+      return wrappedPrepareDerivedData.call(this, originalPrepareDerivedData, ...args);
+    };
+    ActorClass.prototype.prepareDerivedData._tenebreWrapped = true;
+  }
 }
 
 function wrapDialogRollButton(dialog) {
@@ -234,10 +291,96 @@ function wrapDialogRollButton(dialog) {
 
   const originalCallback = rollButton.callback;
   rollButton.callback = async function tenebreRollDialogCallback(html, ...args) {
+    setActivePowerChatContext(dialog?._tenebrePowerChatContext ?? null);
     applyStatusFavourToDialog(html, dialog);
     return originalCallback.call(this, html, ...args);
   };
   rollButton.callback._tenebreWrapped = true;
+}
+
+function applyPowerChatContextToMessage(message, data) {
+  if (!activePowerChatContext) return;
+  if (!TenebreSettings.get("enableChatItemUse")) return;
+
+  const content = String(message?.content ?? data?.content ?? "");
+  if (!isSymbaroumAbilityChat(content)) return;
+
+  const context = foundry.utils.deepClone(activePowerChatContext);
+  const flags = foundry.utils.deepClone(message?.flags ?? data?.flags ?? {});
+  if (flags.world?.context?.itemUuid) return;
+
+  flags.world = {
+    ...(flags.world ?? {}),
+    context
+  };
+  flags[MODULE_ID] = {
+    ...(flags[MODULE_ID] ?? {}),
+    chatItemUse: true,
+    itemUuid: context.itemUuid,
+    actorUuid: context.actorUuid,
+    tokenUuid: context.tokenUuid ?? null,
+    targetTokenUuid: context.targetTokenUuid ?? null,
+    source: "symbaroum-power-roll"
+  };
+
+  message.updateSource({ flags });
+  setActivePowerChatContext(null);
+}
+
+function isSymbaroumAbilityChat(content) {
+  return content.includes("symbaroum chat ability");
+}
+
+function buildPowerUseChatContext(actor, item) {
+  if (!TenebreSettings.get("enableChatItemUse")) return null;
+  if (!actor || !item || !ChatItemUseService.canSend(item)) return null;
+
+  const token = getActorTokenForContext(actor);
+  const targetToken = Array.from(game.user?.targets ?? [])[0] ?? null;
+  const context = {
+    itemUuid: item.uuid,
+    actorUuid: actor.uuid
+  };
+
+  const tokenUuid = token?.document?.uuid ?? token?.uuid;
+  if (tokenUuid) context.tokenUuid = tokenUuid;
+
+  const targetTokenUuid = targetToken?.document?.uuid ?? targetToken?.uuid;
+  if (targetTokenUuid) {
+    context.targetTokenUuid = targetTokenUuid;
+    context.criticaled = false;
+    context.fumbled = false;
+  }
+
+  return context;
+}
+
+function getActorTokenForContext(actor) {
+  const controlled = canvas?.tokens?.controlled?.find((token) => token.actor?.id === actor.id);
+  if (controlled) return controlled;
+
+  const activeTokens = actor?.getActiveTokens?.() ?? [];
+  if (Array.isArray(activeTokens)) return activeTokens[0] ?? null;
+  return activeTokens?.object ?? null;
+}
+
+function setActivePowerChatContext(context) {
+  if (activePowerChatContextTimer) {
+    clearTimeout(activePowerChatContextTimer);
+    activePowerChatContextTimer = null;
+  }
+
+  activePowerChatContext = context ? foundry.utils.deepClone(context) : null;
+  activePowerChatContextToken += 1;
+  if (!activePowerChatContext) return;
+
+  const token = activePowerChatContextToken;
+  activePowerChatContextTimer = setTimeout(() => {
+    if (activePowerChatContextToken === token) {
+      activePowerChatContext = null;
+      activePowerChatContextTimer = null;
+    }
+  }, 15000);
 }
 
 function extractActorIdFromDialogContent(content) {

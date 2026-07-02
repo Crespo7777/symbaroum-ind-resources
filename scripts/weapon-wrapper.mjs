@@ -1,7 +1,9 @@
 import { AmmoService } from "./ammo.mjs";
+import { MODULE_ID } from "./constants.mjs";
 import { getWeaponAmmoType } from "./item-flags.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
 import { TenebreSettings } from "./settings.mjs";
+import { CompatibilityService } from "./compatibility.mjs";
 
 let patched = false;
 
@@ -11,7 +13,7 @@ export function patchWeaponRolls() {
   if (!ActorClass?.prototype?.rollWeapon) return;
 
   const originalRollWeapon = ActorClass.prototype.rollWeapon;
-  ActorClass.prototype.rollWeapon = async function tenebreRollWeapon(weapon, ...args) {
+  const wrappedRollWeapon = async function(wrapped, weapon, ...args) {
     // Reset status anterior de rolagem se houver
     if (game.tenebreResources?.activeWeaponRoll) {
       console.warn("Tenebre Resources | Clearing active roll state left over from a previous hung/incomplete roll.");
@@ -20,7 +22,7 @@ export function patchWeaponRolls() {
     }
 
     if (this?.type !== "player") {
-      return originalRollWeapon.call(this, weapon, ...args);
+      return wrapped.call(this, weapon, ...args);
     }
 
     const ammoType = getWeaponAmmoType(weapon);
@@ -43,7 +45,7 @@ export function patchWeaponRolls() {
 
     if (!ammoType || !TenebreSettings.get("enableAmmoConsumption")) {
       try {
-        const result = await originalRollWeapon.call(this, weapon, ...args);
+        const result = await wrapped.call(this, weapon, ...args);
         if (maneuversEnabled) await ManeuverService.afterWeaponRoll(this, result);
         return result;
       } finally {
@@ -73,7 +75,7 @@ export function patchWeaponRolls() {
     game.tenebreResources.activeWeaponRoll = rollState;
 
     try {
-      const result = await originalRollWeapon.call(this, weapon, ...args);
+      const result = await wrapped.call(this, weapon, ...args);
       const chosenAmmo = rollState.chosenAmmo;
 
       if (chosenAmmo) {
@@ -107,6 +109,14 @@ export function patchWeaponRolls() {
       }, 60000);
     }
   };
+
+  if (CompatibilityService.canUseLibWrapper()) {
+    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.rollWeapon", wrappedRollWeapon, "WRAPPER");
+  } else {
+    ActorClass.prototype.rollWeapon = async function tenebreRollWeapon(weapon, ...args) {
+      return wrappedRollWeapon.call(this, originalRollWeapon, weapon, ...args);
+    };
+  }
 
   patched = true;
 }

@@ -35,6 +35,17 @@
           "verified": "1.1.4"
         }
       }
+    ],
+    "recommends": [
+      {
+        "id": "lib-wrapper",
+        "type": "module",
+        "compatibility": {
+          "minimum": "1.13.0",
+          "verified": "1.13.2.0"
+        },
+        "reason": "Melhora a compatibilidade quando outros módulos também modificam diálogos, fichas, rolagens, menus ou tokens."
+      }
     ]
   },
   "socket": true,
@@ -46,14 +57,14 @@
   ],
   "languages": [
     {
-      "lang": "pt-BR",
-      "name": "Portugues do Brasil",
-      "path": "languages/pt-BR.json"
-    },
-    {
       "lang": "en",
       "name": "English",
       "path": "languages/en.json"
+    },
+    {
+      "lang": "pt-BR",
+      "name": "Portugues do Brasil",
+      "path": "languages/pt-BR.json"
     }
   ],
   "packs": [

@@ -365,6 +365,10 @@ body .dice-tooltip-collapser {
   border: none;
 }
 
+.symbaroum.sheet.actor .activate-ability.tenebre-chat-use-available {
+  cursor: pointer;
+}
+
 /* ── Encumbrance indicator (actor gear tab) ─────────────────────────── */
 
 /* Maneuvers */
@@ -1034,5 +1038,81 @@ div .bithirmod .inspirationdie > img {
 
 #measurement .waypoint-label.tenebre-movement-blocked .total-measurement {
   color: #ff9d9d;
+}
+
+.tenebre-compatibility-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 70vh;
+  overflow: auto;
+  color: var(--color-text-primary, var(--color-text));
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.tenebre-compatibility-notice p {
+  margin: 0;
+}
+
+.tenebre-compatibility-notice ol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.tenebre-compatibility-entry {
+  padding: 8px;
+  border: 1px solid rgba(160, 125, 36, 0.75);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.tenebre-compatibility-entry header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.tenebre-compatibility-entry header strong {
+  color: #d49b2f;
+}
+
+.tenebre-compatibility-entry code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.tenebre-compatibility-entry dl {
+  display: grid;
+  grid-template-columns: 145px 1fr;
+  gap: 4px 8px;
+  margin: 0;
+}
+
+.tenebre-compatibility-entry dt {
+  font-weight: bold;
+}
+
+.tenebre-compatibility-entry dd {
+  margin: 0;
+}
+
+.tenebre-compatibility-note {
+  padding: 6px 8px;
+  border-left: 3px solid #d49b2f;
+  background: rgba(212, 155, 47, 0.12);
+}
+
+.tenebre-compatibility-hide {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
 }
 

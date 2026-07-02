@@ -1,6 +1,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { evaluateRoll, rollTotal, createChatMessageAfterDice } from "./dice.mjs";
 import { SocketService } from "./sockets.mjs";
+import { TenebreSettings } from "./settings.mjs";
 
 export const MANEUVER_EFFECTS = {
   DELAYED_INITIATIVE: "tenebre-maneuver-delayed-initiative",

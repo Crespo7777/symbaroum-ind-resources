@@ -3,6 +3,7 @@ import { EncumbranceService } from "./encumbrance.mjs";
 import { HUNGER_STATUS_ID } from "./hunger.mjs";
 import { MANEUVER_EFFECTS } from "./maneuvers.mjs";
 import { TenebreSettings } from "./settings.mjs";
+import { CompatibilityService } from "./compatibility.mjs";
 
 const COLORS = {
   walk: 0x24c768,
@@ -24,16 +25,19 @@ const MOVEMENT_SPENT_EFFECTS = new Set([
 
 let originalTokenRulerClass = null;
 let originalPreUpdateMovement = null;
+let movementValidationPatched = false;
 
 export class MovementService {
   static register() {
     if (!TenebreSettings.get("enableMovementRuler")) return;
+    if (CompatibilityService.shouldSkipMovementRuler()) return;
     this.patchTokenRuler();
     this.patchMovementValidation();
   }
 
   static patchTokenRuler() {
     if (!globalThis.CONFIG?.Token?.rulerClass) return false;
+    if (CompatibilityService.shouldSkipMovementRuler()) return false;
     if (CONFIG.Token.rulerClass._tenebreMovementRuler) return true;
 
     originalTokenRulerClass = CONFIG.Token.rulerClass;
@@ -102,17 +106,29 @@ export class MovementService {
   }
 
   static patchMovementValidation() {
+    if (movementValidationPatched) return true;
+    if (CompatibilityService.shouldSkipMovementValidation()) return false;
     const TokenDocumentClass = CONFIG.Token?.documentClass;
     if (!TokenDocumentClass?.prototype?._preUpdateMovement) return false;
     if (TokenDocumentClass.prototype._preUpdateMovement._tenebreMovementWrapped) return true;
 
     originalPreUpdateMovement = TokenDocumentClass.prototype._preUpdateMovement;
-    TokenDocumentClass.prototype._preUpdateMovement = async function tenebrePreUpdateMovement(movement, operation) {
-      const originalResult = await originalPreUpdateMovement.call(this, movement, operation);
+    const wrappedPreUpdateMovement = async function(wrapped, movement, operation) {
+      const originalResult = await wrapped.call(this, movement, operation);
       if (originalResult === false) return false;
       return MovementService.validateMovement(this, movement, operation) === false ? false : originalResult;
     };
-    TokenDocumentClass.prototype._preUpdateMovement._tenebreMovementWrapped = true;
+
+    if (CompatibilityService.canUseLibWrapper()) {
+      libWrapper.register(MODULE_ID, "CONFIG.Token.documentClass.prototype._preUpdateMovement", wrappedPreUpdateMovement, "WRAPPER");
+      movementValidationPatched = true;
+    } else {
+      TokenDocumentClass.prototype._preUpdateMovement = async function tenebrePreUpdateMovement(movement, operation) {
+        return wrappedPreUpdateMovement.call(this, originalPreUpdateMovement, movement, operation);
+      };
+      TokenDocumentClass.prototype._preUpdateMovement._tenebreMovementWrapped = true;
+      movementValidationPatched = true;
+    }
     return true;
   }
 

@@ -3,6 +3,7 @@
 
 import { TenebreSettings } from "./settings.mjs";
 import { escapeHtml, normalize, promptDialog } from "./utils.mjs";
+import { CompatibilityService } from "./compatibility.mjs";
 
 const moduleId = 'symbaroum-ind-resources';
 const i18nPath = 'BITHIRMOD.';
@@ -1002,6 +1003,10 @@ async function migrateImportedUtilityTranslations() {
 }
 
 export function setupBithirMod() {
+    if (CompatibilityService.shouldSkipBundledBithir()) {
+        return;
+    }
+
     // Register settings
     registerBithirSetting('hideShadowGeneration', {
         name: 'BITHIRMOD.SHADOW_hideGeneration',
@@ -1120,6 +1125,10 @@ export function setupBithirMod() {
         game.tenebreResources.bithir = bithirObj;
     }
     game.bithirmod = bithirObj; // keep same namespace for backwards compatibility inside table roll commands
+}
+
+export function isExternalBithirModuleActive() {
+    return CompatibilityService.shouldSkipBundledBithir();
 }
 
 function registerBithirSetting(key, data) {
