@@ -1020,6 +1020,11 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
     .filter(([label]) => !(inlineProtection && normalizeComparable(label) === normalizeComparable(localize("TENEBRE.ModernChat.Protection"))));
   const testHtml = illustratedTestHtml(test, { hideOpposed: isAttack || data.hideOpposedTest });
   const flavorText = illustratedFlavorText({ kind, title, outcome, data, typeRow, isAttack, isManeuver, isRitual });
+  const detailRowsHtml = isAttack
+    ? illustratedAttackDetailsHtml(detailRows)
+    : detailRows.length
+      ? `<dl>${detailRows.map(([label, value]) => illustratedRowHtml(label, value)).join("")}</dl>`
+      : "";
   const article = document.createElement("article");
   article.className = `tenebre-modern-chat tenebre-modern-chat-illustrated tenebre-modern-chat-${outcome || "neutral"}`;
   article.innerHTML = `
@@ -1045,7 +1050,7 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
       <div class="tenebre-illustrated-details">
         ${testHtml}
         ${inlineProtection ? illustratedInlineProtectionHtml(inlineProtection) : ""}
-        ${detailRows.length ? `<dl>${detailRows.map(([label, value]) => illustratedRowHtml(label, value)).join("")}</dl>` : ""}
+        ${detailRowsHtml}
         ${notes.length ? `<ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>` : ""}
         ${flavorText ? `<p class="tenebre-illustrated-flavor">${escapeHtml(flavorText)}</p>` : ""}
       </div>
@@ -1053,6 +1058,31 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
     ${illustratedSeparator()}
   `;
   return article;
+}
+
+function illustratedAttackDetailsHtml(rows = []) {
+  const lines = rows.map(([label, value]) => {
+    const text = rowPlainText(value);
+    const line = illustratedAttackDetailLine(label, text);
+    return line ? `<p>${escapeHtml(line)}</p>` : "";
+  }).filter(Boolean);
+  if (!lines.length) return "";
+  return `<div class="tenebre-illustrated-attack-details">${lines.join("")}</div>`;
+}
+
+function illustratedAttackDetailLine(label, value) {
+  const normalized = normalizeComparable(label);
+  if (normalized === normalizeComparable(localize("TENEBRE.ModernChat.Damage"))) {
+    return localizeFormat("TENEBRE.ModernChat.AttackDamageLine", { value });
+  }
+  if (normalized === normalizeComparable(localize("TENEBRE.ModernChat.Protection"))) {
+    return localizeFormat("TENEBRE.ModernChat.AttackProtectionLine", { value });
+  }
+  if (normalized === normalizeComparable(localize("TENEBRE.ModernChat.DamageTaken"))) {
+    return localizeFormat("TENEBRE.ModernChat.AttackFinalDamageLine", { value });
+  }
+  if (!value) return "";
+  return `${cleanName(label)} ${value}`;
 }
 
 function illustratedPortrait(name, img, fallbackIcon = "", extraClass = "", uuid = "") {

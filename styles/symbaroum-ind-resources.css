@@ -1309,6 +1309,20 @@
   height: 2px;
 }
 
+.tenebre-illustrated-attack-details {
+  margin: 4px 0 0;
+  color: #17120e;
+  font-family: var(--font-text), Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.24;
+  text-align: center;
+}
+
+.tenebre-illustrated-attack-details p {
+  margin: 0 0 2px;
+}
+
 .tenebre-illustrated-details .tenebre-illustrated-row-full {
   display: block;
   margin: 0;
