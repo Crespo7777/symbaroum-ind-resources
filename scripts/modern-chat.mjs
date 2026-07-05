@@ -248,11 +248,6 @@ export class ModernChatService {
         chatMessage.style.display = "none";
         return;
       }
-      if (shouldHideStaleResistButtonMessage(message, source, text)) {
-        const chatMessage = root.closest?.(".chat-message") ?? root;
-        chatMessage.style.display = "none";
-        return;
-      }
       if (shouldHideApplyResultsMessage(message)) {
         const chatMessage = root.closest?.(".chat-message") ?? root;
         chatMessage.style.display = "none";
@@ -279,10 +274,33 @@ export class ModernChatService {
       content.replaceChildren(card);
       bindModernChatInteractions(card);
       root.classList.add("tenebre-modern-chat-message");
+      compactModernChatHeader(root);
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to render modern chat card.`, error);
     }
   }
+}
+
+function compactModernChatHeader(root) {
+  const chatMessage = root.closest?.(".chat-message") ?? root;
+  const header = chatMessage?.querySelector?.(".message-header");
+  const sender = header?.querySelector?.(".message-sender");
+  if (!header || !sender) return;
+
+  const senderText = cleanName(sender.textContent);
+  if (/^(Mensagem do sistema Symbaroum|Symbaroum system message)$/i.test(senderText)) {
+    sender.textContent = localize("TENEBRE.ModernChat.SystemShort");
+  }
+
+  const whisper = chatMessage.querySelector?.(".whisper-to");
+  const target = cleanName((whisper?.textContent ?? "").replace(/^(To|Para)\s*:\s*/i, ""));
+  if (target && !header.querySelector(".tenebre-modern-chat-compact-to")) {
+    const to = document.createElement("span");
+    to.className = "tenebre-modern-chat-compact-to";
+    to.textContent = `${localize("TENEBRE.ModernChat.ToShort")}: ${target}`;
+    header.append(to);
+  }
+  if (whisper) whisper.style.display = "none";
 }
 
 function buildCombatCard(message, source, text) {
@@ -471,23 +489,31 @@ function buildAttributeRollCard(message, source, text) {
 function buildResistRequestCard(message, source, text) {
   const resistData = symbaroumFlag(message, "resistRoll");
   const hasResistButton = Boolean(source.querySelector("#applyEffect"));
-  const isGmResistNotice = isResistNoticeText(text);
-  const isPlayerResistButton = Boolean(resistData) && hasResistButton && isResistButtonText(text);
-  if (!resistData && !isGmResistNotice && !isPlayerResistButton) return null;
+  const parsedRequest = parseResistRequestCard(source, text);
+  const isPlayerResistButton = hasResistButton && (Boolean(resistData) || parsedRequest);
+  const isNotice = !hasResistButton && isResistNoticeText(text);
+  if (!isPlayerResistButton && !isNotice) return null;
 
-  const fallback = resistData ? null : recentAttackContextForResistRequest(message, text);
-  const attackerActor = resistData ? resistActor(message, resistData) : fallback?.attackerActor;
-  const attackerName = cleanName(attackerActor?.name || resistData?.actingCharName || fallback?.attackerName || "");
-  const targetActor = (resistData ? resistTargetActor(text, resistData) : fallback?.targetActor) ?? fallback?.targetActor;
-  const targetName = cleanName(targetActor?.name || resistData?.targetData?.name || fallback?.targetName || "");
-  const weapon = (resistData ? resistWeapon(attackerActor, resistData) : null) ?? fallback?.weapon;
-  const weaponName = cleanName(resistData?.weapon?.name || weapon?.name || fallback?.weaponName || "");
-  if (!attackerName || !weaponName) return null;
+  if (isNotice) {
+    const fallback = recentAttackContextForResistRequest(message, text);
+    const targetName = cleanName(
+      fallback?.targetName
+      || text.match(/^(.+?)\s+(?:deve clicar|must click)/i)?.[1]
+      || ""
+    );
+    if (!targetName) return null;
+    return simpleResistanceNoticeCard({ targetName });
+  }
+
+  const attackerActor = resistActor(message, resistData) ?? findActorByName(parsedRequest?.attackerName);
+  const attackerName = cleanName(attackerActor?.name || resistData?.actingCharName || parsedRequest?.attackerName || "");
+  const targetActor = resistTargetActor(text, resistData) ?? findActorByName(parsedRequest?.targetName);
+  const targetName = cleanName(targetActor?.name || resistData?.targetData?.name || parsedRequest?.targetName || "");
+  const weapon = resistWeapon(attackerActor, resistData) ?? findActorItemByName(attackerActor, parsedRequest?.weaponName);
+  const weaponName = cleanName(resistData?.weapon?.name || weapon?.name || parsedRequest?.weaponName || "");
+  if (!attackerName || !targetName || !weaponName) return null;
 
   const weaponImg = weapon?.img || SYSTEM_CARD_IMAGE;
-  const flavorText = targetName
-    ? localizeFormat("TENEBRE.ModernChat.ResistRequestFlavor", { actor: attackerName, target: targetName, item: weaponName })
-    : localizeFormat("TENEBRE.ModernChat.ResistRequestFlavorNoTarget", { actor: attackerName, item: weaponName });
   rememberResistContext({
     attackerName,
     attackerImg: attackerActor?.img,
@@ -497,31 +523,7 @@ function buildResistRequestCard(message, source, text) {
     weaponImg
   });
 
-  const card = cardShell({
-    kind: localize("TENEBRE.ModernChat.Attack"),
-    title: weaponName,
-    icon: "fa-swords",
-    narrative: flavorText,
-    narrativeData: {
-      layout: "attack",
-      actorName: attackerName,
-      actorImg: attackerActor?.img,
-      illustratedAction: localize("TENEBRE.ModernChat.IllustratedActionAttack"),
-      itemName: weaponName,
-      itemImg: weaponImg,
-      itemUuid: weapon?.uuid,
-      targetName,
-      targetImg: targetActor?.img,
-      flavorText
-    },
-    actors: [
-      actorBlock(attackerName, attackerActor?.img, localize("TENEBRE.ModernChat.Attacker")),
-      targetName ? actorBlock(targetName, targetActor?.img, localize("TENEBRE.ModernChat.Target")) : null
-    ],
-    image: weaponImg,
-    rows: [],
-    outcome: ""
-  });
+  const card = simpleResistanceCard({ attackerName, targetName, weaponName });
 
   const button = source.querySelector("#applyEffect");
   if (button) {
@@ -531,6 +533,31 @@ function buildResistRequestCard(message, source, text) {
     card.append(actions);
   }
 
+  return card;
+}
+
+function simpleResistanceNoticeCard({ targetName }) {
+  const card = document.createElement("article");
+  card.className = "tenebre-modern-chat tenebre-resistance-simple-card";
+  card.innerHTML = `
+    <h3>${escapeHtml(localize("TENEBRE.ModernChat.Resistance"))}</h3>
+    <div class="tenebre-resistance-simple-lines">
+      <p>${escapeHtml(localizeFormat("TENEBRE.ModernChat.ResistNoticeLine", { target: targetName }))}</p>
+    </div>
+  `;
+  return card;
+}
+
+function simpleResistanceCard({ attackerName, targetName, weaponName }) {
+  const card = document.createElement("article");
+  card.className = "tenebre-modern-chat tenebre-resistance-simple-card";
+  card.innerHTML = `
+    <h3>${escapeHtml(localize("TENEBRE.ModernChat.Resistance"))}</h3>
+    <div class="tenebre-resistance-simple-lines">
+      <p>${escapeHtml(localizeFormat("TENEBRE.ModernChat.ResistSimpleAttackLine", { actor: attackerName, item: weaponName }))}</p>
+      <p>${escapeHtml(localizeFormat("TENEBRE.ModernChat.ResistSimplePromptLine", { target: targetName }))}</p>
+    </div>
+  `;
   return card;
 }
 
@@ -1601,6 +1628,10 @@ function recentResistContextForCombat(text, weaponName) {
   const elapsed = Date.now() - Number(context.timestamp);
   if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 60000) return null;
   if (weaponName && context.weaponName && normalizeComparable(weaponName) !== normalizeComparable(context.weaponName)) return null;
+  const attackerFromText = cleanName(text.match(/^(.+?)\s+(?:ataca com|attacks? with)\s+/im)?.[1] ?? "");
+  if (attackerFromText && context.attackerName && normalizeComparable(attackerFromText) !== normalizeComparable(context.attackerName)) return null;
+  const targetFromText = cleanName(lineValue(text, "Vítima") || lineValue(text, "Victim") || hitTargetName(text));
+  if (targetFromText && context.targetName && normalizeComparable(targetFromText) !== normalizeComparable(context.targetName)) return null;
   return context;
 }
 
@@ -1674,7 +1705,29 @@ function shouldHideStaleResistButtonMessage(message, source, text) {
 }
 
 function isResistButtonText(text) {
-  return /\b(pode resistir ao ataque usando|can resist the attack using|tenta se defender do ataque|tries to defend against the attack)\b/i.test(text);
+  return /\b(pode resistir ao ataque usando|can resist the attack using)\b/i.test(text);
+}
+
+function parseResistRequestCard(source, text) {
+  const headings = [...(source.querySelectorAll?.(".symbaroum.chat.ability h4") ?? [])]
+    .map((node) => cleanName(node.innerText))
+    .filter(Boolean);
+  const attackLine = headings.find((line) => /\b(ataca com|attacks? with)\b/i.test(line))
+    ?? cleanName(text.match(/^(.+?\s+(?:ataca com|attacks? with)\s+.+)$/im)?.[1] ?? "");
+  const resistLine = headings.find((line) => /\b(pode resistir ao ataque usando|can resist the attack using)\b/i.test(line))
+    ?? cleanName(text.match(/^(.+?\s+(?:pode resistir ao ataque usando|can resist the attack using)\s+.+)$/im)?.[1] ?? "");
+  if (!attackLine || !resistLine) return null;
+
+  const attackMatch = attackLine.match(/^(.+?)\s+(?:ataca com|attacks? with)\s+(.+)$/i);
+  const resistMatch = resistLine.match(/^(.+?)\s+(?:pode resistir ao ataque usando|can resist the attack using)\s+(.+)$/i);
+  if (!attackMatch || !resistMatch) return null;
+
+  return {
+    attackerName: cleanName(attackMatch[1]),
+    weaponName: cleanName(attackMatch[2]),
+    targetName: cleanName(resistMatch[1]),
+    resistAttribute: cleanName(resistMatch[2])
+  };
 }
 
 function isResistNoticeText(text) {
@@ -1876,8 +1929,6 @@ function findActorItemByName(actor, name) {
 function resistActor(message, data) {
   return actorByTokenId(data?.tokenId)
     ?? findActorByName(data?.actingCharName)
-    ?? speakerActor(message)
-    ?? globalThis.canvas?.tokens?.controlled?.[0]?.actor
     ?? null;
 }
 
@@ -1914,6 +1965,9 @@ function resistWeapon(actor, data) {
       uuid: flaggedWeapon?.uuid
     };
   }
+
+  const combatItem = data?.combatId ? actor?.items?.get?.(data.combatId) : null;
+  if (combatItem?.type === "weapon") return combatItem;
 
   const activeRoll = game.tenebreResources?.activeWeaponRoll;
   if (activeRoll?.actor === actor && activeRoll.weapon) return activeRoll.weapon;

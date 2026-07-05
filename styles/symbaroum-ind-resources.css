@@ -483,12 +483,12 @@
   height: 0;
 }
 
-#chat-log .dice-tooltip,
-#chat-log .dice-tooltip-collapser,
-.chat-message .dice-tooltip,
-.chat-message .dice-tooltip-collapser,
-body .dice-tooltip,
-body .dice-tooltip-collapser {
+.chat-message.tenebre-modern-chat-message .dice-tooltip,
+.chat-message.tenebre-modern-chat-message .dice-tooltip-collapser {
+  display: none !important;
+}
+
+.symbaroum.chat .tooltip .tooltiptext:empty {
   display: none !important;
 }
 
@@ -526,6 +526,51 @@ body .dice-tooltip-collapser {
   max-width: none;
   margin-left: 4px;
   margin-right: 4px;
+}
+
+.chat-message.tenebre-modern-chat-message .message-header {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  min-height: 0;
+  margin: 0 0 2px;
+  font-size: 11px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.chat-message.tenebre-modern-chat-message .message-sender {
+  overflow: hidden;
+  max-width: 82px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-message.tenebre-modern-chat-message .message-metadata {
+  flex: 0 0 auto;
+  margin-left: 0;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.chat-message.tenebre-modern-chat-message .tenebre-modern-chat-compact-to {
+  flex: 0 1 auto;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 110px;
+  color: rgba(25, 20, 16, 0.78);
+  font-size: 10px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-message.tenebre-modern-chat-message .whisper-to {
+  margin: 0 0 3px;
+  font-size: 10px;
+  line-height: 1.1;
 }
 
 .tenebre-modern-chat {
@@ -1297,6 +1342,41 @@ body .dice-tooltip-collapser {
 .tenebre-modern-chat-notes li {
   padding-left: 8px;
   border-left: 2px solid rgba(84, 64, 35, 0.32);
+}
+
+.tenebre-resistance-simple-card {
+  padding: 8px 10px;
+  border: 2px solid #9a4a3a;
+  background: rgba(232, 220, 190, 0.82);
+  text-align: center;
+}
+
+.tenebre-resistance-simple-card h3 {
+  margin: 0 0 6px;
+  color: #17120e;
+  font-family: "Primitive", "Philosopher", serif;
+  font-size: 21px;
+  line-height: 1.05;
+}
+
+.tenebre-resistance-simple-lines {
+  margin: 5px 0 8px;
+  padding: 7px 6px;
+  border: 2px solid #9a4a3a;
+  background: rgba(229, 214, 184, 0.68);
+  color: #17120e;
+  font-family: "Philosopher", var(--font-text), serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.18;
+}
+
+.tenebre-resistance-simple-lines p {
+  margin: 0 0 4px;
+}
+
+.tenebre-resistance-simple-lines p:last-child {
+  margin-bottom: 0;
 }
 
 .tenebre-modern-chat-actions {
