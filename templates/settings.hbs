@@ -92,6 +92,17 @@
     <input type="checkbox" name="enableManeuvers" {{checked settings.enableManeuvers}}>
   </label>
   <label>
+    <span>{{localize "TENEBRE.Settings.EnableModernChat"}}</span>
+    <input type="checkbox" name="enableModernChat" {{checked settings.enableModernChat}}>
+  </label>
+  <label>
+    <span>{{localize "TENEBRE.Settings.ModernChatStyle"}}</span>
+    <select name="modernChatStyle">
+      <option value="illustrated" {{#if modernChatStyleIllustratedSelected}}selected{{/if}}>{{localize "TENEBRE.Settings.ModernChatStyleIllustrated"}}</option>
+      <option value="legacy" {{#if modernChatStyleLegacySelected}}selected{{/if}}>{{localize "TENEBRE.Settings.ModernChatStyleLegacy"}}</option>
+    </select>
+  </label>
+  <label>
     <span>{{localize "TENEBRE.Settings.EnableChatItemUse"}}</span>
     <input type="checkbox" name="enableChatItemUse" {{checked settings.enableChatItemUse}}>
   </label>

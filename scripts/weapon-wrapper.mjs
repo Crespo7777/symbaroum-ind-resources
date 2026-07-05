@@ -111,7 +111,7 @@ export function patchWeaponRolls() {
   };
 
   if (CompatibilityService.canUseLibWrapper()) {
-    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.rollWeapon", wrappedRollWeapon, "WRAPPER");
+    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.rollWeapon", wrappedRollWeapon, "MIXED");
   } else {
     ActorClass.prototype.rollWeapon = async function tenebreRollWeapon(weapon, ...args) {
       return wrappedRollWeapon.call(this, originalRollWeapon, weapon, ...args);

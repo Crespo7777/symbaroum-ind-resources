@@ -28,10 +28,13 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
 
   async _prepareContext(_options) {
     const settings = TenebreSettings.export();
+    const modernChatStyle = settings.modernChatStyle === "legacy" ? "legacy" : "illustrated";
     return {
       settings,
       movementUnitMetersSelected: settings.movementUnitSystem === "meters",
       movementUnitFeetSelected: settings.movementUnitSystem === "feet",
+      modernChatStyleIllustratedSelected: modernChatStyle === "illustrated",
+      modernChatStyleLegacySelected: modernChatStyle === "legacy",
       isGM: game.user.isGM
     };
   }
@@ -53,6 +56,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableContainers",
       "enableMovementRuler",
       "enableManeuvers",
+      "enableModernChat",
       "enableChatItemUse",
       "enableRestButton",
       "enableClearEffectsButton",
@@ -70,7 +74,8 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
     ];
 
     const strings = [
-      "movementUnitSystem"
+      "movementUnitSystem",
+      "modernChatStyle"
     ];
 
     for (const key of booleans) {
@@ -87,6 +92,10 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       if (key in data) {
         data[key] = String(data[key] ?? "");
       }
+    }
+
+    if ("modernChatStyle" in data && !["illustrated", "legacy"].includes(data.modernChatStyle)) {
+      data.modernChatStyle = "illustrated";
     }
 
     for (const [key, value] of Object.entries(data)) {
@@ -136,6 +145,13 @@ export class TenebreSettings {
     register("movementBaseFeet", Number, DEFAULTS.movementBaseFeet, "TENEBRE.Settings.MovementBaseFeet", "TENEBRE.Settings.MovementBaseFeetHint");
 
     register("enableManeuvers", Boolean, true, "TENEBRE.Settings.EnableManeuvers", "TENEBRE.Settings.EnableManeuversHint");
+    register("enableModernChat", Boolean, true, "TENEBRE.Settings.EnableModernChat", "TENEBRE.Settings.EnableModernChatHint");
+    register("modernChatStyle", String, "illustrated", "TENEBRE.Settings.ModernChatStyle", "TENEBRE.Settings.ModernChatStyleHint", {
+      choices: {
+        illustrated: "TENEBRE.Settings.ModernChatStyleIllustrated",
+        legacy: "TENEBRE.Settings.ModernChatStyleLegacy"
+      }
+    });
     register("enableChatItemUse", Boolean, true, "TENEBRE.Settings.EnableChatItemUse", "TENEBRE.Settings.EnableChatItemUseHint");
     register("enableClearEffectsButton", Boolean, true, "TENEBRE.Settings.EnableClearEffectsButton", "TENEBRE.Settings.EnableClearEffectsButtonHint");
     register("enableTokenActionHudIntegration", Boolean, true, "TENEBRE.Settings.EnableTokenActionHudIntegration", "TENEBRE.Settings.EnableTokenActionHudIntegrationHint");

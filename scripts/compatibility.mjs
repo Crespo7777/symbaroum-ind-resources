@@ -91,6 +91,7 @@ export class CompatibilityService {
   }
 
   static async showStartupNotice() {
+    if (!game.user?.isGM) return false;
     if (compatibilityNoticeShown) return false;
 
     await this.loadNoticeTranslations();
@@ -121,9 +122,8 @@ export class CompatibilityService {
             label: localize("TENEBRE.Common.Confirm", "Confirm"),
             icon: "fas fa-check",
             default: true,
-            close: true,
             callback: async (_event, _button, app) => {
-              await persistNoticeSuppression(app?.element, noticeKeys);
+              await persistNoticeSuppression(resolveDialogElement(app), noticeKeys);
               return true;
             }
           }
@@ -289,6 +289,13 @@ export class CompatibilityService {
 
     console.info(`${MODULE_ID} | Compatibility guard active.`, this.getReport());
   }
+}
+
+function resolveDialogElement(value) {
+  if (value instanceof HTMLElement) return value;
+  if (value?.element instanceof HTMLElement) return value.element;
+  if (value?.[0] instanceof HTMLElement) return value[0];
+  return null;
 }
 
 function decision({ level, moduleId, noticeKey, area, action, reason }) {

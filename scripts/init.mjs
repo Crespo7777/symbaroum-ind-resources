@@ -18,10 +18,12 @@ import { TokenActionHudIntegration } from "./token-action-hud.mjs";
 import { MovementService } from "./movement-ruler.mjs";
 import { ChatItemUseService } from "./chat-item-use.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
+import { ModernChatService } from "./modern-chat.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
   CompatibilityService.register();
+  ModernChatService.register();
   registerKeybindings();
   TokenActionHudIntegration.register();
 
@@ -31,10 +33,18 @@ Hooks.once("init", () => {
 });
 
 Hooks.on("createItem", (item) => {
-  if (!TenebreSettings.get("enableEncumbrance")) return;
-
   if (item.parent && item.parent.type === "player") {
-    EncumbranceService.autoAssignSlots(item);
+    if (TenebreSettings.get("enableEncumbrance")) {
+      EncumbranceService.autoAssignSlots(item);
+    }
+
+    if (TenebreSettings.get("enableRations") && isRation(item)) {
+      window.setTimeout(() => {
+        RationService.consolidate(item.parent).catch((error) => {
+          console.warn("Tenebre Resources | Failed to consolidate rations after item creation.", error);
+        });
+      }, 0);
+    }
   }
 });
 
@@ -98,6 +108,7 @@ Hooks.once("ready", async () => {
     maneuvers: ManeuverService,
     movement: MovementService,
     chatItemUse: ChatItemUseService,
+    modernChat: ModernChatService,
     compatibility: CompatibilityService,
     tokenActionHud: TokenActionHudIntegration,
     sockets: SocketService,
@@ -120,9 +131,19 @@ Hooks.once("ready", async () => {
     }
   }
 
-  window.setTimeout(() => {
-    void CompatibilityService.showStartupNotice();
-  }, 500);
+  if (TenebreSettings.get("enableRations")) {
+    for (const actor of game.actors) {
+      if (actor.type === "player" && actor.isOwner) {
+        await RationService.consolidate(actor);
+      }
+    }
+  }
+
+  if (game.user?.isGM) {
+    window.setTimeout(() => {
+      void CompatibilityService.showStartupNotice();
+    }, 500);
+  }
 
   console.log(`${MODULE_ID} | v${game.modules.get(MODULE_ID)?.version} ready.`);
 });

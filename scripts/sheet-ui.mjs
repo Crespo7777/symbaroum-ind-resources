@@ -55,6 +55,9 @@ export function registerSheetHooks() {
   Hooks.on("renderTemplate", onRenderTemplate);
   Hooks.on("closeDialog", onCloseDialog);
   Hooks.on(`${MODULE_ID}.settingsChanged`, onTenebreSettingChanged);
+  Hooks.on("createActiveEffect", onActiveEffectChanged);
+  Hooks.on("updateActiveEffect", onActiveEffectChanged);
+  Hooks.on("deleteActiveEffect", onActiveEffectChanged);
   patchContextMenu();
   patchPlayerSheetHeaderButtons();
 }
@@ -83,8 +86,10 @@ function patchSymbaroumItemChatSender() {
  * Hooks legados como renderActorSheet não existem mais no core.
  */
 function patchSymbaroumSheetListeners() {
-  for (const SheetClass of getSymbaroumSheetClasses("Actor", "player")) {
-    patchSheetActivateListeners(SheetClass, (app, html) => onRenderActorSheet(app, html));
+  for (const type of ["player", "monster"]) {
+    for (const SheetClass of getSymbaroumSheetClasses("Actor", type)) {
+      patchSheetActivateListeners(SheetClass, (app, html) => onRenderActorSheet(app, html));
+    }
   }
 
   for (const type of ["equipment", "weapon", "armor"]) {
@@ -120,7 +125,7 @@ function patchSheetActivateListeners(SheetClass, callback) {
 
 function onRenderApplication(app, html) {
   const name = app.constructor?.name;
-  if (name === "PlayerSheet") {
+  if (["PlayerSheet", "MonsterSheet", "SymbaroumActorSheet"].includes(name)) {
     onRenderActorSheet(app, html);
   } else if (["EquipmentSheet", "WeaponSheet", "ArmorSheet"].includes(name)) {
     onRenderItemSheet(app, html);
@@ -250,6 +255,26 @@ function patchContextMenu() {
           }
         });
 
+        this.originalMenuItems.push({
+          name: "TENEBRE.Ammo.UnloadQuiverContextMenu",
+          icon: `<i class="fas fa-upload" style="color: currentColor;"></i>`,
+          isVisible: (item) => {
+            return TenebreSettings.get("enableAmmoConsumption")
+              && isPlayerActor(item?.parent)
+              && isQuiver(item)
+              && itemQuantity(item) > 0
+              && getQuiverLoadedTotal(item) > 0;
+          },
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
+            if (actor && item) {
+              AmmoService.unloadQuiver(actor, item).then(() => rerenderActorSheets(actor));
+            }
+          }
+        });
+
         // Re-filter this.menuItems immediately so the newly added options are rendered on the first click
         let item = null;
         if (html.dataset.itemId == game.symbaroum.config.noArmorID) {
@@ -287,8 +312,13 @@ function patchContextMenu() {
 // Renderização da ficha de ator
 function onRenderActorSheet(app, html) {
   const actor = app.actor ?? app.document;
-  if (!actor || actor.type !== "player") return;
+  if (!isManagedActor(actor)) return;
   if (!actor.isOwner && !game.user.isGM) return;
+  if (skipDuplicateSheetRender(html, app, "actor")) return;
+
+  syncActorSheetHeaderButtons(app);
+
+  if (!isPlayerActor(actor)) return;
 
   if (TenebreSettings.get("enableContainers")) {
     hideStoredItemRows(app, html, actor);
@@ -299,7 +329,6 @@ function onRenderActorSheet(app, html) {
   injectEncumbrancePanel(app, html, actor);
   injectManeuverPanel(app, html, actor);
   wireChatItemUseIconFallback(app, html, actor);
-  syncPlayerSheetHeaderButtons(app);
 }
 
 function wireChatItemUseIconFallback(app, html, actor) {
@@ -335,24 +364,52 @@ function shouldUseChatItemFromIcon(item) {
 
 function onTenebreSettingChanged(key) {
   if (!["enableRestButton", "enableClearEffectsButton"].includes(key)) return;
-  window.setTimeout(syncOpenPlayerSheetHeaders, 50);
-  window.setTimeout(syncOpenPlayerSheetHeaders, 800);
+  window.setTimeout(syncOpenActorSheetHeaders, 50);
+  window.setTimeout(syncOpenActorSheetHeaders, 800);
 }
 
-function syncOpenPlayerSheetHeaders() {
+function onActiveEffectChanged(effect) {
+  const actor = effect?.parent;
+  if (!isManagedActor(actor)) return;
+  if (!TenebreSettings.get("enableClearEffectsButton")) return;
+
+  syncActorSheetHeaders(actor);
+  window.setTimeout(() => syncActorSheetHeaders(actor), 0);
+  window.setTimeout(() => syncActorSheetHeaders(actor), 100);
+  window.setTimeout(() => syncActorSheetHeaders(actor), 500);
+}
+
+function syncOpenActorSheetHeaders() {
   for (const app of Object.values(ui.windows ?? {})) {
-    syncPlayerSheetHeaderButtons(app);
+    syncActorSheetHeaderButtons(app);
   }
 
   const instances = foundry.applications?.instances;
   if (instances && typeof instances[Symbol.iterator] === "function") {
-    for (const app of instances) syncPlayerSheetHeaderButtons(app);
+    for (const app of instances) syncActorSheetHeaderButtons(app);
   }
 }
 
-function syncPlayerSheetHeaderButtons(app) {
+function syncActorSheetHeaders(actor) {
+  if (!actor) return;
+
+  for (const app of Object.values(ui.windows ?? {})) {
+    const sheetActor = app.actor ?? app.document;
+    if (sheetActor?.id === actor.id) syncActorSheetHeaderButtons(app);
+  }
+
+  const instances = foundry.applications?.instances;
+  if (instances && typeof instances[Symbol.iterator] === "function") {
+    for (const app of instances) {
+      const sheetActor = app.actor ?? app.document;
+      if (sheetActor?.id === actor.id) syncActorSheetHeaderButtons(app);
+    }
+  }
+}
+
+function syncActorSheetHeaderButtons(app) {
   const actor = app?.actor ?? app?.document;
-  if (!isPlayerActor(actor)) return;
+  if (!isManagedActor(actor)) return;
   if (!actor.isOwner && !game.user.isGM) return;
 
   const root = getRoot(app.element);
@@ -372,12 +429,15 @@ function syncPlayerSheetHeaderButtons(app) {
         ev.preventDefault();
         const count = await clearActorEffects(actor);
         ui.notifications.info(game.i18n.format("TENEBRE.Maneuvers.ClearEffectsDone", { count }));
+        syncActorSheetHeaderButtons(app);
+        window.setTimeout(() => syncActorSheetHeaderButtons(app), 0);
+        window.setTimeout(() => syncActorSheetHeaderButtons(app), 100);
         app.render?.(false);
       }
     });
   }
 
-  if (TenebreSettings.get("enableRestButton")) {
+  if (isPlayerActor(actor) && TenebreSettings.get("enableRestButton")) {
     insertHeaderButton(header, insertBefore, {
       className: "tenebre-rest",
       icon: "fas fa-bed",
@@ -568,19 +628,34 @@ function updateRationQuantityDisplay(app, html, actor) {
   const el = getRoot(html);
   if (!el) return;
 
+  if (RationService.needsConsolidation(actor)) {
+    RationService.consolidate(actor).then((changed) => {
+      if (changed) rerenderActorSheets(actor);
+    }).catch((error) => {
+      console.warn("Tenebre Resources | Failed to consolidate rations while rendering actor sheet.", error);
+    });
+  }
+
   const rationState = RationService.getState(actor);
   if (rationState.quantity <= 0) return;
+
+  const displayItem = rationState.items.find((item) => itemQuantity(item) > 0);
 
   for (const item of rationState.items) {
     const row = el.querySelector(`.item[data-item-id="${item.id}"]`);
     if (!row) continue;
+
+    if (displayItem && item.id !== displayItem.id) {
+      row.style.display = "none";
+      continue;
+    }
 
     const qtyDiv = row.querySelector(".quantity");
     if (!qtyDiv) continue;
 
     const qty = itemQuantity(item);
     if (qty > 0) {
-      qtyDiv.textContent = `${qty} (${rationState.usesRemaining}/${rationState.usesPerUnit})`;
+      qtyDiv.textContent = `${rationState.quantity} (${rationState.totalUsesRemaining}/${rationState.totalUsesCapacity})`;
     }
   }
 }
@@ -597,8 +672,8 @@ function patchPlayerSheetHeaderButtons() {
 
   const handler = function(wrapped) {
     const buttons = wrapped.call(this);
-    if (this.actor?.isOwner) {
-      if (TenebreSettings.get("enableRestButton")) {
+    if (isManagedActor(this.actor) && this.actor?.isOwner) {
+      if (isPlayerActor(this.actor) && TenebreSettings.get("enableRestButton")) {
         buttons.unshift({
           label: game.i18n.localize("TENEBRE.Rest.DialogTitle") || "Descanso",
           class: "tenebre-rest",
@@ -619,6 +694,9 @@ function patchPlayerSheetHeaderButtons() {
             ev.preventDefault();
             const count = await clearActorEffects(this.actor);
             ui.notifications.info(game.i18n.format("TENEBRE.Maneuvers.ClearEffectsDone", { count }));
+            syncActorSheetHeaders(this.actor);
+            window.setTimeout(() => syncActorSheetHeaders(this.actor), 0);
+            window.setTimeout(() => syncActorSheetHeaders(this.actor), 100);
             this.render(false);
           }
         });
@@ -653,10 +731,27 @@ function onRenderItemSheet(app, html) {
   const item = app.item ?? app.document ?? app.object;
   if (!item) return;
   if (!item.isOwner && !game.user.isGM) return;
+  if (skipDuplicateSheetRender(html, app, "item")) return;
 
   if (TenebreSettings.get("enableEncumbrance")) {
     injectItemWeightField(app, html, item);
   }
+}
+
+function skipDuplicateSheetRender(html, app, type) {
+  const root = getRoot(html) ?? getRoot(app?.element);
+  if (!root?.dataset) return false;
+
+  const key = type === "item" ? "tenebreItemRenderQueued" : "tenebreActorRenderQueued";
+  if (root.dataset[key] === "true") return true;
+
+  root.dataset[key] = "true";
+  const clearQueuedFlag = () => {
+    if (root.dataset) delete root.dataset[key];
+  };
+  if (typeof queueMicrotask === "function") queueMicrotask(clearQueuedFlag);
+  else Promise.resolve().then(clearQueuedFlag);
+  return false;
 }
 
 // Campo "Peso" na aba Descrição/Estatísticas (estilo Custo / Número)
@@ -983,6 +1078,10 @@ function getRoot(html) {
 
 function isPlayerActor(actor) {
   return actor?.type === "player";
+}
+
+function isManagedActor(actor) {
+  return ["player", "monster"].includes(actor?.type);
 }
 
 // Hooks do diálogo de rolagem

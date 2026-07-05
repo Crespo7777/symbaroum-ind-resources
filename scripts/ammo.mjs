@@ -95,9 +95,6 @@ export class AmmoService {
       timestamp: Date.now()
     });
 
-    if (TenebreSettings.get("showSpecialAmmoInChat") && getAmmoDescription(ammo)) {
-      await postAmmoCard(actor, ammo);
-    }
   }
 
   static async reloadQuiverPrompt(actor, quiverItem) {
@@ -126,31 +123,22 @@ export class AmmoService {
     const firstItem = looseAmmoItems[0];
     const initialMax = Math.min(remainingCapacity, itemQuantity(firstItem));
 
-    const content = `
-      <div style="margin-bottom: 10px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
-          ${game.i18n.localize("TENEBRE.Ammo.ReloadChooseAmmo")}:
-        </label>
-        <select name="ammoId" style="width: 100%; height: 28px;">
-          ${optionsHtml}
-        </select>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
-          ${game.i18n.localize("TENEBRE.Ammo.ReloadQuantity")}:
-        </label>
-        <input type="number" name="quantity" value="${initialMax}" min="1" max="${initialMax}" style="width: 100%; height: 24px;">
-      </div>
-      <div style="font-style: italic; color: #555;">
-        ${game.i18n.format("TENEBRE.Ammo.ReloadRemainingCapacity", { remaining: remainingCapacity })}
-      </div>
-    `;
+    const content = buildQuiverTransferDialogContent({
+      selectLabel: game.i18n.localize("TENEBRE.Ammo.ReloadChooseAmmo"),
+      quantityLabel: game.i18n.localize("TENEBRE.Ammo.ReloadQuantity"),
+      optionsHtml,
+      quantityValue: initialMax,
+      quantityMax: initialMax,
+      hint: game.i18n.format("TENEBRE.Ammo.ReloadRemainingCapacity", { remaining: remainingCapacity })
+    });
 
     const result = await promptDialog({
       title: game.i18n.localize("TENEBRE.Ammo.ReloadTitle"),
       content,
       okLabel: game.i18n.localize("TENEBRE.Common.Confirm"),
       cancelLabel: game.i18n.localize("TENEBRE.Common.Cancel"),
+      width: 360,
+      symbaroumStyle: false,
       callback: (element) => {
         const ammoId = element.querySelector('[name="ammoId"]')?.value;
         const selectedItem = looseAmmoItems.find(i => i.id === ammoId);
@@ -222,6 +210,91 @@ export class AmmoService {
       speaker: ChatMessage.getSpeaker({ actor }),
       content: chatContent
     });
+  }
+
+  static async unloadQuiver(actor, quiverItem) {
+    if (!isPlayerActor(actor) || !quiverItem || !isQuiver(quiverItem)) return;
+
+    const loadedAmmo = getQuiverLoadedAmmo(quiverItem)
+      .map((entry) => ({
+        ...entry,
+        quantity: Number(entry.quantity) || 0
+      }))
+      .filter((entry) => entry.quantity > 0);
+
+    if (!loadedAmmo.length) {
+      ui.notifications.warn(game.i18n.localize("TENEBRE.Ammo.UnloadEmpty"));
+      return;
+    }
+
+    const optionsHtml = loadedAmmo.map((entry, index) => {
+      return `<option value="${index}">${escapeHtml(entry.name)} (${entry.quantity})</option>`;
+    }).join("");
+    const firstEntry = loadedAmmo[0];
+
+    const content = buildQuiverTransferDialogContent({
+      selectLabel: game.i18n.localize("TENEBRE.Ammo.UnloadChooseAmmo"),
+      quantityLabel: game.i18n.localize("TENEBRE.Ammo.UnloadQuantity"),
+      optionsHtml,
+      quantityValue: firstEntry.quantity,
+      quantityMax: firstEntry.quantity,
+      hint: game.i18n.format("TENEBRE.Ammo.UnloadLoadedCount", { loaded: getQuiverLoadedTotal(quiverItem) })
+    });
+
+    const result = await promptDialog({
+      title: game.i18n.localize("TENEBRE.Ammo.UnloadTitle"),
+      content,
+      okLabel: game.i18n.localize("TENEBRE.Common.Confirm"),
+      cancelLabel: game.i18n.localize("TENEBRE.Common.Cancel"),
+      width: 360,
+      symbaroumStyle: false,
+      callback: (element) => {
+        const entryIndex = Number(element.querySelector('[name="ammoId"]')?.value ?? 0);
+        const selectedEntry = loadedAmmo[entryIndex];
+        const maxToUnload = selectedEntry ? Number(selectedEntry.quantity) || 0 : 0;
+        const quantity = Math.min(parseInt(element.querySelector('[name="quantity"]')?.value) || 0, maxToUnload);
+        return { entryIndex, quantity };
+      }
+    });
+
+    if (!result) return;
+
+    const selectedEntry = loadedAmmo[result.entryIndex];
+    const finalQty = Math.min(Number(result.quantity) || 0, Number(selectedEntry?.quantity) || 0);
+    if (!selectedEntry || finalQty <= 0) return;
+
+    const looseItem = actorItems(actor).find((item) => {
+      if (!isAmmo(item) || isQuiver(item)) return false;
+      return item.id === selectedEntry.id || item.name === selectedEntry.name;
+    });
+
+    if (looseItem) {
+      await changeItemQuantity(looseItem, finalQty);
+    } else {
+      await createRecoveredAmmo(actor, {
+        itemId: selectedEntry.id,
+        name: selectedEntry.name,
+        ammoType: selectedEntry.ammoType || "ammo",
+        img: selectedEntry.img
+      }, finalQty);
+    }
+
+    const nextLoadedAmmo = loadedAmmo
+      .map((entry, index) => index === result.entryIndex
+        ? { ...entry, quantity: Math.max(0, entry.quantity - finalQty) }
+        : entry
+      )
+      .filter((entry) => entry.quantity > 0);
+
+    await quiverItem.setFlag(FLAG_SCOPE, "loadedAmmo", nextLoadedAmmo);
+    if (nextLoadedAmmo.length === 0) {
+      await quiverItem.unsetFlag(FLAG_SCOPE, "usesRemaining");
+    }
+
+    ui.notifications.info(game.i18n.format("TENEBRE.Ammo.UnloadSuccess", {
+      count: finalQty,
+      quiver: quiverItem.name
+    }));
   }
 
   static async promptAmmo(_actor, ammoType, ammoItems) {
@@ -449,6 +522,31 @@ export class AmmoService {
 
 function isPlayerActor(actor) {
   return actor?.type === "player";
+}
+
+function buildQuiverTransferDialogContent({
+  selectLabel,
+  quantityLabel,
+  optionsHtml,
+  quantityValue,
+  quantityMax,
+  hint
+}) {
+  return `
+    <div class="tenebre-quiver-transfer-dialog">
+      <div class="tenebre-quiver-transfer-row">
+        <label>${escapeHtml(selectLabel)}</label>
+        <select name="ammoId">
+          ${optionsHtml}
+        </select>
+      </div>
+      <div class="tenebre-quiver-transfer-row">
+        <label>${escapeHtml(quantityLabel)}</label>
+        <input type="number" name="quantity" value="${Number(quantityValue) || 1}" min="1" max="${Number(quantityMax) || 1}">
+      </div>
+      <p class="tenebre-quiver-transfer-hint">${escapeHtml(hint)}</p>
+    </div>
+  `;
 }
 
 function getRecoverableShotData(actor, ammo, fallbackAmmoType = "") {

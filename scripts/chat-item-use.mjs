@@ -1,5 +1,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
+import { isRation } from "./item-flags.mjs";
+import { RationService } from "./rations.mjs";
 import { escapeHtml } from "./utils.mjs";
 
 const CHAT_ITEM_TYPES = new Set([
@@ -32,6 +34,12 @@ export class ChatItemUseService {
     }
 
     if (!actor || !item) return null;
+
+    if (TenebreSettings.get("enableRations") && isRation(item)) {
+      await RationService.consumeDay(actor);
+      return null;
+    }
+
     if (!this.canSend(item)) {
       ui.notifications.warn(game.i18n.localize("TENEBRE.ChatItemUse.NotAvailable"));
       return null;
