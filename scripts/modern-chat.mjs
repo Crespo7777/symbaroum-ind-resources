@@ -1026,17 +1026,19 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
       ? `<dl>${detailRows.map(([label, value]) => illustratedRowHtml(label, value)).join("")}</dl>`
       : "";
   const article = document.createElement("article");
-  article.className = `tenebre-modern-chat tenebre-modern-chat-illustrated tenebre-modern-chat-${outcome || "neutral"}`;
+  article.className = `tenebre-modern-chat tenebre-modern-chat-illustrated ${isAttack ? "tenebre-modern-chat-illustrated-attack" : ""} tenebre-modern-chat-${outcome || "neutral"}`;
   article.innerHTML = `
     <h3 class="tenebre-illustrated-title">${escapeHtml(kind || title)}</h3>
     ${illustratedSeparator()}
     <div class="tenebre-illustrated-stage ${targetName || targetImg ? "tenebre-illustrated-stage-targeted" : ""}">
       ${illustratedPortrait(actorName, actorImg, "fa-user", "tenebre-illustrated-actor")}
+      ${isAttack && (targetName || targetImg) ? `<i class="fas fa-arrow-right tenebre-illustrated-attack-arrow tenebre-illustrated-attack-arrow-left"></i>` : ""}
       <div class="tenebre-illustrated-action">
         <span>${escapeHtml(action)}</span>
         <i class="fas fa-arrow-right"></i>
       </div>
       ${illustratedPortrait(itemName, itemImg, icon, "tenebre-illustrated-item", itemUuid)}
+      ${isAttack && (targetName || targetImg) ? `<i class="fas fa-arrow-right tenebre-illustrated-attack-arrow tenebre-illustrated-attack-arrow-right"></i>` : ""}
       ${targetName || targetImg ? illustratedPortrait(targetName, targetImg, "fa-user", "tenebre-illustrated-target") : ""}
     </div>
     ${showResultImage || resultLabel ? `
@@ -1045,7 +1047,6 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
         ${resultLabel ? `<strong>${escapeHtml(resultLabel)}</strong>` : ""}
       </div>
     ` : ""}
-    ${illustratedSeparator()}
     ${flavorText || testHtml || detailRows.length || notes.length ? `
       <div class="tenebre-illustrated-details">
         ${testHtml}
@@ -1101,7 +1102,11 @@ function illustratedPortrait(name, img, fallbackIcon = "", extraClass = "", uuid
 }
 
 function illustratedSeparator() {
-  return `<div class="tenebre-illustrated-separator"><span></span><i></i><span></span></div>`;
+  return `
+    <div class="tenebre-illustrated-separator">
+      <img src="modules/${MODULE_ID}/assets/icons/illustrated-separator.png" alt="">
+    </div>
+  `;
 }
 
 function illustratedD20Html(roll) {

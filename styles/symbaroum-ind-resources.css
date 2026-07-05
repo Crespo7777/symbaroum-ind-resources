@@ -1013,27 +1013,19 @@
 }
 
 .tenebre-illustrated-separator {
-  display: grid;
-  grid-template-columns: 1fr 16px 1fr;
-  align-items: center;
-  gap: 7px;
-  width: 66%;
+  display: flex;
+  justify-content: center;
+  width: 70%;
   margin: 0 auto;
-  color: #9a3f35;
 }
 
-.tenebre-illustrated-separator span {
+.tenebre-illustrated-separator img {
   display: block;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, currentColor, transparent);
-}
-
-.tenebre-illustrated-separator i {
-  width: 12px;
-  height: 12px;
-  margin: 0 auto;
-  border: 3px solid currentColor;
-  transform: rotate(45deg);
+  width: 100%;
+  max-width: 190px;
+  height: 28px;
+  border: 0;
+  object-fit: contain;
 }
 
 .tenebre-illustrated-stage {
@@ -1052,6 +1044,39 @@
   grid-template-areas:
     "actor action target"
     ". item .";
+}
+
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted {
+  grid-template-columns: 58px 22px 58px 22px 58px;
+  grid-template-areas: "actor arrow-left item arrow-right target";
+  align-items: start;
+  justify-content: center;
+  column-gap: 5px;
+}
+
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted .tenebre-illustrated-portrait {
+  align-self: start;
+}
+
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted .tenebre-illustrated-action {
+  display: none;
+}
+
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow {
+  align-self: start;
+  justify-self: center;
+  margin-top: 17px;
+  color: #17120e;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow-left {
+  grid-area: arrow-left;
+}
+
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow-right {
+  grid-area: arrow-right;
 }
 
 .tenebre-illustrated-portrait {
