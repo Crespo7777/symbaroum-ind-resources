@@ -260,6 +260,7 @@ export class ModernChatService {
         ?? buildAttributeRollCard(message, source, text)
         ?? buildResistRequestCard(message, source, text)
         ?? buildApplyResultsCard(message, source, text)
+        ?? buildSystemMacroCard(message, source, text)
         ?? buildAmmoRecoveryCard(message, source, text)
         ?? buildAmmoReloadCard(message, source, text)
         ?? buildAmmoUseCard(message, source, text)
@@ -627,6 +628,139 @@ function buildApplyResultsCard(message, source, text) {
   actions.append(button);
   card.append(actions);
   return card;
+}
+
+function buildSystemMacroCard(message, source, text) {
+  const macro = parseSystemMacroMessage(message, source, text);
+  if (!macro) return null;
+
+  const actor = macro.actorName ? findActorByName(macro.actorName) : null;
+  return cardShell({
+    kind: localize("TENEBRE.ModernChat.Macro"),
+    title: macro.title,
+    icon: macro.icon || "fa-scroll",
+    narrativeData: {
+      actorName: macro.actorLabel || macro.actorName || localize("TENEBRE.ModernChat.SystemShort"),
+      actorImg: actor?.img,
+      illustratedAction: macro.action || localize("TENEBRE.ModernChat.IllustratedActionUse"),
+      itemName: macro.itemName || macro.title,
+      itemImg: macro.image || SYSTEM_CARD_IMAGE,
+      flavorText: macro.flavor
+    },
+    image: macro.image || SYSTEM_CARD_IMAGE,
+    rows: macro.rows ?? [],
+    notes: macro.notes ?? [],
+    outcome: ""
+  });
+}
+
+function parseSystemMacroMessage(message, source, text) {
+  if (source.querySelector(".symbaroum.chat")) return null;
+  const title = cleanName(source.querySelector("h1, h2, h3")?.textContent);
+  const alias = cleanName(message?.speaker?.alias);
+  const lines = text.split("\n").map(cleanName).filter(Boolean);
+  const listItems = [...source.querySelectorAll("li")].map((li) => cleanName(li.textContent)).filter(Boolean);
+
+  const nameCategory = cleanName(text.match(/^Category\s+(.+?)\s+-\s+Names/i)?.[1]);
+  if (nameCategory || normalizeComparable(alias) === "name generator") {
+    const names = lines.slice(1).filter(Boolean);
+    return {
+      title: localize("TENEBRE.ModernChat.MacroNameGenerator"),
+      actorLabel: localize("TENEBRE.ModernChat.SystemShort"),
+      action: localize("TENEBRE.ModernChat.IllustratedActionGenerated"),
+      itemName: nameCategory || localize("TENEBRE.ModernChat.Names"),
+      image: SYSTEM_CARD_IMAGE,
+      icon: "fa-signature",
+      rows: nameCategory ? [[localize("TENEBRE.ModernChat.Category"), nameCategory]] : [],
+      notes: names,
+      flavor: localizeFormat("TENEBRE.ModernChat.MacroNameGeneratorFlavor", { category: nameCategory || localize("TENEBRE.ModernChat.Names") })
+    };
+  }
+
+  if (isExperienceMacroTitle(title)) {
+    const amount = cleanName(text.match(/\b(?:awarded|receberam|obtained|obtiveram|erh[oó]ll|recibido|reçu)\s+(-?\d+)\b/i)?.[1]
+      ?? text.match(/\b(-?\d+)\s+(?:de\s+)?(?:experi[eê]ncia|experience|experiencia)\b/i)?.[1]);
+    const actorList = listItems.length ? listItems : actorsMentionedAfterLabel(text);
+    return {
+      title: localize("TENEBRE.ModernChat.MacroAddExperience"),
+      actorLabel: localize("TENEBRE.ModernChat.SystemShort"),
+      action: localize("TENEBRE.ModernChat.IllustratedActionGranted"),
+      itemName: localize("TENEBRE.ModernChat.Experience"),
+      image: "icons/svg/upgrade.svg",
+      icon: "fa-arrow-up",
+      rows: amount ? [[localize("TENEBRE.ModernChat.Experience"), amount]] : [],
+      notes: actorList,
+      flavor: localizeFormat("TENEBRE.ModernChat.MacroAddExperienceFlavor", {
+        actors: actorList.join(", ") || "-",
+        amount: amount || "-"
+      })
+    };
+  }
+
+  const rerollMatch = text.match(/^Re-roll for\s+(.+?)\n(.+?)\s+paid\s+1\s+(.+?)\s+for\s+a\s+re-roll/i);
+  if (rerollMatch) {
+    const actorName = cleanName(rerollMatch[2]);
+    const cost = cleanName(rerollMatch[3]);
+    return {
+      title: localize("TENEBRE.ModernChat.MacroReRoll"),
+      actorName,
+      action: localize("TENEBRE.ModernChat.IllustratedActionPaid"),
+      itemName: cost,
+      image: "icons/svg/d20.svg",
+      icon: "fa-dice-d20",
+      rows: [[localize("TENEBRE.ModernChat.Cost"), cost]],
+      flavor: localizeFormat("TENEBRE.ModernChat.MacroReRollFlavor", { actor: actorName || "-", cost })
+    };
+  }
+
+  if (/temporary corruption was washed away/i.test(title || text)) {
+    const actorList = listItems.length ? listItems : actorsMentionedAfterLabel(text);
+    return {
+      title: localize("TENEBRE.ModernChat.MacroResetTemporaryCorruption"),
+      actorLabel: localize("TENEBRE.ModernChat.SystemShort"),
+      action: localize("TENEBRE.ModernChat.IllustratedActionReset"),
+      itemName: localize("TENEBRE.ModernChat.TemporaryCorruption"),
+      image: "icons/svg/aura.svg",
+      icon: "fa-droplet-slash",
+      notes: actorList,
+      flavor: localizeFormat("TENEBRE.ModernChat.MacroResetTemporaryCorruptionFlavor", {
+        actors: actorList.join(", ") || "-"
+      })
+    };
+  }
+
+  const createdMatch = text.match(/^Created\s+(.+?)(?:\n|$)/i);
+  if (createdMatch || normalizeComparable(alias) === "character importer macro") {
+    const actorName = cleanName(createdMatch?.[1]);
+    const extra = lines.slice(1).filter(Boolean);
+    return {
+      title: localize("TENEBRE.ModernChat.MacroCharacterImporter"),
+      actorLabel: localize("TENEBRE.ModernChat.SystemShort"),
+      action: localize("TENEBRE.ModernChat.IllustratedActionCreated"),
+      itemName: actorName || localize("TENEBRE.ModernChat.Actor"),
+      image: "icons/svg/mystery-man.svg",
+      icon: "fa-file-import",
+      notes: extra,
+      flavor: localizeFormat("TENEBRE.ModernChat.MacroCharacterImporterFlavor", { actor: actorName || "-" })
+    };
+  }
+
+  return null;
+}
+
+function isExperienceMacroTitle(title) {
+  const normalized = normalizeComparable(title);
+  return normalized === normalizeComparable(game.i18n.localize("MACRO.ADDEXP_CHANGE"))
+    || normalized === "experience change"
+    || normalized === "alteracao de experiencia"
+    || /\b(experience|experiencia)\b/.test(normalized) && /\b(change|alteracao)\b/.test(normalized);
+}
+
+function actorsMentionedAfterLabel(text) {
+  const cleaned = cleanName(text);
+  const match = cleaned.match(/(?:actors|atores|personagens):\s*(.+?)\s+(?:were|receberam|obtiveram|is now|est[aã]o)/i);
+  if (!match) return [];
+  return match[1].split(/,\s*|;\s*/).map(cleanName).filter(Boolean);
 }
 
 function buildItemUseCard(message, source, text) {
