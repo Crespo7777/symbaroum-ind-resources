@@ -633,6 +633,7 @@ function buildApplyResultsCard(message, source, text) {
 function buildSystemMacroCard(message, source, text) {
   const macro = parseSystemMacroMessage(message, source, text);
   if (!macro) return null;
+  if (macro.layout === "name-generator") return simpleMacroListCard(macro);
 
   const actor = macro.actorName ? findActorByName(macro.actorName) : null;
   return cardShell({
@@ -668,12 +669,12 @@ function parseSystemMacroMessage(message, source, text) {
       title: localize("TENEBRE.ModernChat.MacroNameGenerator"),
       actorLabel: localize("TENEBRE.ModernChat.SystemShort"),
       action: localize("TENEBRE.ModernChat.IllustratedActionGenerated"),
-      itemName: nameCategory || localize("TENEBRE.ModernChat.Names"),
+      itemName: macroNameCategoryLabel(nameCategory) || localize("TENEBRE.ModernChat.Names"),
       image: SYSTEM_CARD_IMAGE,
       icon: "fa-signature",
-      rows: nameCategory ? [[localize("TENEBRE.ModernChat.Category"), nameCategory]] : [],
+      layout: "name-generator",
       notes: names,
-      flavor: localizeFormat("TENEBRE.ModernChat.MacroNameGeneratorFlavor", { category: nameCategory || localize("TENEBRE.ModernChat.Names") })
+      flavor: localizeFormat("TENEBRE.ModernChat.MacroNameGeneratorFlavor", { category: macroNameCategoryLabel(nameCategory) || localize("TENEBRE.ModernChat.Names") })
     };
   }
 
@@ -746,6 +747,52 @@ function parseSystemMacroMessage(message, source, text) {
   }
 
   return null;
+}
+
+function simpleMacroListCard(macro) {
+  const article = document.createElement("article");
+  article.className = "tenebre-modern-chat tenebre-modern-chat-illustrated tenebre-modern-chat-simple-macro tenebre-modern-chat-neutral";
+  const notes = (macro.notes ?? []).map(cleanName).filter(Boolean);
+  article.innerHTML = `
+    <h3 class="tenebre-illustrated-title">${escapeHtml(localize("TENEBRE.ModernChat.System"))}</h3>
+    ${illustratedSeparator()}
+    <div class="tenebre-illustrated-details">
+      ${macro.flavor ? `<p class="tenebre-illustrated-flavor">${escapeHtml(macro.flavor)}</p>` : ""}
+      ${notes.length ? `<ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>` : ""}
+    </div>
+    ${illustratedSeparator()}
+  `;
+  return article;
+}
+
+function macroNameCategoryLabel(category) {
+  const cleaned = cleanName(category);
+  if (!cleaned) return "";
+  const labels = {
+    "ambrian-feminine": { "pt-BR": "Ambriano - Feminino", en: "Ambrian - Feminine" },
+    "ambrian-masculine": { "pt-BR": "Ambriano - Masculino", en: "Ambrian - Masculine" },
+    "ambrian-noble": { "pt-BR": "Ambriano - Nobre", en: "Ambrian - Noble" },
+    "barbarian-feminine": { "pt-BR": "Bárbaro - Feminino", en: "Barbarian - Feminine" },
+    "barbarian-masculine": { "pt-BR": "Bárbaro - Masculino", en: "Barbarian - Masculine" },
+    "abductedhuman-feminine": { "pt-BR": "Humano Abduzido - Feminino", en: "Abducted Human - Feminine" },
+    "abductedhuman-masculine": { "pt-BR": "Humano Abduzido - Masculino", en: "Abducted Human - Masculine" },
+    "dwarf-firstname": { "pt-BR": "Anão - Nome", en: "Dwarf - First Name" },
+    "dwarf-surname": { "pt-BR": "Anão - Sobrenome", en: "Dwarf - Surname" },
+    "elf-feminine": { "pt-BR": "Elfo - Feminino", en: "Elf - Feminine" },
+    "elf-masculine": { "pt-BR": "Elfo - Masculino", en: "Elf - Masculine" },
+    "goblin-feminine": { "pt-BR": "Goblin - Feminino", en: "Goblin - Feminine" },
+    "goblin-masculine": { "pt-BR": "Goblin - Masculino", en: "Goblin - Masculine" },
+    "goblin-tribe": { "pt-BR": "Goblin - Tribo", en: "Goblin - Tribe" },
+    "symbaroumn": { "pt-BR": "Symbaroum", en: "Symbaroum" },
+    "troll-normal": { "pt-BR": "Troll", en: "Troll" },
+    "troll-ancient": { "pt-BR": "Troll Ancião", en: "Ancient Troll" }
+  };
+  const label = labels[normalizeComparable(cleaned).replace(/\s+/g, "-")];
+  if (label) return label[activeModernChatFlavorLanguageKey()] ?? label.en ?? cleaned;
+  return cleaned
+    .split("-")
+    .map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1) : "")
+    .join(" - ");
 }
 
 function isExperienceMacroTitle(title) {

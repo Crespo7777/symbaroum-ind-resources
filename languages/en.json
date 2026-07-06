@@ -521,7 +521,7 @@
   "TENEBRE.ModernChat.DeathRollCriticalFailureFlavor": "{actor} critically failed the death roll and drew their last breath.",
   "TENEBRE.ModernChat.DeathRollNeutralFlavor": "{actor} made a death roll.",
   "TENEBRE.ModernChat.MacroAddExperienceFlavor": "{actors} received {amount} experience.",
-  "TENEBRE.ModernChat.MacroNameGeneratorFlavor": "Generated names for {category}.",
+  "TENEBRE.ModernChat.MacroNameGeneratorFlavor": "Generated Names for {category}.",
   "TENEBRE.ModernChat.MacroReRollFlavor": "{actor} paid 1 {cost} for a re-roll.",
   "TENEBRE.ModernChat.MacroResetTemporaryCorruptionFlavor": "{actors} had temporary corruption reset.",
   "TENEBRE.ModernChat.MacroCharacterImporterFlavor": "{actor} was created by the importer."

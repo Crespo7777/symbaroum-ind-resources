@@ -5,6 +5,7 @@ import { escapeHtml, normalize, promptDialog } from "./utils.mjs";
 const STORABLE_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
 const ACCESSIBLE_STATES = new Set(["equipped", "active"]);
 const expandedContainers = new Set();
+const CAMPING_CONTENTS_SEEDED_FLAG = "campingContentsSeeded";
 
 const LIGHT_CONTAINER_ALIASES = [
   "mochila",
@@ -31,7 +32,12 @@ const LIGHT_CONTAINER_ALIASES = [
   "clay pitcher",
   "alforje",
   "alforjes",
-  "saddlebag"
+  "saddlebag",
+  "equipamento de acampar",
+  "equipamento de acampamento",
+  "equipamento de campo",
+  "field equipment",
+  "camping equipment"
 ];
 
 const BULKY_CONTAINER_ALIASES = [
@@ -55,6 +61,23 @@ const NON_CONTAINER_ALIASES = [
   "one box",
   "one sack",
   "one barrel"
+];
+
+const CAMPING_EQUIPMENT_ALIASES = [
+  "equipamento de acampar",
+  "equipamento de acampamento",
+  "equipamento de campo",
+  "field equipment",
+  "camping equipment"
+];
+
+const DEFAULT_CAMPING_CONTENTS = [
+  "Saco de dormir",
+  "Frigideira",
+  "Lenha",
+  "Pederneira e Isqueiro",
+  "Corda",
+  "Cantil"
 ];
 
 export class ContainerService {
@@ -211,17 +234,18 @@ export class ContainerService {
     rerenderActorSheets(actor);
   }
 
-  static openContainer(actor, container) {
+  static async openContainer(actor, container) {
     return this.toggleContainer(actor, container);
   }
 
-  static toggleContainer(actor, container) {
+  static async toggleContainer(actor, container) {
     if (!actor || !container) return false;
 
     const key = containerKey(actor, container);
     const isExpanded = !expandedContainers.has(key);
     if (isExpanded) {
       expandedContainers.add(key);
+      await seedContainerContents(actor, container);
     } else {
       expandedContainers.delete(key);
     }
@@ -370,6 +394,102 @@ function createStoredItemData(item, container, quantity, preStoredState) {
     preStoredState
   };
   return itemData;
+}
+
+async function seedContainerContents(actor, container) {
+  if (!isCampingEquipment(container)) return;
+  if (container.getFlag?.(FLAG_SCOPE, CAMPING_CONTENTS_SEEDED_FLAG)) return;
+  if (ContainerService.getStoredItems(actor, container).length > 0) return;
+
+  const contentRefs = extractCampingContentRefs(container);
+  if (!contentRefs.length) return;
+
+  const itemData = [];
+  for (const ref of contentRefs) {
+    const document = await findReferencedItem(ref);
+    itemData.push(createSeededStoredItemData(document, ref, container));
+  }
+
+  if (!itemData.length) return;
+  await actor.createEmbeddedDocuments("Item", itemData, { render: true });
+  await container.setFlag(FLAG_SCOPE, CAMPING_CONTENTS_SEEDED_FLAG, true);
+}
+
+function isCampingEquipment(item) {
+  return hasAlias(normalize(item?.name), CAMPING_EQUIPMENT_ALIASES);
+}
+
+function extractCampingContentRefs(container) {
+  const description = String(container?.system?.description ?? "");
+  const refs = [];
+  const seen = new Set();
+
+  for (const match of description.matchAll(/@UUID\[([^\]]+)\]\{([^}]+)\}/g)) {
+    addContentRef(refs, seen, { uuid: match[1], name: match[2] });
+  }
+
+  for (const match of description.matchAll(/data-uuid=["']([^"']+)["'][^>]*>(.*?)<\/a>/gims)) {
+    addContentRef(refs, seen, { uuid: match[1], name: stripHtml(match[2]) });
+  }
+
+  if (!refs.length) {
+    for (const name of DEFAULT_CAMPING_CONTENTS) addContentRef(refs, seen, { name });
+  }
+
+  return refs;
+}
+
+function addContentRef(refs, seen, ref) {
+  const name = String(ref.name ?? "").trim();
+  if (!name) return;
+  const normalizedName = normalize(name);
+  if (!DEFAULT_CAMPING_CONTENTS.some((itemName) => normalize(itemName) === normalizedName)) return;
+  if (seen.has(normalizedName)) return;
+  seen.add(normalizedName);
+  refs.push({ ...ref, name });
+}
+
+async function findReferencedItem(ref) {
+  if (ref.uuid && typeof fromUuid === "function") {
+    const document = await fromUuid(ref.uuid);
+    if (document?.documentName === "Item") return document;
+  }
+
+  const normalizedName = normalize(ref.name);
+  return game.items?.find?.((item) => normalize(item.name) === normalizedName) ?? null;
+}
+
+function createSeededStoredItemData(document, ref, container) {
+  const itemData = document?.toObject?.() ?? {
+    name: ref.name,
+    type: "equipment",
+    img: "icons/svg/item-bag.svg",
+    system: {
+      number: 1,
+      state: "equipped",
+      description: ""
+    }
+  };
+
+  delete itemData._id;
+  itemData.system = foundry.utils.deepClone(itemData.system ?? {});
+  itemData.system.number = 1;
+  itemData.flags = foundry.utils.deepClone(itemData.flags ?? {});
+  itemData.flags[FLAG_SCOPE] = {
+    ...(itemData.flags[FLAG_SCOPE] ?? {}),
+    storedIn: container.id,
+    storedInName: container.name,
+    preStoredState: itemData.system.state ?? "equipped"
+  };
+  return itemData;
+}
+
+function stripHtml(value) {
+  return String(value ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .trim();
 }
 
 function hasAlias(normalizedName, aliases) {
