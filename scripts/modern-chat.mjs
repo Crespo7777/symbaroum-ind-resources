@@ -633,7 +633,7 @@ function buildApplyResultsCard(message, source, text) {
 function buildSystemMacroCard(message, source, text) {
   const macro = parseSystemMacroMessage(message, source, text);
   if (!macro) return null;
-  if (macro.layout === "name-generator") return simpleMacroListCard(macro);
+  if (macro.layout === "name-generator" || macro.layout === "simple-list") return simpleMacroListCard(macro);
 
   const actor = macro.actorName ? findActorByName(macro.actorName) : null;
   return cardShell({
@@ -689,6 +689,7 @@ function parseSystemMacroMessage(message, source, text) {
       itemName: localize("TENEBRE.ModernChat.Experience"),
       image: "icons/svg/upgrade.svg",
       icon: "fa-arrow-up",
+      layout: "simple-list",
       rows: amount ? [[localize("TENEBRE.ModernChat.Experience"), amount]] : [],
       notes: actorList,
       flavor: localizeFormat("TENEBRE.ModernChat.MacroAddExperienceFlavor", {
@@ -701,7 +702,7 @@ function parseSystemMacroMessage(message, source, text) {
   const rerollMatch = text.match(/^Re-roll for\s+(.+?)\n(.+?)\s+paid\s+1\s+(.+?)\s+for\s+a\s+re-roll/i);
   if (rerollMatch) {
     const actorName = cleanName(rerollMatch[2]);
-    const cost = cleanName(rerollMatch[3]);
+    const cost = translateMacroTextFragment(cleanName(rerollMatch[3]));
     return {
       title: localize("TENEBRE.ModernChat.MacroReRoll"),
       actorName,
@@ -709,6 +710,7 @@ function parseSystemMacroMessage(message, source, text) {
       itemName: cost,
       image: "icons/svg/d20.svg",
       icon: "fa-dice-d20",
+      layout: "simple-list",
       rows: [[localize("TENEBRE.ModernChat.Cost"), cost]],
       flavor: localizeFormat("TENEBRE.ModernChat.MacroReRollFlavor", { actor: actorName || "-", cost })
     };
@@ -723,6 +725,7 @@ function parseSystemMacroMessage(message, source, text) {
       itemName: localize("TENEBRE.ModernChat.TemporaryCorruption"),
       image: "icons/svg/aura.svg",
       icon: "fa-droplet-slash",
+      layout: "simple-list",
       notes: actorList,
       flavor: localizeFormat("TENEBRE.ModernChat.MacroResetTemporaryCorruptionFlavor", {
         actors: actorList.join(", ") || "-"
@@ -733,7 +736,7 @@ function parseSystemMacroMessage(message, source, text) {
   const createdMatch = text.match(/^Created\s+(.+?)(?:\n|$)/i);
   if (createdMatch || normalizeComparable(alias) === "character importer macro") {
     const actorName = cleanName(createdMatch?.[1]);
-    const extra = lines.slice(1).filter(Boolean);
+    const extra = lines.slice(1).map(translateMacroTextFragment).filter(Boolean);
     return {
       title: localize("TENEBRE.ModernChat.MacroCharacterImporter"),
       actorLabel: localize("TENEBRE.ModernChat.SystemShort"),
@@ -741,6 +744,7 @@ function parseSystemMacroMessage(message, source, text) {
       itemName: actorName || localize("TENEBRE.ModernChat.Actor"),
       image: "icons/svg/mystery-man.svg",
       icon: "fa-file-import",
+      layout: "simple-list",
       notes: extra,
       flavor: localizeFormat("TENEBRE.ModernChat.MacroCharacterImporterFlavor", { actor: actorName || "-" })
     };
@@ -793,6 +797,25 @@ function macroNameCategoryLabel(category) {
     .split("-")
     .map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1) : "")
     .join(" - ");
+}
+
+function translateMacroTextFragment(value) {
+  const cleaned = cleanName(value);
+  if (!cleaned || !activeModernChatFlavorLanguageKey().startsWith("pt")) return cleaned;
+
+  const exact = {
+    experience: "experiência",
+    "permanent corruption": "corrupção permanente",
+    "temporary corruption": "corrupção temporária",
+    "could not find the attributes": "Não foi possível encontrar os atributos."
+  };
+  const translated = exact[normalizeComparable(cleaned)];
+  if (translated) return translated;
+
+  const levelMatch = cleaned.match(/^Could not establish level for\s+(.+?)\s+-\s+change manually$/i);
+  if (levelMatch) return `Não foi possível definir o nível de ${cleanName(levelMatch[1])}; ajuste manualmente.`;
+
+  return cleaned;
 }
 
 function isExperienceMacroTitle(title) {

@@ -539,6 +539,7 @@
   font-size: 11px;
   line-height: 1.1;
   white-space: nowrap;
+  width: 100%;
 }
 
 .chat-message.tenebre-modern-chat-message .message-sender {
@@ -549,8 +550,11 @@
 }
 
 .chat-message.tenebre-modern-chat-message .message-metadata {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
   flex: 0 0 auto;
-  margin-left: 0;
+  margin-left: auto;
   font-size: 10px;
   line-height: 1.1;
 }
