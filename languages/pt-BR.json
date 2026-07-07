@@ -266,6 +266,8 @@
   "TENEBRE.Containers.Withdraw": "Retirar",
   "TENEBRE.Containers.WithdrawTitle": "Retirar item",
   "TENEBRE.Containers.WithdrawPrompt": "Retirar quantos de {item}?",
+  "TENEBRE.Containers.RecoveredFromDeleted": "{count} item(ns) foram recuperados porque {container} foi excluído.",
+  "TENEBRE.Containers.CannotDeleteNotEmpty": "{container} possui {count} item(ns) guardado(s). Retire todos os itens antes de excluir o recipiente.",
   "TENEBRE.Containers.Edit": "Ver",
   "TENEBRE.Encumbrance.Title": "Sobrecarga",
   "TENEBRE.Encumbrance.Load": "Carga",

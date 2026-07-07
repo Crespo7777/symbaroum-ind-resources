@@ -4,8 +4,9 @@ import { escapeHtml, normalize, promptDialog } from "./utils.mjs";
 
 const STORABLE_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
 const ACCESSIBLE_STATES = new Set(["equipped", "active"]);
-const expandedContainers = new Set();
 const CAMPING_CONTENTS_SEEDED_FLAG = "campingContentsSeeded";
+const CONTAINER_EXPANDED_FLAG = "containerExpanded";
+let hooksRegistered = false;
 
 const LIGHT_CONTAINER_ALIASES = [
   "mochila",
@@ -36,6 +37,9 @@ const LIGHT_CONTAINER_ALIASES = [
   "equipamento de acampar",
   "equipamento de acampamento",
   "equipamento de campo",
+  "algibeira",
+  "jarra de barro",
+  "belt pouch",
   "field equipment",
   "camping equipment"
 ];
@@ -45,9 +49,18 @@ const BULKY_CONTAINER_ALIASES = [
   "barrel",
   "bau",
   "baú",
+  "bau pequeno",
+  "baú pequeno",
+  "bau grande",
+  "baú grande",
   "chest",
+  "small chest",
+  "large chest",
   "caixa",
+  "caixa decorada",
   "box",
+  "decorated box",
+  "snuff box",
   "crate",
   "arca",
   "coffer"
@@ -81,6 +94,23 @@ const DEFAULT_CAMPING_CONTENTS = [
 ];
 
 export class ContainerService {
+  static registerHooks() {
+    if (hooksRegistered) return;
+    hooksRegistered = true;
+
+    Hooks.on("preDeleteItem", (item, options, userId) => {
+      if (userId !== game.user?.id) return true;
+      return this.canDeleteItem(item);
+    });
+
+    Hooks.on("deleteItem", (item, options, userId) => {
+      if (userId !== game.user?.id) return;
+      this.recoverStoredItemsFromDeletedContainer(item).catch((error) => {
+        console.warn("Tenebre Resources | Failed to recover stored items after container deletion.", error);
+      });
+    });
+  }
+
   static isContainer(item) {
     if (!item || !STORABLE_TYPES.has(item.type)) return false;
     if (item.getFlag?.(FLAG_SCOPE, "isContainer") === true) return true;
@@ -129,6 +159,18 @@ export class ContainerService {
   static getStoredItems(actor, container) {
     if (!actor || !container) return [];
     return actorItems(actor).filter((item) => this.getStoredIn(item) === container.id);
+  }
+
+  static canDeleteItem(item) {
+    if (!item || !this.isContainer(item)) return true;
+    const storedItems = this.getStoredItems(item.parent, item);
+    if (!storedItems.length) return true;
+
+    ui.notifications.warn(game.i18n.format("TENEBRE.Containers.CannotDeleteNotEmpty", {
+      container: item.name,
+      count: storedItems.length
+    }));
+    return false;
   }
 
   static async storeItemPrompt(actor, item) {
@@ -190,6 +232,46 @@ export class ContainerService {
     await this.storeItem(actor, item, container, result.quantity);
   }
 
+  static async storeItemInContainerPrompt(actor, item, container) {
+    if (!actor || !item || !container) return;
+    if (!isAccessibleState(item)) {
+      warnInaccessibleState("TENEBRE.Containers.CannotStoreOther");
+      return;
+    }
+    if (!this.canStoreItem(item)) return;
+    if (!this.isContainer(container)) return;
+    if (!isAccessibleState(container)) {
+      warnInaccessibleState("TENEBRE.Containers.CannotStoreInOther");
+      return;
+    }
+
+    const quantity = getStorableQuantity(item);
+    if (quantity <= 1) {
+      await this.storeItem(actor, item, container, 1);
+      return;
+    }
+
+    const content = `
+      <form>
+        <p>${game.i18n.format("TENEBRE.Containers.StorePrompt", { item: escapeHtml(item.name) })}</p>
+        <div class="form-group">
+          <label>${game.i18n.format("TENEBRE.Containers.QuantityWithMax", { max: quantity })}</label>
+          <input type="number" name="quantity" value="${quantity}" min="1" max="${quantity}">
+        </div>
+      </form>
+    `;
+
+    const amount = await promptDialog({
+      title: game.i18n.localize("TENEBRE.Containers.StoreTitle"),
+      content,
+      okIcon: "fas fa-box",
+      callback: (element) => Number(element.querySelector('[name="quantity"]')?.value || quantity)
+    });
+
+    if (amount === null) return;
+    await this.storeItem(actor, item, container, amount);
+  }
+
   static async storeItem(actor, item, container, quantity = 1) {
     if (!isAccessibleState(item)) {
       warnInaccessibleState("TENEBRE.Containers.CannotStoreOther");
@@ -241,13 +323,12 @@ export class ContainerService {
   static async toggleContainer(actor, container) {
     if (!actor || !container) return false;
 
-    const key = containerKey(actor, container);
-    const isExpanded = !expandedContainers.has(key);
+    const isExpanded = !this.isContainerExpanded(actor, container);
     if (isExpanded) {
-      expandedContainers.add(key);
       await seedContainerContents(actor, container);
+      await container.setFlag(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG, true);
     } else {
-      expandedContainers.delete(key);
+      await container.setFlag(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG, false);
     }
 
     rerenderActorSheets(actor);
@@ -256,12 +337,41 @@ export class ContainerService {
 
   static isContainerExpanded(actor, container) {
     if (!actor || !container) return false;
-    return expandedContainers.has(containerKey(actor, container));
+    return container.getFlag?.(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG) === true;
   }
 
   static collapseContainer(actor, container) {
     if (!actor || !container) return;
-    expandedContainers.delete(containerKey(actor, container));
+    container.setFlag(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG, false);
+  }
+
+  static async recoverStoredItemsFromDeletedContainer(container) {
+    const actor = container?.parent;
+    if (!actor) return 0;
+
+    const storedItems = actorItems(actor).filter((item) => this.getStoredIn(item) === container.id);
+    if (!storedItems.length) return 0;
+
+    await restoreStoredItems(actor, storedItems);
+    ui.notifications.info(game.i18n.format("TENEBRE.Containers.RecoveredFromDeleted", {
+      count: storedItems.length,
+      container: container.name
+    }));
+    rerenderActorSheets(actor);
+    return storedItems.length;
+  }
+
+  static async recoverOrphanedStoredItems(actor) {
+    if (!actor) return 0;
+    const orphanedItems = actorItems(actor).filter((item) => {
+      const containerId = this.getStoredIn(item);
+      return containerId && !actor.items.get(containerId);
+    });
+    if (!orphanedItems.length) return 0;
+
+    await restoreStoredItems(actor, orphanedItems);
+    rerenderActorSheets(actor);
+    return orphanedItems.length;
   }
 
   static async withdrawItemPrompt(actor, item) {
@@ -396,6 +506,21 @@ function createStoredItemData(item, container, quantity, preStoredState) {
   return itemData;
 }
 
+async function restoreStoredItems(actor, items) {
+  const updates = items.map((item) => {
+    const preStoredState = item.getFlag(FLAG_SCOPE, "preStoredState") || "equipped";
+    return {
+      _id: item.id,
+      "system.state": preStoredState,
+      [`flags.${FLAG_SCOPE}.-=storedIn`]: null,
+      [`flags.${FLAG_SCOPE}.-=storedInName`]: null,
+      [`flags.${FLAG_SCOPE}.-=preStoredState`]: null
+    };
+  });
+
+  await actor.updateEmbeddedDocuments("Item", updates, { render: true });
+}
+
 async function seedContainerContents(actor, container) {
   if (!isCampingEquipment(container)) return;
   if (container.getFlag?.(FLAG_SCOPE, CAMPING_CONTENTS_SEEDED_FLAG)) return;
@@ -493,19 +618,15 @@ function stripHtml(value) {
 }
 
 function hasAlias(normalizedName, aliases) {
-  const searchableName = toSearchableText(normalizedName);
+  const searchableName = toSearchableText(normalizedName).trim();
   return aliases.some((alias) => {
     const searchableAlias = toSearchableText(alias).trim();
-    return Boolean(searchableAlias) && searchableName.includes(` ${searchableAlias} `);
+    return Boolean(searchableAlias) && searchableName === searchableAlias;
   });
 }
 
 function toSearchableText(value) {
   return ` ${normalize(value).replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ")} `;
-}
-
-function containerKey(actor, container) {
-  return `${actor.uuid ?? actor.id}:${container.id}`;
 }
 
 function rerenderActorSheets(actor) {

@@ -266,6 +266,8 @@
   "TENEBRE.Containers.Withdraw": "Withdraw",
   "TENEBRE.Containers.WithdrawTitle": "Withdraw item",
   "TENEBRE.Containers.WithdrawPrompt": "Withdraw how many of {item}?",
+  "TENEBRE.Containers.RecoveredFromDeleted": "{count} item(s) were recovered because {container} was deleted.",
+  "TENEBRE.Containers.CannotDeleteNotEmpty": "{container} has {count} stored item(s). Withdraw all items before deleting the container.",
   "TENEBRE.Containers.Edit": "View",
   "TENEBRE.Encumbrance.Title": "Encumbrance",
   "TENEBRE.Encumbrance.Load": "Load",

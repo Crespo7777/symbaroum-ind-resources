@@ -67,6 +67,7 @@ Hooks.once("ready", async () => {
 
   patchWeaponRolls();
   registerSheetHooks();
+  ContainerService.registerHooks();
   HotbarService.register();
   HungerService.registerHooks();
   ManeuverService.registerHooks();
@@ -127,6 +128,17 @@ Hooks.once("ready", async () => {
       if (actor.type === "player" && actor.isOwner) {
         EncumbranceService.autoAssignAll(actor);
         EncumbranceService.applyDefensePenalty(actor);
+      }
+    }
+  }
+
+  if (TenebreSettings.get("enableContainers") && game.user.isGM) {
+    for (const actor of game.actors) {
+      if (actor.type === "player") {
+        const recovered = await ContainerService.recoverOrphanedStoredItems(actor);
+        if (recovered > 0) {
+          console.warn(`${MODULE_ID} | Recovered ${recovered} orphaned stored item(s) for ${actor.name}.`);
+        }
       }
     }
   }

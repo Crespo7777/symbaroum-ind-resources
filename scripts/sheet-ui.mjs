@@ -24,6 +24,9 @@ import {
   getQuiverLoadedTotal
 } from "./item-flags.mjs";
 
+const CONTAINER_DRAG_DATA_TYPE = "application/x-tenebre-container-item";
+let activeContainerDrag = null;
+
 // Listas de hooks
 const ACTOR_SHEET_HOOKS = [
   "renderPlayerSheet",
@@ -323,6 +326,8 @@ function onRenderActorSheet(app, html) {
   if (TenebreSettings.get("enableContainers")) {
     hideStoredItemRows(app, html, actor);
     injectContainerInlineLists(app, html, actor);
+    wireContainerLeftClickOpen(app, html, actor);
+    wireContainerDragDrop(app, html, actor);
   }
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
@@ -360,6 +365,163 @@ function shouldUseChatItemFromIcon(item) {
   if (!ChatItemUseService.canSend(item)) return false;
   if (item?.system?.isRitual) return true;
   return item?.system?.isPower === true && item?.system?.hasScript !== true;
+}
+
+function wireContainerLeftClickOpen(app, html, actor) {
+  const el = getRoot(html);
+  if (!el || el.dataset.tenebreContainerLeftClick === "true") return;
+
+  el.dataset.tenebreContainerLeftClick = "true";
+  el.addEventListener("click", async (event) => {
+    if (event.button !== 0) return;
+    const editButton = event.target?.closest?.(".item-edit");
+    if (!editButton || !el.contains(editButton)) return;
+
+    const row = editButton.closest("[data-item-id]");
+    const item = row ? actor.items.get(row.dataset.itemId) : null;
+    if (!ContainerService.isContainer(item) || ContainerService.isStored(item)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    await ContainerService.openContainer(actor, item);
+  }, { capture: true });
+}
+
+function wireContainerDragDrop(app, html, actor) {
+  const el = getRoot(html);
+  if (!el || el.dataset.tenebreContainerDragDrop === "true") return;
+
+  el.dataset.tenebreContainerDragDrop = "true";
+  prepareContainerDraggables(el, actor);
+
+  el.addEventListener("dragstart", (event) => {
+    const dragData = getContainerDragStartData(event, el, actor);
+    if (!dragData) return;
+
+    activeContainerDrag = dragData;
+    event.dataTransfer?.setData(CONTAINER_DRAG_DATA_TYPE, JSON.stringify(dragData));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+  }, { capture: true });
+
+  el.addEventListener("dragend", () => {
+    activeContainerDrag = null;
+    clearContainerDropMarkers(el);
+  }, { capture: true });
+
+  el.addEventListener("dragover", (event) => {
+    const dragData = activeContainerDrag;
+    if (!dragData) return;
+
+    clearContainerDropMarkers(el);
+    const container = getContainerDropTarget(event.target, actor);
+    if (dragData.source === "inventory" && container) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      markContainerDropTarget(el, container);
+      return;
+    }
+
+    if (dragData.source === "stored" && isStoredItemWithdrawDrop(event.target)) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      el.classList.add("tenebre-container-withdraw-drop");
+    }
+  }, { capture: true });
+
+  el.addEventListener("dragleave", (event) => {
+    if (!el.contains(event.relatedTarget)) clearContainerDropMarkers(el);
+  }, { capture: true });
+
+  el.addEventListener("drop", async (event) => {
+    const dragData = activeContainerDrag ?? getContainerDropData(event);
+    if (!dragData || dragData.actorId !== actor.id) return;
+
+    const item = actor.items.get(dragData.itemId);
+    if (!item) return;
+
+    const container = getContainerDropTarget(event.target, actor);
+    if (dragData.source === "inventory" && container) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      await ContainerService.storeItemInContainerPrompt(actor, item, container);
+      rerenderActorSheets(actor);
+    } else if (dragData.source === "stored" && isStoredItemWithdrawDrop(event.target)) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      await ContainerService.withdrawItemPrompt(actor, item);
+      rerenderActorSheets(actor);
+    }
+
+    activeContainerDrag = null;
+    clearContainerDropMarkers(el);
+  }, { capture: true });
+}
+
+function prepareContainerDraggables(el, actor) {
+  for (const row of el.querySelectorAll(".item[data-item-id]")) {
+    const item = actor.items.get(row.dataset.itemId);
+    if (!ContainerService.canAttemptStoreItem(item)) continue;
+    row.draggable = true;
+    row.classList.add("tenebre-container-draggable");
+  }
+}
+
+function getContainerDragStartData(event, root, actor) {
+  const storedRow = event.target?.closest?.(".tenebre-container-item[data-stored-item-id]");
+  if (storedRow && root.contains(storedRow)) {
+    const item = actor.items.get(storedRow.dataset.storedItemId);
+    if (!ContainerService.isStored(item)) return null;
+    return { actorId: actor.id, itemId: item.id, source: "stored" };
+  }
+
+  const itemRow = event.target?.closest?.(".item[data-item-id]");
+  if (!itemRow || !root.contains(itemRow)) return null;
+  const item = actor.items.get(itemRow.dataset.itemId);
+  if (!ContainerService.canAttemptStoreItem(item)) return null;
+  return { actorId: actor.id, itemId: item.id, source: "inventory" };
+}
+
+function getContainerDropData(event) {
+  const raw = event.dataTransfer?.getData(CONTAINER_DRAG_DATA_TYPE);
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    if (data?.actorId && data?.itemId && data?.source) return data;
+  } catch (_error) {
+    // Ignore non-Tenebre drag payloads.
+  }
+  return null;
+}
+
+function getContainerDropTarget(target, actor) {
+  const inlineRow = target?.closest?.(".tenebre-container-inline-row[data-container-id]");
+  if (inlineRow) return actor.items.get(inlineRow.dataset.containerId) ?? null;
+
+  const itemRow = target?.closest?.(".item[data-item-id]");
+  const item = itemRow ? actor.items.get(itemRow.dataset.itemId) : null;
+  if (ContainerService.isContainer(item) && !ContainerService.isStored(item)) return item;
+  return null;
+}
+
+function isStoredItemWithdrawDrop(target) {
+  return !target?.closest?.(".tenebre-container-inline-row, .tenebre-container-inline, .tenebre-container-item");
+}
+
+function markContainerDropTarget(root, container) {
+  const row = root.querySelector(`.item[data-item-id="${container.id}"]`);
+  row?.classList.add("tenebre-container-drop-target");
+  root.querySelector(`.tenebre-container-inline-row[data-container-id="${container.id}"]`)
+    ?.classList.add("tenebre-container-drop-target");
+}
+
+function clearContainerDropMarkers(root) {
+  root.classList.remove("tenebre-container-withdraw-drop");
+  root.querySelectorAll(".tenebre-container-drop-target").forEach((element) => {
+    element.classList.remove("tenebre-container-drop-target");
+  });
 }
 
 function onTenebreSettingChanged(key) {
@@ -547,10 +709,12 @@ function buildContainerInlineItem(actor, item) {
   const row = document.createElement("li");
   row.className = "tenebre-container-item";
   row.dataset.storedItemId = item.id;
+  row.draggable = true;
 
   const img = document.createElement("img");
   img.src = item.img || "icons/svg/item-bag.svg";
   img.alt = "";
+  img.draggable = false;
   row.appendChild(img);
 
   const name = document.createElement("span");
@@ -565,6 +729,7 @@ function buildContainerInlineItem(actor, item) {
 
   const withdraw = document.createElement("button");
   withdraw.type = "button";
+  withdraw.draggable = false;
   withdraw.textContent = game.i18n.localize("TENEBRE.Containers.Withdraw");
   withdraw.addEventListener("click", async (event) => {
     event.preventDefault();
@@ -576,6 +741,7 @@ function buildContainerInlineItem(actor, item) {
 
   const edit = document.createElement("button");
   edit.type = "button";
+  edit.draggable = false;
   edit.textContent = game.i18n.localize("TENEBRE.Containers.Edit");
   edit.addEventListener("click", (event) => {
     event.preventDefault();
