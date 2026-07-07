@@ -1,130 +1,874 @@
-# ⚔️ Symbaroum Ind Resources — Foundry VTT
+# Symbaroum Ind Resources
 
-**Symbaroum Ind Resources** é um módulo desenvolvido para o sistema de RPG **Symbaroum** no **Foundry VTT v13**. O objetivo deste módulo é automatizar o controle de recursos importantes de sobrevivência e combate de forma nativa e integrada à interface do sistema Symbaroum.
+Modulo de recursos, sobrevivencia, combate e qualidade de vida para o sistema
+**Symbaroum** no **Foundry VTT**.
 
----
-
-## ⚔️ Funcionalidades Principais
-
-### 1. 🍞 Pão de Viagem (Travel Bread / Waybread)
-* **Consumo na Ficha:** Clique com o **botão direito** sobre o item de Pão de Viagem (ou *Waybread*) no inventário do personagem e selecione **"Consumir Pão de Viagem"** para gastar 1 uso.
-* **Quantidade e Usos:** A quantidade no inventário exibe quantos usos restam no formato `Unidades (UsosRestantes/MaxUsos)` (ex: `1 (7/7)`).
-* **Notificação no Chat:** Consumir um pão de viagem publica uma mensagem detalhada no Chat contendo o retrato do personagem e as informações de uso do pão.
-* **Cálculo Cumulativo:** O controle de usos calcula o valor total acumulado de todos os pães de viagem que o jogador possui no inventário. A quantidade de usos por pão é configurável nas opções do módulo.
-
-### 2. 🎒 Sistema de Aljava e Recarga de Munições
-* **Ação de Recarga:**
-  * O jogador não dispara projéteis avulsos diretamente da mochila. É necessário equipar e recarregar uma aljava (limite de 12 flechas/virotes no total).
-  * Clique com o **botão direito** em um item de aljava no inventário e selecione **"Recarregar Aljava"**.
-  * Abre um diálogo que permite escolher qual munição avulsa do inventário carregar e a quantidade (limitado dinamicamente pela capacidade restante da aljava e quantidade disponível no inventário).
-  * Uma mensagem detalhada é enviada ao chat com o retrato do personagem, ícone e quantidade da munição carregada, e o status da aljava de destino.
-* **Exibição na Ficha:** O display das aljavas no inventário é atualizado dinamicamente no formato `Quantidade (Carregadas/12)` (ex: `1 (10/12)`).
-* **Indicadores no Rodapé:** A interface exibe um indicador de projéteis recuperáveis e as aljavas em **Equipado** ou **Ativo** com a carga atual (`Carregadas/12`) nos espaços livres próximos à hotbar/chat. Aljavas em **Outro** não aparecem e a HUD informa quando não há aljava equipada/ativa.
-* **Dropdown no Modal de Ataque:** Ao realizar um ataque com arma à distância, o dropdown de munições listará apenas os tipos de projéteis específicos que estão *carregados* nas aljavas equipadas do personagem (ex: `Aljava: Flecha - Precisão (2/12)`).
-
-### 3. 🏹 Projéteis Especiais e Qualidades Alquímicas
-O módulo oferece suporte mecânico completo para todos os projéteis especiais descritos no Livro Básico e Guia Avançado do Jogador. Ao selecionar e disparar do dropdown:
-* **Flecha de Precisão:** Injeta +1 no teste de ataque (qualidade *Precisa*).
-* **Ponta Perfurante de Armadura / Bodkin:** Injeta +1 no modificador de dano (qualidade *Impacto Profundo*).
-* **Flecha Flamejante:** Injeta a condição de Queimando (DoT de 1d4 de dano persistente).
-* **Flecha de Laço:** Envia um card no chat com testes interativos de fuga de `[Vigoroso - Dano]` e dano de remoção de `1d4`.
-* **Outros Projéteis Oficiais:** Suporte narrativo e mecânico integrado para *Flecha Sibilante, Arpéu, Cabeça de Martelo, Cauda de Andorinha, Cortador de Corda, Flecha Certeira (Alquímica)* e *Raio Atordoante*.
-
-### 4. 🎲 Recuperação Oficial por Projétil (Individual d20)
-O sistema antigo de porcentagem estática foi substituído pela regra oficial de recuperação individual por d20:
-* Ao clicar em **"Recuperar Munição"** após o combate, o sistema resolve todos os projéteis pendentes em uma fila automática. Se 7 ataques acertaram, há 7 testes pendentes; o jogador clica uma vez e o módulo rola 1d20 para cada projétil, um depois do outro, aguardando o resultado de cada rolagem antes de iniciar a próxima:
-  * **Projétil Comum (sem qualidades):** Recupera se rolar **10 ou menos** (`d20 <= 10`).
-  * **Projétil com Qualidade (Precisa, Flamejante, etc.):** Recupera se rolar **15 ou menos** (`d20 <= 15`).
-  * **Projétil Místico/Alquímico (Certeira, Atordoante):** Recupera se rolar **17 ou menos** (`d20 <= 17`).
-* O mesmo fluxo sequencial é usado tanto pelo botão de recuperação próximo à hotbar quanto pela ação de botão direito na arma.
-* Exibe no chat o d20 de cada projétil, informa se foi recuperado ou quebrou e mostra a evolução da fila até todos os testes terminarem.
-* Todo o sistema de aljavas, munição carregada, consumo de munição e recuperação automática é aplicado apenas a fichas de **Jogador**. NPCs, monstros e outras fichas continuam usando o fluxo normal do sistema.
-
-### 5. 🍲 Regra Opcional de Fome (Hunger)
-* **Status Effect HUD:** Adiciona o status **Fome** (ícone monocromático próprio) na paleta de efeitos de status do Token no HUD do Foundry.
-* **Aviso no Chat:** Quando o efeito Fome é aplicado, o chat recebe uma notificação com imagem e nome do personagem afetado.
-* **Sem Cura Natural:** Personagens sob o efeito de Fome não recuperam vitalidade ao descansar (cura forçada a 0).
-* **Desvantagem Constante:** Qualquer rolagem de atributo ou teste feito sob o efeito de Fome é executado com desvantagem (rola 2d20 e escolhe o pior resultado/maior d20).
-* **Testes Diários de Inanição:** Durante o descanso de um personagem com Fome, para cada dia passado, o sistema rola automaticamente um teste de **Vigoroso** (Strong) com desvantagem. Se falhar, o modificador temporário de Vigoroso recebe **-1**. Chegar a Vigoroso total 0 marca o personagem como morto, zera a Vitalidade e registra a morte por inanição no chat.
-* **Recuperação de Vigoroso:** Remover Fome representa o personagem voltando a se alimentar, mas não apaga imediatamente o dano de inanição. Depois que a Fome acaba, o botão **Descanso** recupera naturalmente 1 ponto de Vigoroso perdido por dia. Curas herbais e poderes podem recuperar essa penalidade pela API `game.tenebreResources.hunger.recoverStrongPenalty(actor, amount, { source })`, como se fossem pontos de Vitalidade.
-
-### 6. ⚖️ Sistema de Sobrecarga Opcional (Encumbrance)
-* **Regra do Guia Avançado do Jogador:** Implementa a regra opcional de sobrecarga baseada no atributo **Vigoroso** (Strong).
-* **Painel Dinâmico na Ficha:** Injeta um painel com barra de progresso próximo ao cabeçalho "Equipamento", mostrando a carga atual, capacidade máxima e penalidades defensivas ativas.
-* **Auto-atribuição Global:** O sistema usa `data/encumbrance-weights.json` como banco de pesos por nome de item. O arquivo possui a seção `items`, no formato `"Pão de Viagem": 1`, e a seção `bundles` para pilhas como flechas/virotes. A comparação ignora maiúsculas/minúsculas e acentos para evitar duplicação desnecessária.
-  * **Recarga em tempo real:** O arquivo instalado no módulo é recarregado automaticamente em até 1 segundo enquanto o Foundry está aberto, usando `fetch` sem cache. Alterações feitas apenas na pasta do projeto precisam ser copiadas para `Data/modules` para entrarem no Foundry.
-  * **Peso Padrão:** 1 espaço quando o item não existir no JSON e não tiver regra específica.
-  * **Estado dos Itens:** Itens em estado **Equipado** ou **Ativo** contam para sobrecarga. Itens em **Outro** não contam peso.
-  * **Munições:** Flechas e virotes contam como 1 item transportado para cada 10 unidades.
-  * **Itens Pequenos:** Moedas, pingentes e joias contam como 1 item transportado para cada 50 peças.
-  * **Recipientes Volumosos:** Barris, baús e caixas contam como 1 item próprio, somado ao conteúdo carregado separadamente.
-  * **Peso Duplo (2 espaços):** Armas pesadas, de duas mãos ou com a qualidade Maciça (Massive).
-  * **Armaduras Equipadas:** Armaduras em estado **Equipado** contam pela categoria: leve 2, média 3, pesada 4.
-* **Edição Manual Flexível:** Armas, armaduras e equipamentos exibem o campo **Peso** na descrição do item, abaixo de **Número**, permitindo ajuste manual quando necessário.
-* **Mecânicas de Capacidade:** A capacidade básica é o valor de Vigoroso. O dom **Transportador** (Porter) multiplica a capacidade por 1.5. A cada espaço acima do limite, o sistema avisa o jogador e indica um redutor na **Defesa** equivalente ao sobrepeso. Ultrapassar o dobro do Vigoroso imobiliza o personagem.
-
-### 7. 📏 Régua de Movimento Symbaroum
-* **Régua própria:** Colore a régua nativa de movimento do token usando as distâncias de Symbaroum.
-* **Cores de alcance:** Verde indica movimento dentro da Ação de Movimento padrão (`10 m`), amarelo indica uso da Ação de Movimento + Ação de Combate como movimento adicional (`20 m`) e vermelho indica deslocamento acima do limite atual.
-* **Interação com efeitos:** Fome reduz o deslocamento pela metade. Sobrecarga acima do máximo imobiliza. Manobras como Agarrar, Derrubado, Nocauteado e Mira Cuidadosa ajustam ou bloqueiam o movimento automaticamente.
-* **Validação em combate:** Durante combate ativo, movimentos acima do limite calculado são bloqueados, exceto deslocamentos/teleportes do próprio Foundry.
-* **API de diagnóstico:** `game.tenebreResources.movement.getMovementSummary(actor)` mostra o limite atual, multiplicadores e motivos aplicados.
-
-### 8. 🎒 Recipientes e Itens Guardados (Containers)
-* **Recipientes Detectados:** Mochilas, sacos, sacolas, bolsas, alforjes, cestos, jarros, baús, caixas e barris são reconhecidos como recipientes.
-* **Guardar Item:** Clique com o **botão direito** em um item e selecione **Guardar**. O sistema permite escolher o recipiente de destino e, quando o item possuir pilha, a quantidade a guardar.
-* **Estado Necessário:** Só é possível guardar itens e retirar itens de recipientes quando o item/recipiente estiver em **Equipado** ou **Ativo**. Itens ou recipientes em **Outro** bloqueiam a ação e exibem aviso.
-* **Abrir Recipiente:** Clique com o **botão direito** no recipiente e selecione **Abrir** para expandir ou recolher uma sublista logo abaixo dele na própria ficha.
-* **Ações Dentro do Recipiente:** A sublista do recipiente permite **Retirar** ou **Ver** cada item guardado.
-  * **Retirar:** permite escolher a quantidade quando o item guardado possui pilha.
-  * **Ver:** abre a ficha do item.
-* **Uso de Itens Guardados:** Para usar um item, primeiro retire-o do recipiente para o inventário principal.
-* **Peso e Sobrecarga:** Itens guardados ficam ocultos da lista principal da ficha, mas continuam contando para sobrecarga se o recipiente estiver em **Equipado** ou **Ativo**. Recipientes leves não contam peso próprio; recipientes volumosos contam peso próprio e também somam o conteúdo.
-* **Pilhas Parciais:** Se guardar ou retirar apenas parte de uma pilha, o sistema divide ou junta automaticamente com uma pilha visível igual quando possível.
-* **Fase Atual:** Esta é a fase 1 da função de containers. O fluxo usa menus de botão direito e sublista expansível na ficha. Drag-and-drop direto para dentro de recipientes fica para uma fase posterior.
-
-### 9. 🛏️ Descanso Avançado (botão "Descanso")
-* Adiciona um botão dedicado **Descanso** na barra de cabeçalho da ficha do PJ.
-* Permite configurar a quantidade de **Dias de descanso** e a taxa de **Cura por dia**.
-* Zera os testes de morte falhos e remove a **Corrupção Temporária** (caso o personagem sobreviva aos testes de inanição).
-
-### 10. ⚔️ Manobras de Combate
-* **Seção nativa na ficha:** Adiciona uma linha de **Manobras** abaixo da seção de armas, seguindo o visual da ficha de Symbaroum.
-* **Seleção e rolagem:** O jogador escolhe uma manobra em uma lista e clica em **Rolar**. A seleção permanece na última manobra usada.
-* **Manobras automatizadas:** Inclui Adiar a Iniciativa, Agarrar, Desarmar, Encontrão, Investida, Mira Cuidadosa, Nocaute, Defesa Total, Ofensiva Total, Empurrão, Veneno em Armas e Tomar a Iniciativa.
-* **Aplicação de efeitos:** Efeitos positivos e negativos são aplicados automaticamente no ator correto quando a regra permite. Efeitos com duração de turno ou combate são removidos automaticamente quando expiram.
-* **Limpeza de efeitos:** O botão **Limpar efeitos** remove efeitos ativos da ficha, incluindo efeitos de manobra e Fome.
-* **Restrição de tipo de ficha:** A automação de manobras está disponível apenas para fichas de **Jogador**.
-
-### 11. 🧩 Compatibilidade com Token Action HUD Symbaroum
-* Integra automaticamente com **Token Action HUD Core** e **Token Action HUD Symbaroum RPG** quando esses módulos estão ativos.
-* Adiciona um grupo **Manobras** no Token Action HUD para fichas de Jogador, usando os mesmos cálculos, alvos, prompts e efeitos da seção de manobras da ficha.
-* Não altera os arquivos do Token Action HUD; a integração usa hooks oficiais do Core.
-* Monstros e NPCs não recebem ações de manobra no HUD.
+O modulo aparece nas configuracoes como **Tenebre Resources**, mas o ID tecnico
+do pacote continua sendo `symbaroum-ind-resources`.
 
 ---
 
-## 💾 Instalação
+## Visao Geral
 
-### Dependências
-* **Obrigatória:** `socketlib` (declarado no `module.json`).
-* **Opcional:** `token-action-hud-core` + `token-action-hud-symbaroum`, caso o grupo queira rolar ações pelo Token Action HUD.
+O **Symbaroum Ind Resources** adiciona automacoes opcionais para mesas que querem
+controlar melhor alimentacao, fome, munição, aljavas, sobrecarga, recipientes,
+movimento, manobras e mensagens de chat.
 
-Copie o link abaixo e cole no campo **Manifest URL** dentro da aba *Add-on Modules* do Foundry VTT:
+O objetivo do modulo e manter o fluxo de jogo rapido, legivel e fiel as regras
+de Symbaroum, sem obrigar o Mestre a usar todas as funcoes ao mesmo tempo. Quase
+tudo pode ser ativado ou desativado nas configuracoes.
+
+Principais frentes:
+
+- Controle de **Pao de Viagem / Waybread** com usos acumulados.
+- Sistema de **aljavas**, recarga, descarga, consumo automatico e recuperacao de
+  flechas/virotes.
+- Regra opcional de **Fome** e testes de inanição durante o descanso.
+- Regra opcional de **Sobrecarga** com pesos por item.
+- Sistema de **recipientes** com sublistas expansivas na ficha.
+- **Regua de movimento** baseada na distancia de Symbaroum.
+- Automacao de **manobras de combate**.
+- Chat moderno no estilo **Ilustrado**, com opcao **Legacy** para voltar ao
+  visual original do sistema.
+- Compatibilidade com **Dice So Nice**, **Automated Animations**, **Token Action
+  HUD**, **Drag Ruler** e outros modulos comuns.
+
+---
+
+## Compatibilidade
+
+| Componente | Versao |
+| --- | --- |
+| Foundry VTT | v13 |
+| Sistema Symbaroum | 6.1.6 |
+| Modulo | 0.2.26 |
+| Manifest | `https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module.json` |
+| Download | `https://github.com/Crespo7777/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
+
+### Dependencia obrigatoria
+
+- `socketlib`
+
+### Dependencia recomendada
+
+- `libWrapper`
+
+`libWrapper` nao e obrigatorio, mas melhora a convivencia quando outros modulos
+tambem alteram dialogs, fichas, rolagens, menus ou tokens.
+
+### Modulos opcionais integrados
+
+- `dice-so-nice`: rolagens do modulo aguardam o dado 3D quando disponivel.
+- `autoanimations`: itens, habilidades, poderes e rituais enviados ao chat ficam
+  detectaveis por Automated Animations.
+- `JB2A`: recomendado para animacoes visuais com Automated Animations.
+- `token-action-hud-core` e `token-action-hud-symbaroum`: adiciona acoes do
+  modulo ao HUD.
+- `drag-ruler`: quando ativo, o Tenebre cede a regua propria para evitar conflito.
+
+---
+
+## Instalacao
+
+### Pelo Foundry
+
+1. Abra o Foundry VTT.
+2. Va em **Add-on Modules**.
+3. Clique em **Install Module**.
+4. Cole o manifest:
 
 ```text
 https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module.json
 ```
 
+5. Ative o modulo dentro do mundo.
+6. Ative tambem `socketlib`.
+
+### Manualmente
+
+1. Baixe `symbaroum-ind-resources.zip` na aba de Releases.
+2. Extraia para:
+
+```text
+FoundryVTT/Data/modules/symbaroum-ind-resources
+```
+
+3. O arquivo `module.json` precisa ficar diretamente dentro da pasta
+   `symbaroum-ind-resources`, nao dentro de uma subpasta extra.
+4. Reinicie o Foundry ou pressione `F5` no mundo.
+
 ---
 
-## ⚙️ Configurações e Atalhos
+## Configuracoes
 
-### Configurações de Sobrevivência e Automáticas
-1. No menu lateral direito do Foundry VTT, vá na aba **Configurações de Jogo** (ícone de engrenagem).
-2. Clique em **Configurar Ajustes** (Configure Settings).
-3. Na aba **Ajustes do Sistema** (System Settings), clique em **Symbaroum Ind Resources**.
-4. Configure os controles de Pão de Viagem, consumo de munição, rastreamento de acertos, recuperação de munição, Fome, descanso, Sobrecarga e demais automações do módulo.
+As configuracoes ficam em:
 
-### Atalhos de Teclado (Keybindings)
-* **Abrir Diálogo de Descanso** (para o PJ controlado — padrão: `Ctrl + Shift + R`).
+```text
+Configuracoes de Jogo -> Configure Settings -> Symbaroum Ind Resources / Tenebre Resources
+```
+
+### Alimentacao
+
+| Opcao | Efeito |
+| --- | --- |
+| Ativar Pao de Viagem | Ativa o controle especial de Pao de Viagem / Waybread. |
+| Usos por pao | Define quantos dias cada unidade alimenta. Padrao: 7. |
+
+### Municao
+
+| Opcao | Efeito |
+| --- | --- |
+| Ativar consumo automatico | Consome municao carregada quando a arma a distancia dispara. |
+| Ativar rastreamento de acertos | Registra flechas/virotes que acertaram para recuperacao posterior. |
+| Ativar recuperacao | Permite testar recuperacao de projeteis. |
+| Exibir botao de recuperacao na HUD | Mostra o botao de projeteis recuperaveis perto da hotbar. |
+| Exibir aljavas na HUD | Mostra aljavas equipadas/ativas e sua carga atual. |
+| Exibir municoes especiais no chat | Envia card de descricao quando uma municao especial e usada. |
+
+### Descanso e Fome
+
+| Opcao | Efeito |
+| --- | --- |
+| Ativar Fome | Adiciona o efeito Fome e aplica a regra opcional de inanicao. |
+| Exibir botao Descanso nas fichas | Adiciona o botao Descanso no cabecalho da ficha. |
+| Ativar recuperacao automatica | Recupera Vitalidade pelo descanso. |
+| HP/Vitalidade por dia de descanso | Valor recuperado por dia. Padrao: 1. |
+
+### Sobrecarga e recipientes
+
+| Opcao | Efeito |
+| --- | --- |
+| Ativar Sobrecarga | Ativa calculo de peso/carga pela regra opcional. |
+| Ativar gerenciamento de recipientes | Permite guardar, retirar e abrir recipientes na ficha. |
+
+### Movimento
+
+| Opcao | Efeito |
+| --- | --- |
+| Ativar regra de movimento | Ativa a regua colorida e validacao de movimento. |
+| Unidades de movimento | Alterna entre metros e pes. |
+| Distancia de um movimento (metros) | Padrao: 10 m. |
+| Distancia de um movimento (pes) | Padrao: 30 ft. |
+
+### Automacao de combate
+
+| Opcao | Efeito |
+| --- | --- |
+| Ativar manobras | Mostra e automatiza manobras na ficha e no Token Action HUD. |
+| Ativar visual moderno do chat | Reformula cards de chat. |
+| Estilo do chat moderno | `Ilustrado` ou `Legacy`. |
+| Ativar envio de itens/habilidades para animacoes | Envia itens, habilidades, rituais e poderes ao chat com dados detectaveis. |
+| Exibir botao Limpar efeitos | Mostra botao para remover efeitos ativos da ficha. |
+| Ativar integracao com Token Action HUD | Adiciona acoes do modulo ao Token Action HUD quando disponivel. |
+
+### Utilidades
+
+| Opcao | Efeito |
+| --- | --- |
+| Ativar macros e tabelas de utilidade | Ativa versos, inspiracao, geradores, eventos de floresta e utilidades Bithir internas. |
+| Ativar Gerar Sombra | Exibe o controle Gerar Sombra nas fichas quando as utilidades estao ativas. |
+
+---
+
+## Pao de Viagem
+
+O modulo reconhece **Pao de Viagem**, **Waybread** e nomes equivalentes.
+
+Funciona assim:
+
+1. O item pode existir em pilha.
+2. Cada unidade possui uma quantidade de usos configuravel.
+3. O display aparece como:
+
+```text
+4 (28/28)
+```
+
+Isso significa 4 unidades e 28 usos totais restantes.
+
+Ao consumir:
+
+- 1 uso e removido.
+- Quando uma unidade inteira e consumida, a quantidade baixa automaticamente.
+- O chat recebe um card informando quantos usos ainda restam.
+
+---
+
+## Aljavas e Municao
+
+O fluxo de municao foi desenhado para separar:
+
+- Flechas/virotes avulsos no inventario.
+- Flechas/virotes carregados em aljava.
+- Municao usada em ataques.
+- Municao recuperavel depois de acertos.
+
+### Aljava
+
+- A aljava comporta ate **12 projeteis**.
+- Flechas e virotes normalmente sao comprados em pilhas de 10.
+- O jogador precisa recarregar a aljava antes de usar a municao em combate.
+- Aljavas em estado **Equipado** ou **Ativo** aparecem no ataque e na HUD.
+- Aljavas em **Outro** nao aparecem como disponiveis.
+
+### Recarregar Aljava
+
+Botao direito na aljava:
+
+```text
+Recarregar Aljava
+```
+
+O dialog permite escolher:
+
+- Qual municao avulsa carregar.
+- Quantidade a carregar.
+
+O limite respeita:
+
+- Capacidade restante da aljava.
+- Quantidade disponivel no inventario.
+
+### Descarregar Aljava
+
+Botao direito na aljava:
+
+```text
+Descarregar Aljava
+```
+
+O dialog permite escolher a municao carregada e a quantidade a retirar. A municao
+volta para o inventario como item avulso.
+
+### Consumo automatico
+
+Ao atacar com uma arma que usa flechas/virotes:
+
+1. O dialog de ataque mostra a municao carregada nas aljavas disponiveis.
+2. Ao rolar, o modulo consome 1 unidade da aljava.
+3. Se o ataque acertar, a municao entra na fila de recuperacao.
+4. A mensagem de ataque pode incluir a municao usada, por exemplo:
+
+```text
+Teste atacou Etterherd com Arco Longo usando Flecha Certeira e acertou.
+```
+
+---
+
+## Recuperacao de Municao
+
+A recuperacao usa um teste por projetil, mantendo o suspense de cada flecha ou
+virote.
+
+Quando ha projeteis recuperaveis:
+
+- O botao aparece na HUD apenas se houver pelo menos 1 projetil pendente.
+- Tambem existe opcao no menu de contexto da arma.
+- Cada clique rola um teste individual.
+- O modulo aguarda Dice So Nice quando o dado 3D esta ativo.
+
+### Dificuldade do teste
+
+| Tipo de projetil | Recupera com |
+| --- | --- |
+| Comum | `1d20 <= 10` |
+| Com qualidade | `1d20 <= 15` |
+| Mistico / alquimico | `1d20 <= 17` |
+
+O chat informa:
+
+```text
+1d20 contra 17 ou menos
+Teste tentou recuperar Flecha Certeira e obteve sucesso.
+```
+
+---
+
+## Municoes especiais
+
+O modulo reconhece municoes oficiais e nomes em PT-BR/EN sempre que possivel.
+
+Exemplos:
+
+- Flechas/Virotes - Regulares
+- Flecha Certeira
+- Flecha - Precisao
+- Flecha - Cortador de Corda
+- Flecha - Ponta Perfurante de Armadura
+- Flecha - Flamejante
+- Flecha - Laco
+- Flecha - Sibilante
+- Arpeu
+- Cabeca de Martelo
+- Cauda de Andorinha Sangrenta
+- Virote Atordoante / Stunning Bolt
+
+Municoes especiais podem alterar modificadores, enviar descricao ao chat ou
+registrar efeitos conforme a regra cadastrada.
+
+---
+
+## Fome
+
+A regra opcional de Fome adiciona um efeito de status proprio.
+
+Enquanto o personagem esta com Fome:
+
+- Nao se beneficia de cura natural.
+- Testes sofrem segunda chance de falha quando a regra exige.
+- Movimento fica reduzido pela metade.
+- Durante descanso, o personagem faz teste de inanição.
+
+### Teste de inanição
+
+O teste e:
+
+```text
+1D20 Contra X em Vigoroso
+```
+
+Se falhar:
+
+- O personagem perde 1 ponto temporario de Vigoroso.
+- Se Vigoroso chegar a 0, o personagem morre por inanição.
+
+### Recuperacao depois da Fome
+
+Quando a Fome acaba:
+
+- A penalidade de Vigoroso nao some automaticamente.
+- O personagem recupera naturalmente 1 ponto por dia de descanso.
+- Curas e poderes podem recuperar esses pontos como se fossem Vitalidade.
+
+---
+
+## Descanso
+
+O botao **Descanso** aparece no cabecalho da ficha de personagem jogador quando
+ativado.
+
+O dialog permite definir:
+
+- Dias de descanso.
+- Cura por dia.
+
+Durante o descanso:
+
+- Vitalidade pode ser recuperada.
+- Corrupcao temporaria pode ser zerada.
+- Testes de inanição sao resolvidos se o personagem estiver com Fome.
+- Cards ilustrados informam sucesso, falha ou morte por inanição.
+
+---
+
+## Sobrecarga
+
+O modulo implementa a regra opcional de carga baseada em **Vigoroso**.
+
+### Regra geral
+
+- Capacidade normal: valor de Vigoroso.
+- Com o dom Transportador: capacidade multiplicada por 1,5.
+- Cada item acima da capacidade aplica penalidade em Defesa.
+- Acima do dobro do Vigoroso, o personagem fica imobilizado.
+
+### Estados dos itens
+
+| Estado | Conta peso? |
+| --- | --- |
+| Equipado | Sim |
+| Ativo | Sim |
+| Outro | Nao |
+
+Excecao importante: itens dentro de um recipiente contam conforme o estado do
+recipiente. Se a mochila/baú estiver **Equipado** ou **Ativo**, os itens dentro
+dela contam peso mesmo que estejam ocultos da lista principal.
+
+### Pesos por item
+
+O arquivo principal e:
+
+```text
+data/encumbrance-weights.json
+```
+
+Ele possui duas secoes:
+
+```json
+{
+  "version": 2,
+  "items": {
+    "Pao de Viagem": 1,
+    "Arco Longo": 1
+  },
+  "bundles": {
+    "Flechas/Virotes - Regulares": {
+      "bundleSize": 10,
+      "slots": 1
+    }
+  }
+}
+```
+
+`items` define peso item por item.  
+`bundles` define grupos que pesam por pacote, como flechas, moedas e joias.
+
+O sistema normaliza acentos e maiusculas/minusculas na comparacao, mas o nome
+legivel no JSON deve ser mantido o mais proximo possivel dos livros e dos itens
+do compendio.
+
+---
+
+## Recipientes
+
+Recipientes permitem guardar itens em uma sublista expansiva dentro da propria
+ficha.
+
+### Como usar
+
+Botao direito em um item:
+
+```text
+Guardar
+```
+
+Botao direito em um recipiente:
+
+```text
+Abrir
+```
+
+Dentro da sublista:
+
+- **Retirar** devolve o item ao inventario principal.
+- **Ver** abre a ficha do item.
+
+### Regras de estado
+
+Guardar e retirar so funciona se o item/recipiente estiver:
+
+- Equipado
+- Ativo
+
+Se estiver em **Outro**, o modulo bloqueia a acao e mostra aviso.
+
+### Recipientes reconhecidos
+
+Exemplos reconhecidos:
+
+- Mochila / Backpack
+- Saco / Sack
+- Sacola
+- Alforje
+- Bolsa / Belt pouch / Coin purse
+- Cesta / Basket
+- Jarro de barro / Clay pitcher
+- Caixa decorada / Decorated box
+- Baú pequeno / Small Chest
+- Baú grande / Large Chest
+- Barril / Barrel
+- Snuff Box
+- Equipamento de Acampar / Field equipment / Camping equipment
+
+### Equipamento de Acampar
+
+O item **Equipamento de Acampar** e tratado como recipiente especial. Quando ele
+traz uma lista em sua descricao no formato **Contem:**, o modulo pode inicializar
+os itens internos automaticamente.
+
+Exemplo de conteudo esperado:
+
+- Saco de Dormir
+- Frigideira
+- Lenha
+- Pederneira e Isqueiro
+- Corda
+- Cantil
+
+Depois de inicializado, esses itens aparecem dentro da sublista do recipiente.
+
+---
+
+## Movimento
+
+A regua propria do modulo colore o movimento do token:
+
+| Cor | Significado |
+| --- | --- |
+| Verde | Dentro de uma acao de movimento. |
+| Amarelo | Movimento dobrado, usando movimento + acao de combate. |
+| Vermelho | Acima do limite permitido. |
+
+Por padrao:
+
+- 1 movimento = 10 metros.
+- Movimento dobrado = 20 metros.
+
+Fome, sobrecarga e efeitos de manobra podem reduzir ou bloquear movimento.
+
+Se **Drag Ruler** estiver ativo, o Tenebre desativa sua propria regua colorida
+para nao disputar a mesma area do Foundry.
+
+---
+
+## Manobras
+
+O modulo adiciona uma area de **Manobras** na ficha e pode integrar essas acoes
+ao Token Action HUD.
+
+Manobras atualmente automatizadas:
+
+- Adiar a Iniciativa
+- Agarrar
+- Desarmar
+- Encontrão
+- Investida
+- Mira Cuidadosa
+- Nocaute
+- Defesa Total
+- Ofensiva Total
+- Empurrão
+- Veneno em Armas
+- Tomar a Iniciativa
+
+Quando possivel, o modulo:
+
+- Rola o teste necessario.
+- Aplica efeitos ativos.
+- Remove efeitos expirados.
+- Publica cards de chat no estilo configurado.
+
+---
+
+## Chat Moderno
+
+O modulo possui dois estilos:
+
+| Estilo | Descricao |
+| --- | --- |
+| Ilustrado | Cards visuais no estilo Symbaroum, com retratos, icones, resultado e texto claro. |
+| Legacy | Usa o chat original do sistema Symbaroum. |
+
+O estilo **Ilustrado** cobre:
+
+- Ataques.
+- Testes de atributo.
+- Testes de defesa.
+- Pedidos de resistencia.
+- Habilidades.
+- Poderes.
+- Rituais.
+- Manobras.
+- Uso de itens.
+- Pao de Viagem.
+- Recarregar e recuperar municao.
+- Descanso.
+- Fome.
+- Rolagem de morte.
+- Aplicar resultados.
+- Macros e mensagens de sistema.
+
+### Pedidos de resistencia
+
+Quando o sistema pede resistencia ao jogador, o card e mantido simples para nao
+poluir o chat:
+
+```text
+Loba Faminta ataca usando Mordida
+Crespo pode resistir ao ataque
+[Rolar resistencia]
+```
+
+Depois que o jogador rola a resistencia, o card de ataque normal aparece logo
+abaixo com o resultado.
+
+### Dados 3D
+
+Rolagens do modulo usam o helper de dados interno:
+
+- Rola o dado.
+- Aguarda Dice So Nice quando disponivel.
+- So depois publica o resultado.
+
+Isso evita que o chat mostre o resultado antes do dado terminar de rolar.
+
+---
+
+## Envio de itens, habilidades e rituais ao chat
+
+Quando a opcao **Ativar envio de itens/habilidades para animacoes** esta ligada,
+itens e poderes que normalmente nao gerariam card podem ser enviados ao chat.
+
+Isso ajuda o **Automated Animations** a detectar:
+
+- Habilidades passivas usadas manualmente.
+- Rituais.
+- Poderes mistico.
+- Itens especiais.
+- Acoes narrativas que precisam disparar animacoes.
+
+O item enviado carrega nome, imagem, ator e dados suficientes para o modulo de
+animacao reconhecer a acao.
+
+---
+
+## Macros e utilidades
+
+O modulo inclui utilidades inspiradas no pacote Bithir:
+
+- Gerador de nomes.
+- Geradores de personagens/criaturas.
+- Eventos de floresta.
+- Versos de Aroaleta.
+- Rolagem de inspiracao.
+- Gerar Sombra.
+- Macros de experiencia, rerrolagem e corrupcao temporaria.
+
+Quando o modulo oficial **Bithir's Symbaroum Mods** esta ativo, o Tenebre desliga
+as utilidades internas equivalentes para evitar disputa de namespace.
+
+---
+
+## Compatibilidade e blindagem
+
+O modulo possui uma camada central de compatibilidade em:
+
+```text
+scripts/compatibility.mjs
+```
+
+Ela detecta modulos que mexem nas mesmas areas e decide quando o Tenebre deve
+ceder para evitar travamentos.
+
+Exemplos:
+
+- Com **Drag Ruler** ativo, a regua propria do Tenebre e desativada.
+- Com **Bithir's Symbaroum Mods** ativo, utilidades Bithir internas sao cedidas.
+- Com dois tokenizadores ativos, o Tenebre apenas avisa e nao interfere.
+- Modulos com faixa de compatibilidade externa antiga sao reportados, mas nao
+  alterados.
+
+### Aviso de compatibilidade
+
+O aviso aparece somente para usuarios GM.
+
+O Mestre pode marcar:
+
+```text
+Nao mostrar novamente estes avisos ja listados
+```
+
+Se novos conflitos aparecerem depois, o aviso volta a abrir apenas com os novos
+itens ainda nao reconhecidos.
+
+### Diagnostico
+
+No console do Foundry:
+
+```js
+game.tenebreResources
+```
+
+Servicos principais expostos:
+
+- `game.tenebreResources.ammo`
+- `game.tenebreResources.containers`
+- `game.tenebreResources.encumbrance`
+- `game.tenebreResources.hunger`
+- `game.tenebreResources.maneuvers`
+- `game.tenebreResources.movement`
+- `game.tenebreResources.rations`
+- `game.tenebreResources.rest`
+- `game.tenebreResources.compatibility`
+
+---
+
+## Arquivos de dados editaveis
+
+### Pesos e pacotes
+
+```text
+data/encumbrance-weights.json
+```
+
+Controla:
+
+- Peso individual por item.
+- Pesos por pacote, como flechas a cada 10 ou moedas a cada 50.
+
+### Frases do chat ilustrado
+
+```text
+data/modern-chat-flavor.json
+```
+
+Controla frases narrativas usadas nos cards:
+
+- Ataques.
+- Habilidades.
+- Atributos.
+- Rituais.
+- Poderes.
+- Itens.
+- Fome.
+- Descanso.
+- Sistema.
+
+Tambem aceita overrides por nome de item/habilidade.
+
+### Geradores
+
+```text
+data/ambrian-generator.json
+data/barbarian-generator.json
+data/abomination-generator.json
+data/forest-events-pt-BR.json
+data/aroaleta-verses.json
+```
+
+Usados pelas macros e utilidades.
+
+---
+
+## Estrutura do projeto
+
+```text
+symbaroum-ind-resources/
+├─ assets/
+├─ data/
+├─ languages/
+├─ packs/
+├─ scripts/
+├─ styles/
+├─ templates/
+├─ module.json
+└─ README.md
+```
+
+Arquivos principais:
+
+| Arquivo | Funcao |
+| --- | --- |
+| `scripts/init.mjs` | Entrada principal do modulo. |
+| `scripts/settings.mjs` | Registro e dialog de configuracoes. |
+| `scripts/modern-chat.mjs` | Conversao e layout dos cards modernos. |
+| `scripts/ammo.mjs` | Aljavas, consumo, descarga, recarga e recuperacao. |
+| `scripts/rations.mjs` | Pao de Viagem. |
+| `scripts/hunger.mjs` | Efeito Fome e recuperacao de Vigoroso. |
+| `scripts/rest.mjs` | Descanso e testes de inanição. |
+| `scripts/encumbrance.mjs` | Calculo de sobrecarga e defesa. |
+| `scripts/encumbrance-db.mjs` | Banco de pesos e bundles. |
+| `scripts/containers.mjs` | Recipientes e itens guardados. |
+| `scripts/maneuvers.mjs` | Manobras de combate. |
+| `scripts/movement-ruler.mjs` | Regua de movimento. |
+| `scripts/compatibility.mjs` | Blindagem contra conflitos com outros modulos. |
+| `scripts/chat-item-use.mjs` | Envio de itens/habilidades ao chat. |
+| `scripts/bithir-macros.mjs` | Utilidades e macros integradas. |
+
+---
+
+## Empacotamento para Release
+
+O zip de release deve conter apenas o necessario para o Foundry carregar o
+modulo.
+
+Inclua:
+
+- `module.json`
+- `README.md`
+- `assets/`
+- `data/`
+- `languages/`
+- `packs/`
+- `scripts/`
+- `styles/`
+- `templates/`
+
+Nao inclua arquivos de desenvolvimento, controle de versao, zips antigos, logs,
+locks de compendio do Foundry, caches, pastas temporarias ou documentacao local
+de trabalho. O release deve conter somente o que o Foundry precisa para carregar
+o modulo.
+
+O zip publicado no GitHub Releases deve se chamar:
+
+```text
+symbaroum-ind-resources.zip
+```
+
+E precisa ter `module.json` na raiz do zip.
+
+---
+
+## Checklist de teste rapido
+
+Depois de instalar ou atualizar:
+
+1. Reinicie o Foundry ou pressione `F5`.
+2. Confirme que `socketlib` esta ativo.
+3. Abra as configuracoes do Tenebre Resources.
+4. Teste Pao de Viagem:
+   - Empilhamento.
+   - Consumo.
+   - Card de chat.
+5. Teste aljava:
+   - Recarregar.
+   - Descarregar.
+   - Atacar com arco.
+   - Confirmar consumo.
+   - Recuperar projetil.
+6. Teste Sobrecarga:
+   - Item em Equipado/Ativo conta peso.
+   - Item em Outro nao conta.
+   - Item dentro de mochila conta se a mochila estiver Equipado/Ativo.
+7. Teste Recipiente:
+   - Guardar quantidade parcial.
+   - Abrir sublista.
+   - Retirar quantidade parcial.
+8. Teste Fome:
+   - Aplicar efeito.
+   - Descansar.
+   - Confirmar teste de inanição.
+   - Remover Fome.
+9. Teste chat:
+   - Ataque.
+   - Defesa.
+   - Resistencia.
+   - Habilidade.
+   - Ritual.
+   - Manobra.
+   - Rolagem de morte.
+10. Abra o console e confirme que nao ha erros novos do Tenebre.
+
+---
+
+## Desenvolvimento
+
+Durante desenvolvimento, altere os arquivos no projeto:
+
+```text
+C:\Projetos\symbaroum-ind-resources
+```
+
+Para testar no Foundry, copie a versao atual para:
+
+```text
+C:\Users\heito\Documents\FoundryVTT\Data\modules\symbaroum-ind-resources
+```
+
+Se o Foundry estiver aberto, alguns arquivos podem ficar bloqueados. Feche o
+Foundry antes de sobrescrever arquivos em `Data/modules` quando necessario.
+
+---
+
+## Licenca e creditos
+
+Este modulo foi criado para uso com o sistema **Symbaroum** no **Foundry VTT**.
+
+Autores declarados no `module.json`:
+
+- kaciquehn
+- Crespo7777
+
+Symbaroum e suas artes oficiais pertencem aos seus respectivos detentores. Este
+modulo apenas adiciona automacoes e recursos de interface para uso em mesas no
+Foundry VTT.
