@@ -1,5 +1,5 @@
 import { AmmoService } from "./ammo.mjs";
-import { actorItems, getQuiverLoadedTotal, isActiveOrEquipped, isQuiver, itemQuantity } from "./item-flags.mjs";
+import { actorItems, getQuiverCapacity, getQuiverLoadedTotal, isActiveOrEquipped, isQuiver, itemQuantity } from "./item-flags.mjs";
 import { TenebreSettings } from "./settings.mjs";
 
 const BREAD_BTN_ID = "tenebre-bread-btn";
@@ -100,7 +100,9 @@ function renderRecoveryHud(panel, actor) {
 
 function renderQuiverHud(panel, actor) {
   panel.innerHTML = "";
-  if (!TenebreSettings.get("enableAmmoConsumption") || !TenebreSettings.get("showQuiverHud")) {
+  if (!TenebreSettings.get("enableAmmoConsumption")
+    || !TenebreSettings.get("enableQuiverAmmoContainers")
+    || !TenebreSettings.get("showQuiverHud")) {
     panel.dataset.empty = "true";
     panel.hidden = true;
     return;
@@ -129,11 +131,13 @@ function renderQuiverHud(panel, actor) {
 
   for (const quiver of quivers) {
     const loaded = quiver.loaded;
+    const capacity = getQuiverCapacity();
     const item = document.createElement("div");
     item.className = "tenebre-ammo-hud-item tenebre-ammo-hud-quiver";
     item.title = game.i18n.format("TENEBRE.Hud.QuiverTooltip", {
       name: quiver.name,
-      loaded
+      loaded,
+      capacity
     });
 
     const img = document.createElement("img");
@@ -142,7 +146,7 @@ function renderQuiverHud(panel, actor) {
     item.appendChild(img);
 
     const value = document.createElement("strong");
-    value.textContent = `${loaded}/12`;
+    value.textContent = `${loaded}/${capacity}`;
     item.appendChild(value);
 
     panel.appendChild(item);

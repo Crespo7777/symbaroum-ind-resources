@@ -996,11 +996,13 @@ function buildAmmoUseCard(message, source, text) {
 }
 
 function buildRationUseCard(message, source, text) {
-  if (!/\b(consumiu P[aã]o de Viagem|consumed Travel Bread)\b/i.test(text)) return null;
+  if (!/(?:Dias restantes|Days remaining)\s*:?/i.test(text)) return null;
+  const useMatch = text.match(/^(.+?)\s+(?:consumiu|consumed)\s+(.+?)\s*$/im);
+  if (!useMatch) return null;
 
   const actor = speakerActor(message);
-  const actorName = cleanName(actor?.name || text.match(/^(.+?)\s+(?:consumiu P[aã]o de Viagem|consumed Travel Bread)/im)?.[1] || message.speaker?.alias);
-  const rationName = game.i18n.localize("TENEBRE.Rations.TravelBread") || "Pão de Viagem";
+  const actorName = cleanName(actor?.name || useMatch[1] || message.speaker?.alias);
+  const rationName = cleanName(useMatch[2]) || game.i18n.localize("TENEBRE.Rations.TravelBread") || "Pão de Viagem";
   const rationItem = findActorItemByName(actor, rationName) ?? findActorItemByName(actor, "Waybread") ?? findActorItemByName(actor, "Pão de Viagem");
   const days = cleanName(text.match(/(?:Dias restantes|Days remaining)\s*:?\s*(\d+\s*\/\s*\d+)/i)?.[1] ?? "").replace(/\s+/g, "");
 
@@ -1763,6 +1765,8 @@ function maneuverImage(title) {
 }
 
 function attackAmmoName(actor, weaponItem) {
+  if (!TenebreSettings.get("showSpecialAmmoInChat")) return "";
+
   const activeRoll = game.tenebreResources?.activeWeaponRoll;
   const activeAmmoName = cleanName(activeRoll?.chosenAmmo?.recoveryName || activeRoll?.chosenAmmo?.name || "");
   if (activeRoll?.actor === actor && activeRoll?.weapon?.id === weaponItem?.id && activeAmmoName && !isQuiverName(activeAmmoName)) {

@@ -1,11 +1,9 @@
 import { AMMO_TYPES, FLAG_SCOPE } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
-import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver, isAmmo, getQuiverLoadedAmmo, getQuiverLoadedTotal } from "./item-flags.mjs";
+import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver, isAmmo, getQuiverCapacity, getQuiverLoadedAmmo, getQuiverLoadedTotal } from "./item-flags.mjs";
 import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryThreshold } from "./special-ammo.mjs";
 import { escapeHtml, promptDialog } from "./utils.mjs";
 import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs";
-
-const RECOVERY_ROLL_DELAY_MS = 1800;
 
 export class AmmoService {
   static #recoveringActors = new Set();
@@ -27,6 +25,7 @@ export class AmmoService {
     if (!isPlayerActor(actor)) return;
 
     const shot = getRecoverableShotData(actor, ammo, ammoType);
+    const quiverCapacity = getQuiverCapacity();
 
     if (ammo.isVirtual) {
       const quiver = actor.items.get(ammo.quiverId);
@@ -40,13 +39,13 @@ export class AmmoService {
             ui.notifications.info(game.i18n.format("TENEBRE.Ammo.UsesAmmo", {
               actor: actor.name,
               ammo: entry.name
-            }) + ` (${entry.quantity}/12)`);
+            }) + ` (${entry.quantity}/${quiverCapacity})`);
           } else {
             loadedAmmo.splice(entryIndex, 1);
             ui.notifications.info(game.i18n.format("TENEBRE.Ammo.UsesAmmo", {
               actor: actor.name,
               ammo: entry.name
-            }) + ` (0/12)`);
+            }) + ` (0/${quiverCapacity})`);
           }
           await quiver.setFlag(FLAG_SCOPE, "loadedAmmo", loadedAmmo);
         }
@@ -69,7 +68,7 @@ export class AmmoService {
         const qty = itemQuantity(ammo);
         let usesRemaining = ammo.getFlag(FLAG_SCOPE, "usesRemaining");
         if (usesRemaining === undefined || usesRemaining === null) {
-          usesRemaining = 12;
+          usesRemaining = quiverCapacity;
         }
         
         if (usesRemaining > 1) {
@@ -78,7 +77,7 @@ export class AmmoService {
         } else {
           await changeItemQuantity(ammo, -1);
           const nextQty = Math.max(0, qty - 1);
-          await ammo.setFlag(FLAG_SCOPE, "usesRemaining", nextQty > 0 ? 12 : 0);
+          await ammo.setFlag(FLAG_SCOPE, "usesRemaining", nextQty > 0 ? quiverCapacity : 0);
           ui.notifications.info(`Uma aljava foi esvaziada. Restam ${nextQty} aljava(s).`);
         }
       }
@@ -101,7 +100,8 @@ export class AmmoService {
     if (!isPlayerActor(actor)) return;
 
     const currentTotal = getQuiverLoadedTotal(quiverItem);
-    const remainingCapacity = 12 - currentTotal;
+    const quiverCapacity = getQuiverCapacity();
+    const remainingCapacity = quiverCapacity - currentTotal;
     if (remainingCapacity <= 0) {
       ui.notifications.warn(game.i18n.localize("TENEBRE.Ammo.ReloadFull"));
       return;
@@ -198,7 +198,7 @@ export class AmmoService {
           <div style="flex: 1; font-size: 0.95em;">
             <strong>${finalQty}x</strong> ${escapeHtml(looseItem.name)} <br>
             <span style="font-size: 0.85em; color: #555;">
-              ${game.i18n.localize("TENEBRE.Ammo.ReloadChatTarget")} <strong>${escapeHtml(quiverItem.name)}</strong> (${getQuiverLoadedTotal(quiverItem)}/12)
+              ${game.i18n.localize("TENEBRE.Ammo.ReloadChatTarget")} <strong>${escapeHtml(quiverItem.name)}</strong> (${getQuiverLoadedTotal(quiverItem)}/${quiverCapacity})
             </span>
           </div>
           <img src="${quiverImg}" style="width: 28px; height: 28px; border: none; background: transparent;" alt="">
@@ -384,19 +384,15 @@ export class AmmoService {
 
     if (actorKey) this.#recoveringActors.add(actorKey);
     try {
-      let recoveredAny = false;
-      while (true) {
-        const result = await this.#recoverOne(actor);
-        if (result.status === "empty") {
-          if (!recoveredAny) {
-            ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
-          }
-          return;
+      let result = await this.#recoverOne(actor);
+      if (!TenebreSettings.get("rollAmmoRecoveryPerProjectile")) {
+        while (result?.remaining > 0) {
+          result = await this.#recoverOne(actor);
+          if (!result || result.status === "empty") break;
         }
-        recoveredAny = true;
-        if (result.status === "rolled" && result.remaining > 0) {
-          await wait(RECOVERY_ROLL_DELAY_MS);
-        }
+      }
+      if (result.status === "empty") {
+        ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
       }
     } finally {
       if (actorKey) this.#recoveringActors.delete(actorKey);
@@ -441,7 +437,8 @@ export class AmmoService {
       return { status: "skipped", remaining: Math.max(0, totalHits - 1) };
     }
 
-    const threshold = getAmmoRecoveryThreshold(recoveryEntry.name);
+    const recoveryTarget = getRecoveryTarget(recoveryEntry.name);
+    const threshold = recoveryTarget.threshold;
     const roll = await evaluateRoll("1d20");
     const rollValue = rollTotal(roll);
     const success = rollValue <= threshold;
@@ -474,9 +471,7 @@ export class AmmoService {
       ammoHits
     });
 
-    let typeLabel = game.i18n.localize("TENEBRE.Recovery.TypeCommon");
-    if (threshold === 15) typeLabel = game.i18n.localize("TENEBRE.Recovery.TypeQuality");
-    else if (threshold === 17) typeLabel = game.i18n.localize("TENEBRE.Recovery.TypeMystical");
+    const typeLabel = recoveryTarget.typeLabel;
 
     const color = success ? "#2e7d32" : "#c62828";
     const status = success
@@ -522,6 +517,39 @@ export class AmmoService {
 
 function isPlayerActor(actor) {
   return actor?.type === "player";
+}
+
+function getRecoveryTarget(ammoName) {
+  const baseThreshold = getAmmoRecoveryThreshold(ammoName);
+  if (!TenebreSettings.get("enableAmmoRecoveryByQuality")) {
+    return {
+      threshold: clampRecoveryTarget(TenebreSettings.get("ammoRecoveryFlatTarget"), 10),
+      typeLabel: game.i18n.localize("TENEBRE.Recovery.TypeCommon")
+    };
+  }
+
+  if (baseThreshold >= 17) {
+    return {
+      threshold: clampRecoveryTarget(TenebreSettings.get("ammoRecoveryMysticalTarget"), 17),
+      typeLabel: game.i18n.localize("TENEBRE.Recovery.TypeMystical")
+    };
+  }
+
+  if (baseThreshold >= 15) {
+    return {
+      threshold: clampRecoveryTarget(TenebreSettings.get("ammoRecoveryQualityTarget"), 15),
+      typeLabel: game.i18n.localize("TENEBRE.Recovery.TypeQuality")
+    };
+  }
+
+  return {
+    threshold: clampRecoveryTarget(TenebreSettings.get("ammoRecoveryCommonTarget"), 10),
+    typeLabel: game.i18n.localize("TENEBRE.Recovery.TypeCommon")
+  };
+}
+
+function clampRecoveryTarget(value, fallback) {
+  return Math.min(20, Math.max(1, Number(value) || fallback));
 }
 
 function buildQuiverTransferDialogContent({
@@ -642,8 +670,4 @@ async function createRecoveredAmmo(actor, entry, recovered) {
   };
   itemData.system.number = recovered;
   await actor.createEmbeddedDocuments("Item", [itemData], { render: false });
-}
-
-function wait(ms) {
-  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }

@@ -45,7 +45,7 @@ export class MovementService {
     class TenebreTokenRuler extends originalTokenRulerClass {
       _getSegmentStyle(waypoint) {
         const style = super._getSegmentStyle(waypoint);
-        if (!TenebreSettings.get("enableMovementRuler")) return style;
+        if (!MovementService.shouldColorMovement()) return style;
         const token = this.token;
         const profile = MovementService.getProfile(token?.actor);
         const state = MovementService.getWaypointState(waypoint, profile);
@@ -58,7 +58,7 @@ export class MovementService {
 
       _getGridHighlightStyle(waypoint, offset) {
         const style = super._getGridHighlightStyle(waypoint, offset);
-        if (!TenebreSettings.get("enableMovementRuler")) return style;
+        if (!MovementService.shouldColorMovement()) return style;
         if (!(style.alpha > 0)) return style;
 
         const profile = MovementService.getProfile(this.token?.actor);
@@ -72,7 +72,7 @@ export class MovementService {
 
       _getWaypointStyle(waypoint) {
         const style = super._getWaypointStyle(waypoint);
-        if (!TenebreSettings.get("enableMovementRuler")) return style;
+        if (!MovementService.shouldColorMovement()) return style;
         const profile = MovementService.getProfile(this.token?.actor);
         const state = MovementService.getWaypointState(waypoint, profile);
         return {
@@ -85,6 +85,7 @@ export class MovementService {
         const context = super._getWaypointLabelContext(waypoint, state);
         if (!context) return context;
         if (!TenebreSettings.get("enableMovementRuler")) return context;
+        if (!TenebreSettings.get("enableMovementLimitLabels")) return context;
 
         const profile = MovementService.getProfile(this.token?.actor);
         const movementState = MovementService.getWaypointState(waypoint, profile);
@@ -94,6 +95,7 @@ export class MovementService {
         ].filter(Boolean).join(" ");
 
         const limit = movementState === "walk" ? profile.actionDistance : profile.doubleDistance;
+        context.cost ??= {};
         context.cost.units = MovementService.getUnits();
         context.cost.total = `${context.cost.total}/${formatDistance(limit)}`;
         return context;
@@ -134,6 +136,7 @@ export class MovementService {
 
   static validateMovement(tokenDocument, movement, operation = {}) {
     if (!TenebreSettings.get("enableMovementRuler")) return true;
+    if (!TenebreSettings.get("enableMovementBlocking")) return true;
     if (!game.combat?.started) return true;
     if (operation?.isUndo || operation?.isPaste) return true;
 
@@ -171,14 +174,17 @@ export class MovementService {
     let movementActions = 2;
     let blocked = false;
     let hungerMultiplierApplied = false;
+    const applyHunger = TenebreSettings.get("enableMovementHungerModifier");
+    const applyEncumbrance = TenebreSettings.get("enableMovementEncumbranceModifier");
+    const applyEffects = TenebreSettings.get("enableMovementEffectModifiers");
 
-    if (hasStatus(actor, HUNGER_STATUS_ID) || hasStatus(actor, "fome")) {
+    if (applyHunger && (hasStatus(actor, HUNGER_STATUS_ID) || hasStatus(actor, "fome"))) {
       multiplier *= 0.5;
       hungerMultiplierApplied = true;
       reasons.push(game.i18n.localize("TENEBRE.Hunger.EffectName") || "Fome");
     }
 
-    if (TenebreSettings.get("enableEncumbrance")) {
+    if (applyEncumbrance && TenebreSettings.get("enableEncumbrance")) {
       const load = EncumbranceService.calculateLoad(actor);
       if (load.isImmobilized) {
         blocked = true;
@@ -191,24 +197,25 @@ export class MovementService {
       const flags = effect.flags?.[MODULE_ID] ?? {};
       const flagMultiplier = Number(flags.movementMultiplier);
       const isHungerEffect = effectId === HUNGER_STATUS_ID || effectId === "fome" || flags.hunger === true;
-      if (Number.isFinite(flagMultiplier) && flagMultiplier >= 0 && !(isHungerEffect && hungerMultiplierApplied)) {
+      const canApplyEffectMovement = applyEffects || (applyHunger && isHungerEffect);
+      if (canApplyEffectMovement && Number.isFinite(flagMultiplier) && flagMultiplier >= 0 && !(isHungerEffect && hungerMultiplierApplied)) {
         multiplier *= flagMultiplier;
       }
 
-      if (Number.isFinite(Number(flags.movementActionDistance))) {
+      if (applyEffects && Number.isFinite(Number(flags.movementActionDistance))) {
         actionDistance = Number(flags.movementActionDistance);
       }
 
-      if (Number.isFinite(Number(flags.movementActions))) {
+      if (applyEffects && Number.isFinite(Number(flags.movementActions))) {
         movementActions = Math.min(movementActions, Math.max(0, Number(flags.movementActions)));
       }
 
-      if (flags.movementBlocked === true || IMMOBILIZING_EFFECTS.has(effectId)) {
+      if (applyEffects && (flags.movementBlocked === true || IMMOBILIZING_EFFECTS.has(effectId))) {
         blocked = true;
         reasons.push(effect.name ?? effect.label ?? effectId);
       }
 
-      if (MOVEMENT_SPENT_EFFECTS.has(effectId)) {
+      if (applyEffects && MOVEMENT_SPENT_EFFECTS.has(effectId)) {
         movementActions = 0;
         reasons.push(effect.name ?? effect.label ?? effectId);
       }
@@ -254,6 +261,10 @@ export class MovementService {
       blocked: profile.blocked,
       reasons: profile.reasons
     };
+  }
+
+  static shouldColorMovement() {
+    return TenebreSettings.get("enableMovementRuler") && TenebreSettings.get("enableMovementColors");
   }
 
   static getUnitSystem() {

@@ -77,6 +77,7 @@ export class HungerService {
     });
 
     Hooks.on("deleteActiveEffect", async (effect) => {
+      if (!TenebreSettings.get("enableHunger")) return;
       if (!HungerService.isHungerEffect(effect)) return;
       const actor = effect.parent;
       if (!actor || actor.documentName !== "Actor") return;

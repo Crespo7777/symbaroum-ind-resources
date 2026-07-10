@@ -36,7 +36,7 @@ export class ChatItemUseService {
     if (!actor || !item) return null;
 
     if (TenebreSettings.get("enableRations") && isRation(item)) {
-      await RationService.consumeDay(actor);
+      await RationService.consumeDay(actor, item);
       return null;
     }
 
@@ -48,23 +48,28 @@ export class ChatItemUseService {
     const token = getSpeakerToken(actor);
     const targetToken = getPrimaryTarget();
     const content = await renderSymbaroumItemCard(item, actor, { targetToken });
-    const context = buildAutomatedAnimationsContext(actor, item, { token, targetToken, preferAttack });
+    const animationsEnabled = TenebreSettings.get("enableAutomatedAnimationsIntegration");
+    const context = animationsEnabled
+      ? buildAutomatedAnimationsContext(actor, item, { token, targetToken, preferAttack })
+      : null;
+
+    const flags = {
+      [MODULE_ID]: {
+        chatItemUse: true,
+        itemUuid: item.uuid,
+        actorUuid: actor.uuid,
+        tokenUuid: token?.document?.uuid ?? token?.uuid ?? null,
+        targetTokenUuid: targetToken?.document?.uuid ?? targetToken?.uuid ?? null
+      }
+    };
+    if (context) flags.world = { context };
 
     const chatData = {
       user: game.user.id,
       speaker: ChatMessage.getSpeaker({ actor, token }),
       rollMode: game.settings.get("core", "rollMode"),
       content,
-      flags: {
-        world: { context },
-        [MODULE_ID]: {
-          chatItemUse: true,
-          itemUuid: item.uuid,
-          actorUuid: actor.uuid,
-          tokenUuid: token?.document?.uuid ?? token?.uuid ?? null,
-          targetTokenUuid: targetToken?.document?.uuid ?? targetToken?.uuid ?? null
-        }
-      }
+      flags
     };
 
     ChatMessage.applyRollMode(chatData, chatData.rollMode);

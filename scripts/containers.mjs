@@ -192,34 +192,14 @@ export class ContainerService {
     }
 
     const quantity = getStorableQuantity(item);
-    const options = containers.map((container) => {
-      const storedCount = this.getStoredItems(actor, container).length;
-      return `<option value="${container.id}">${escapeHtml(container.name)} (${storedCount})</option>`;
-    }).join("");
-    const quantityInput = quantity > 1
-      ? `
-        <div class="form-group">
-          <label>${game.i18n.format("TENEBRE.Containers.QuantityWithMax", { max: quantity })}</label>
-          <input type="number" name="quantity" value="${quantity}" min="1" max="${quantity}">
-        </div>
-      `
-      : "";
-
-    const content = `
-      <form>
-        <p>${game.i18n.format("TENEBRE.Containers.StorePrompt", { item: escapeHtml(item.name) })}</p>
-        <div class="form-group">
-          <label>${game.i18n.localize("TENEBRE.Containers.Container")}</label>
-          <select name="containerId">${options}</select>
-        </div>
-        ${quantityInput}
-      </form>
-    `;
+    const content = buildStoreDialogContent({ actor, item, containers, quantity });
 
     const result = await promptDialog({
       title: game.i18n.localize("TENEBRE.Containers.StoreTitle"),
       content,
       okIcon: "fas fa-box",
+      width: 360,
+      contentClass: "tenebre-container-store-dialog",
       callback: (element) => ({
         containerId: element.querySelector('[name="containerId"]')?.value,
         quantity: Number(element.querySelector('[name="quantity"]')?.value || quantity)
@@ -251,20 +231,14 @@ export class ContainerService {
       return;
     }
 
-    const content = `
-      <form>
-        <p>${game.i18n.format("TENEBRE.Containers.StorePrompt", { item: escapeHtml(item.name) })}</p>
-        <div class="form-group">
-          <label>${game.i18n.format("TENEBRE.Containers.QuantityWithMax", { max: quantity })}</label>
-          <input type="number" name="quantity" value="${quantity}" min="1" max="${quantity}">
-        </div>
-      </form>
-    `;
+    const content = buildStoreDialogContent({ actor, item, containers: [container], quantity, fixedContainer: true });
 
     const amount = await promptDialog({
       title: game.i18n.localize("TENEBRE.Containers.StoreTitle"),
       content,
       okIcon: "fas fa-box",
+      width: 360,
+      contentClass: "tenebre-container-store-dialog",
       callback: (element) => Number(element.querySelector('[name="quantity"]')?.value || quantity)
     });
 
@@ -459,6 +433,46 @@ export class ContainerService {
 
 function getStorableQuantity(item) {
   return item?.type === "equipment" ? Math.max(1, itemQuantity(item)) : 1;
+}
+
+function buildStoreDialogContent({ actor, item, containers, quantity, fixedContainer = false }) {
+  const itemName = escapeHtml(item.name);
+  const itemIcon = `<img class="tenebre-store-inline-icon" src="${escapeHtml(item.img || "icons/svg/item-bag.svg")}" alt="">`;
+  const container = containers[0];
+  const containerName = escapeHtml(container?.name ?? "");
+  const containerInput = fixedContainer && container
+    ? `<input type="hidden" name="containerId" value="${escapeHtml(container.id)}">`
+    : buildContainerSelect(actor, containers);
+  const quantityInput = quantity > 1
+    ? `
+      <div class="tenebre-store-field">
+        <label>${game.i18n.format("TENEBRE.Containers.QuantityWithMax", { max: quantity })}</label>
+        <input type="number" name="quantity" value="${quantity}" min="1" max="${quantity}">
+      </div>
+    `
+    : "";
+
+  return `
+    <form class="tenebre-store-form">
+      <p class="tenebre-store-prompt">${game.i18n.format(fixedContainer ? "TENEBRE.Containers.StorePrompt" : "TENEBRE.Containers.StorePromptGeneric", { item: itemName, icon: itemIcon, container: containerName })}</p>
+      ${containerInput}
+      ${quantityInput}
+    </form>
+  `;
+}
+
+function buildContainerSelect(actor, containers) {
+  const options = containers.map((container) => {
+    const storedCount = ContainerService.getStoredItems(actor, container).length;
+    return `<option value="${escapeHtml(container.id)}">${escapeHtml(container.name)} (${storedCount})</option>`;
+  }).join("");
+
+  return `
+    <div class="tenebre-store-field">
+      <label>${game.i18n.localize("TENEBRE.Containers.ChooseContainer")}</label>
+      <select name="containerId">${options}</select>
+    </div>
+  `;
 }
 
 function isAccessibleState(item) {

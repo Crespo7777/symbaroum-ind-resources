@@ -10,7 +10,8 @@ export class RestService {
   // Abre diálogo de descanso para o ator
   static async openRestDialog(actor) {
     const restHealingEnabled = TenebreSettings.get("enableRestHealing");
-    const defaultHealing = restHealingEnabled ? (Number(TenebreSettings.get("restHealing")) || 1) : 0;
+    const configuredHealing = Number(TenebreSettings.get("restHealing"));
+    const defaultHealing = restHealingEnabled && Number.isFinite(configuredHealing) ? configuredHealing : 0;
 
     const content = `
       <div class="symbaroum dialog tenebre-rest-dialog">

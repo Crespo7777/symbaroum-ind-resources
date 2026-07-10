@@ -410,6 +410,18 @@ export class EncumbranceService {
     return load;
   }
 
+  static clearDefensePenalty(actor) {
+    if (!actor || actor.type !== "player") return;
+
+    const combat = actor.system?.combat;
+    if (combat) applyPenaltyToArmorData(combat, 0);
+
+    const activeArmor = actor.system?.armors?.find?.((armor) => armor.id === combat?.id);
+    if (activeArmor && activeArmor !== combat) {
+      applyPenaltyToArmorData(activeArmor, 0);
+    }
+  }
+
   /**
    * Atribui automaticamente o flag de encumbranceSlots a um item
    * se ele ainda não tiver valor definido.

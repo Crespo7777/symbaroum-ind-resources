@@ -54,12 +54,6 @@ Hooks.once("ready", async () => {
     return;
   }
 
-  // Ativa automação de combate do sistema se necessário
-  if (game.user.isGM && !game.settings.get("symbaroum", "combatAutomation")) {
-    console.log(`${MODULE_ID} | Automatically enabling Symbaroum Combat Automation.`);
-    game.settings.set("symbaroum", "combatAutomation", true);
-  }
-
   await EncumbranceService.loadWeightConfig(MODULE_ID);
   if (TenebreSettings.get("enableEncumbrance")) {
     EncumbranceService.startDynamicWeightFileWatcher();
@@ -333,7 +327,7 @@ function wrapDialogRollButton(dialog) {
 
 function applyPowerChatContextToMessage(message, data) {
   if (!activePowerChatContext) return;
-  if (!TenebreSettings.get("enableChatItemUse")) return;
+  if (!TenebreSettings.get("enableAutomatedAnimationsIntegration")) return;
 
   const content = String(message?.content ?? data?.content ?? "");
   if (!isSymbaroumAbilityChat(content)) return;
@@ -365,7 +359,7 @@ function isSymbaroumAbilityChat(content) {
 }
 
 function buildPowerUseChatContext(actor, item) {
-  if (!TenebreSettings.get("enableChatItemUse")) return null;
+  if (!TenebreSettings.get("enableAutomatedAnimationsIntegration")) return null;
   if (!actor || !item || !ChatItemUseService.canSend(item)) return null;
 
   const token = getActorTokenForContext(actor);

@@ -15,13 +15,16 @@ import { CompatibilityService } from "./compatibility.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
+  getAmmoType,
   getWeaponAmmoType,
   isAmmo,
   isRation,
   itemQuantity,
   isQuiver,
+  getQuiverCapacity,
   getQuiverLoadedAmmo,
-  getQuiverLoadedTotal
+  getQuiverLoadedTotal,
+  localizeAmmoType
 } from "./item-flags.mjs";
 
 const CONTAINER_DRAG_DATA_TYPE = "application/x-tenebre-container-item";
@@ -199,8 +202,10 @@ function patchContextMenu() {
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
             if (actor) {
-              RationService.consumeDay(actor);
+              RationService.consumeDay(actor, item);
             }
           }
         });
@@ -244,6 +249,7 @@ function patchContextMenu() {
           icon: `<i class="fas fa-redo" style="color: currentColor;"></i>`,
           isVisible: (item) => {
             return TenebreSettings.get("enableAmmoConsumption")
+              && TenebreSettings.get("enableQuiverAmmoContainers")
               && isPlayerActor(item?.parent)
               && isQuiver(item)
               && itemQuantity(item) > 0;
@@ -263,6 +269,7 @@ function patchContextMenu() {
           icon: `<i class="fas fa-upload" style="color: currentColor;"></i>`,
           isVisible: (item) => {
             return TenebreSettings.get("enableAmmoConsumption")
+              && TenebreSettings.get("enableQuiverAmmoContainers")
               && isPlayerActor(item?.parent)
               && isQuiver(item)
               && itemQuantity(item) > 0
@@ -767,6 +774,7 @@ function rerenderActorSheets(actor) {
 function updateQuiverQuantityDisplay(app, html, actor) {
   if (!isPlayerActor(actor)) return;
   if (!TenebreSettings.get("enableAmmoConsumption")) return;
+  if (!TenebreSettings.get("enableQuiverAmmoContainers")) return;
 
   const el = getRoot(html);
   if (!el) return;
@@ -779,11 +787,11 @@ function updateQuiverQuantityDisplay(app, html, actor) {
     const qtyDiv = row.querySelector(".quantity");
     if (!qtyDiv) continue;
 
-    const qty = itemQuantity(quiver);
-    if (qty > 0) {
-      const loaded = getQuiverLoadedTotal(quiver);
-      qtyDiv.textContent = `${qty} (${loaded}/12)`;
-    }
+      const qty = itemQuantity(quiver);
+      if (qty > 0) {
+        const loaded = getQuiverLoadedTotal(quiver);
+        qtyDiv.textContent = `${qty} (${loaded}/${getQuiverCapacity()})`;
+      }
   }
 }
 
@@ -802,26 +810,27 @@ function updateRationQuantityDisplay(app, html, actor) {
     });
   }
 
-  const rationState = RationService.getState(actor);
-  if (rationState.quantity <= 0) return;
+  for (const rationState of RationService.getStates(actor)) {
+    if (rationState.quantity <= 0) continue;
 
-  const displayItem = rationState.items.find((item) => itemQuantity(item) > 0);
+    const displayItem = rationState.items.find((item) => itemQuantity(item) > 0);
 
-  for (const item of rationState.items) {
-    const row = el.querySelector(`.item[data-item-id="${item.id}"]`);
-    if (!row) continue;
+    for (const item of rationState.items) {
+      const row = el.querySelector(`.item[data-item-id="${item.id}"]`);
+      if (!row) continue;
 
-    if (displayItem && item.id !== displayItem.id) {
-      row.style.display = "none";
-      continue;
-    }
+      if (displayItem && item.id !== displayItem.id) {
+        row.style.display = "none";
+        continue;
+      }
 
-    const qtyDiv = row.querySelector(".quantity");
-    if (!qtyDiv) continue;
+      const qtyDiv = row.querySelector(".quantity");
+      if (!qtyDiv) continue;
 
-    const qty = itemQuantity(item);
-    if (qty > 0) {
-      qtyDiv.textContent = `${rationState.quantity} (${rationState.totalUsesRemaining}/${rationState.totalUsesCapacity})`;
+      const qty = itemQuantity(item);
+      if (qty > 0) {
+        qtyDiv.textContent = `${rationState.quantity} (${rationState.totalUsesRemaining}/${rationState.totalUsesCapacity})`;
+      }
     }
   }
 }
@@ -1293,7 +1302,7 @@ function onRenderDialog(dialog, html, data) {
             }
 
             if (!chosenAmmo) {
-              ui.notifications.warn(game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver"));
+              ui.notifications.warn(getAmmoUnavailableMessage(activeRoll));
               throw "Cancelled";
             }
           }
@@ -1333,7 +1342,7 @@ function onRenderDialog(dialog, html, data) {
   if (el.querySelector("#tenebre-ammo-select")) return;
 
   const { actor, ammoType } = activeRoll;
-  const quivers = findLoadedQuiverItems(actor, ammoType);
+  const useQuiverContainers = TenebreSettings.get("enableQuiverAmmoContainers");
 
   const selectDiv = document.createElement("div");
   selectDiv.className = "bonus";
@@ -1345,24 +1354,23 @@ function onRenderDialog(dialog, html, data) {
   const select = document.createElement("select");
   select.id = "tenebre-ammo-select";
 
-  if (!quivers.length) {
+  const options = useQuiverContainers
+    ? getLoadedQuiverAmmoOptions(actor, ammoType)
+    : getLooseAmmoOptions(actor, ammoType);
+
+  if (!options.length) {
     const option = document.createElement("option");
     option.value = "";
-    option.innerText = game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver");
+    option.innerText = getAmmoUnavailableMessage(activeRoll);
     option.disabled = true;
     option.selected = true;
     select.appendChild(option);
   } else {
-    for (const q of quivers) {
-      const loaded = getQuiverLoadedAmmo(q);
-      for (const entry of loaded) {
-        if (entry.quantity > 0) {
-          const option = document.createElement("option");
-          option.value = `quiver|${q.id}|${entry.name}`;
-          option.innerText = `${q.name}: ${entry.name} (${entry.quantity}/12)`;
-          select.appendChild(option);
-        }
-      }
+    for (const ammoOption of options) {
+      const option = document.createElement("option");
+      option.value = ammoOption.value;
+      option.innerText = ammoOption.label;
+      select.appendChild(option);
     }
   }
 
@@ -1413,7 +1421,7 @@ function attachAmmoRollButtonCapture(dialog, contentEl, activeRoll) {
       try {
         prepareSelectedAmmoForRoll(contentEl, activeRoll);
         if (!activeRoll.chosenAmmo) {
-          ui.notifications.warn(game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver"));
+          ui.notifications.warn(getAmmoUnavailableMessage(activeRoll));
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
@@ -1430,6 +1438,43 @@ function attachAmmoRollButtonCapture(dialog, contentEl, activeRoll) {
     dialog._tenebreAmmoRollCaptureAttempts = (dialog._tenebreAmmoRollCaptureAttempts ?? 0) + 1;
     setTimeout(() => attachAmmoRollButtonCapture(dialog, contentEl, activeRoll), 0);
   }
+}
+
+function getLoadedQuiverAmmoOptions(actor, ammoType) {
+  const options = [];
+  for (const q of findLoadedQuiverItems(actor, ammoType)) {
+    const loaded = getQuiverLoadedAmmo(q);
+    for (const entry of loaded) {
+      if (entry.quantity <= 0) continue;
+      options.push({
+        value: `quiver|${q.id}|${entry.name}`,
+        label: `${q.name}: ${entry.name} (${entry.quantity}/${getQuiverCapacity()})`
+      });
+    }
+  }
+  return options;
+}
+
+function getLooseAmmoOptions(actor, ammoType) {
+  return actorItems(actor)
+    .filter((item) => isAmmo(item)
+      && !isQuiver(item)
+      && getAmmoType(item) === ammoType
+      && itemQuantity(item) > 0)
+    .map((item) => ({
+      value: item.id,
+      label: `${item.name} (${itemQuantity(item)})`
+    }));
+}
+
+function getAmmoUnavailableMessage(activeRoll) {
+  if (TenebreSettings.get("enableQuiverAmmoContainers")) {
+    return game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver");
+  }
+
+  return game.i18n.format("TENEBRE.Ammo.NoLooseAmmo", {
+    type: localizeAmmoType(activeRoll?.ammoType)
+  });
 }
 
 function prepareSelectedAmmoForRoll(el, activeRoll) {
