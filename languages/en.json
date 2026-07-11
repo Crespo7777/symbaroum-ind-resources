@@ -621,5 +621,8 @@
   "TENEBRE.ModernChat.MacroNameGeneratorFlavor": "Generated Names for {category}.",
   "TENEBRE.ModernChat.MacroReRollFlavor": "{actor} paid 1 {cost} for a re-roll.",
   "TENEBRE.ModernChat.MacroResetTemporaryCorruptionFlavor": "Temporary corruption reset for:",
-  "TENEBRE.ModernChat.MacroCharacterImporterFlavor": "{actor} was created by the importer."
+  "TENEBRE.ModernChat.MacroCharacterImporterFlavor": "{actor} was created by the importer.",
+  "TENEBRE.RollPrivacy.Label": "Private roll",
+  "TENEBRE.RollPrivacy.ShortLabel": "Private",
+  "TENEBRE.RollPrivacy.Hint": "When enabled, only the Game Master can see roll results made by this sheet."
 }

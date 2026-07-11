@@ -1630,7 +1630,7 @@
 
 .symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 90px;
+  grid-template-columns: minmax(0, 1fr) 72px 76px;
   align-items: center;
   gap: 5px;
   width: 100%;
@@ -1687,7 +1687,7 @@
 }
 
 .symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-roll {
-  width: 90px;
+  width: 76px;
   height: 28px;
   margin: 0;
   padding: 0 6px;
@@ -2402,3 +2402,33 @@ div .bithirmod .inspirationdie > img {
   margin-top: 2px;
 }
 
+/* Keep Symbaroum roll-dialog headers on the system's textured title surface. */
+.tenebre-symbaroum-roll-dialog > .window-header {
+  background-color: #000000 !important;
+  background-image: url("/systems/symbaroum/asset/image/background/title.webp") !important;
+  background-repeat: repeat !important;
+  color: #ffffff !important;
+}
+
+.symbaroum.sheet.actor .tenebre-maneuver-private-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 72px;
+  height: 28px;
+  margin: 0;
+  color: #ffffff;
+  font-family: var(--font-text);
+  font-weight: bold;
+  font-size: 12px;
+  line-height: 28px;
+  cursor: pointer;
+}
+
+.symbaroum.sheet.actor .tenebre-maneuver-private-label input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #b9974f;
+}

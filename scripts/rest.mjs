@@ -4,6 +4,7 @@ import { HungerService } from "./hunger.mjs";
 import { escapeHtml } from "./utils.mjs";
 import { createChatMessageAfterDice } from "./dice.mjs";
 import { SocketService } from "./sockets.mjs";
+import { RollPrivacyService } from "./roll-privacy.mjs";
 
 // Gerenciamento de descanso de personagens
 export class RestService {
@@ -27,6 +28,7 @@ export class RestService {
           <label for="tenebre-healing">${game.i18n.localize("TENEBRE.Rest.HealingPerDay")}</label>
           <input type="number" id="tenebre-healing" name="healing" value="${defaultHealing}" min="0" max="100">
         </div>
+        ${RollPrivacyService.fieldHtml()}
       </div>
     `;
 
@@ -39,7 +41,8 @@ export class RestService {
         callback: (_event, _button, dialog) => {
           return {
             days: Number(dialog.element.querySelector("#tenebre-days")?.value) || 1,
-            healing: restHealingEnabled ? (Number(dialog.element.querySelector("#tenebre-healing")?.value) ?? 1) : 0
+            healing: restHealingEnabled ? (Number(dialog.element.querySelector("#tenebre-healing")?.value) ?? 1) : 0,
+            privateRoll: RollPrivacyService.isChecked(dialog.element)
           };
         }
       },
@@ -47,7 +50,9 @@ export class RestService {
     });
 
     if (result == null) return;
-    await RestService.applyRest(actor, result.days, result.healing);
+    await RollPrivacyService.runPrivateRoll(result.privateRoll, () => (
+      RestService.applyRest(actor, result.days, result.healing)
+    ));
   }
 
   // Aplica efeitos de descanso (recuperação de vitalidade, remoção de corrupção temporária e resets de morte)

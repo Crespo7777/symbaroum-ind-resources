@@ -621,5 +621,8 @@
   "TENEBRE.ModernChat.MacroNameGeneratorFlavor": "Nomes Gerados para {category}.",
   "TENEBRE.ModernChat.MacroReRollFlavor": "{actor} pagou 1 de {cost} para uma rerrolagem.",
   "TENEBRE.ModernChat.MacroResetTemporaryCorruptionFlavor": "Corrupção temporária zerada para:",
-  "TENEBRE.ModernChat.MacroCharacterImporterFlavor": "{actor} foi criado pelo importador."
+  "TENEBRE.ModernChat.MacroCharacterImporterFlavor": "{actor} foi criado pelo importador.",
+  "TENEBRE.RollPrivacy.Label": "Rolagem privada",
+  "TENEBRE.RollPrivacy.ShortLabel": "Privado",
+  "TENEBRE.RollPrivacy.Hint": "Quando marcado, somente o Mestre verá os resultados das rolagens feitas por esta ficha."
 }

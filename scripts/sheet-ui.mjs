@@ -12,6 +12,7 @@ import { ManeuverService } from "./maneuvers.mjs";
 import { SocketService } from "./sockets.mjs";
 import { ChatItemUseService } from "./chat-item-use.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
+import { RollPrivacyService } from "./roll-privacy.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -1191,10 +1192,13 @@ function injectManeuverPanel(app, html, actor) {
       const select = panel.querySelector(".tenebre-maneuver-select");
       const maneuverId = select?.value;
       if (maneuverId) selectedManeuversByActor.set(selectionKey, maneuverId);
-      await ManeuverService.execute(actor, maneuverId, {
-        modifier: 0,
-        damageValue: 0
-      });
+      const privateRoll = Boolean(panel.querySelector(".tenebre-maneuver-private-roll")?.checked);
+      await RollPrivacyService.runPrivateRoll(privateRoll, () => (
+        ManeuverService.execute(actor, maneuverId, {
+          modifier: 0,
+          damageValue: 0
+        })
+      ));
     });
   }
 
@@ -1222,6 +1226,10 @@ function buildManeuverPanelHtml(selectedManeuverId) {
           <select class="tenebre-maneuver-select" aria-label="${game.i18n.localize("TENEBRE.Maneuvers.Select")}">
             ${options}
           </select>
+          <label class="tenebre-maneuver-private-label" title="${escapeHtml(game.i18n.localize("TENEBRE.RollPrivacy.Hint"))}">
+            <input type="checkbox" class="tenebre-maneuver-private-roll">
+            <span>${game.i18n.localize("TENEBRE.RollPrivacy.ShortLabel")}</span>
+          </label>
           <button type="button" class="tenebre-maneuver-roll">
             <i class="fas fa-dice-d20"></i> ${game.i18n.localize("TENEBRE.Maneuvers.Roll")}
           </button>
@@ -1272,6 +1280,13 @@ function onRenderTemplate(path, data, html) {
 function onRenderDialog(dialog, html, data) {
   const el = getRoot(html);
   if (!el) return;
+
+  const isSymbaroumDialog = el.matches?.(".symbaroum.dialog")
+    || Boolean(el.querySelector?.(".symbaroum.dialog"));
+  if (isSymbaroumDialog) {
+    const dialogElement = getRoot(dialog?.element) ?? el.closest?.(".window-app, .application");
+    dialogElement?.classList?.add("tenebre-symbaroum-roll-dialog");
+  }
 
   const isWeaponRoll = Boolean(el.querySelector("input[id^='weapondamage-']"));
   if (isWeaponRoll) {

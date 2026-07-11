@@ -19,11 +19,13 @@ import { MovementService } from "./movement-ruler.mjs";
 import { ChatItemUseService } from "./chat-item-use.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { ModernChatService } from "./modern-chat.mjs";
+import { RollPrivacyService } from "./roll-privacy.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
   CompatibilityService.register();
   ModernChatService.register();
+  RollPrivacyService.register();
   registerKeybindings();
   TokenActionHudIntegration.register();
 
@@ -104,6 +106,7 @@ Hooks.once("ready", async () => {
     movement: MovementService,
     chatItemUse: ChatItemUseService,
     modernChat: ModernChatService,
+    rollPrivacy: RollPrivacyService,
     compatibility: CompatibilityService,
     tokenActionHud: TokenActionHudIntegration,
     sockets: SocketService,
@@ -226,6 +229,11 @@ function patchSymbaroumRollDialogs() {
   const wrappedRender = function(wrapped, ...args) {
     const content = String(this.data?.content ?? this.content ?? "");
     if (content.includes("symbaroum dialog") && hasFavourRollOptions(content)) {
+      if (this.data?.content !== undefined) {
+        this.data.content = RollPrivacyService.injectField(content);
+      } else if (this.content !== undefined) {
+        this.content = RollPrivacyService.injectField(content);
+      }
       const actorId = pendingDialogActorId ?? extractActorIdFromDialogContent(content);
       if (actorId) {
         this._tenebreHungerActorId = actorId;
@@ -318,9 +326,12 @@ function wrapDialogRollButton(dialog) {
 
   const originalCallback = rollButton.callback;
   rollButton.callback = async function tenebreRollDialogCallback(html, ...args) {
-    setActivePowerChatContext(dialog?._tenebrePowerChatContext ?? null);
-    applyStatusFavourToDialog(html, dialog);
-    return originalCallback.call(this, html, ...args);
+    const privateRoll = RollPrivacyService.isChecked(html);
+    return RollPrivacyService.runPrivateRoll(privateRoll, async () => {
+      setActivePowerChatContext(dialog?._tenebrePowerChatContext ?? null);
+      applyStatusFavourToDialog(html, dialog);
+      return originalCallback.call(this, html, ...args);
+    });
   };
   rollButton.callback._tenebreWrapped = true;
 }

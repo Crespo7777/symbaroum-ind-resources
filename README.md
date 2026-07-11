@@ -592,6 +592,15 @@ Rolagens do modulo usam o helper de dados interno:
 
 Isso evita que o chat mostre o resultado antes do dado terminar de rolar.
 
+### Rolagem privada
+
+Os dialogos de rolagem possuem a opcao **Rolagem privada**. Quando ela e
+marcada, somente usuarios GM recebem o resultado daquela rolagem.
+
+- A escolha vale apenas para a rolagem atual.
+- Dados 3D privados tambem sao enviados somente aos GMs.
+- A proxima rolagem volta ao modo de chat configurado no Foundry.
+
 ---
 
 ## Envio de itens, habilidades e rituais ao chat
