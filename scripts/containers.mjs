@@ -314,9 +314,10 @@ export class ContainerService {
     return container.getFlag?.(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG) === true;
   }
 
-  static collapseContainer(actor, container) {
-    if (!actor || !container) return;
-    container.setFlag(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG, false);
+  static async collapseContainer(actor, container) {
+    if (!actor || !container) return false;
+    await container.setFlag(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG, false);
+    return true;
   }
 
   static async recoverStoredItemsFromDeletedContainer(container) {

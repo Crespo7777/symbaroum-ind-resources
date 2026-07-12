@@ -62,8 +62,12 @@ export class AmmoService {
       if (looseAmmoItems.length > 0) {
         const looseItem = looseAmmoItems[0];
         await changeItemQuantity(looseItem, -1);
-        const looseName = looseItem.name.toLowerCase().includes("virote") || looseItem.name.toLowerCase().includes("bolt") ? "virote avulso" : "flecha avulsa";
-        ui.notifications.info(`Gastou 1 projétil da aljava (consumiu 1 ${looseName} do inventário).`);
+        const looseNameKey = looseItem.name.toLowerCase().includes("virote") || looseItem.name.toLowerCase().includes("bolt")
+          ? "TENEBRE.Ammo.LooseBolt"
+          : "TENEBRE.Ammo.LooseArrow";
+        ui.notifications.info(game.i18n.format("TENEBRE.Ammo.ConsumedLooseInventory", {
+          ammo: game.i18n.localize(looseNameKey)
+        }));
       } else {
         const qty = itemQuantity(ammo);
         let usesRemaining = ammo.getFlag(FLAG_SCOPE, "usesRemaining");
@@ -73,12 +77,14 @@ export class AmmoService {
         
         if (usesRemaining > 1) {
           await ammo.setFlag(FLAG_SCOPE, "usesRemaining", usesRemaining - 1);
-          ui.notifications.info(`Gastou 1 projétil da aljava. Restam ${usesRemaining - 1} nesta aljava.`);
+          ui.notifications.info(game.i18n.format("TENEBRE.Ammo.QuiverUsesRemaining", {
+            remaining: usesRemaining - 1
+          }));
         } else {
           await changeItemQuantity(ammo, -1);
           const nextQty = Math.max(0, qty - 1);
           await ammo.setFlag(FLAG_SCOPE, "usesRemaining", nextQty > 0 ? quiverCapacity : 0);
-          ui.notifications.info(`Uma aljava foi esvaziada. Restam ${nextQty} aljava(s).`);
+          ui.notifications.info(game.i18n.format("TENEBRE.Ammo.QuiverEmptied", { remaining: nextQty }));
         }
       }
     } else {
@@ -117,7 +123,7 @@ export class AmmoService {
     }
 
     const optionsHtml = looseAmmoItems.map((item) => {
-      return `<option value="${item.id}">${item.name} (${itemQuantity(item)})</option>`;
+      return `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} (${itemQuantity(item)})</option>`;
     }).join("");
 
     const firstItem = looseAmmoItems[0];
@@ -188,20 +194,20 @@ export class AmmoService {
     const chatContent = `
       <div class="tenebre-chat-card tenebre-reload-card">
         <div class="tenebre-chat-header" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <img src="${actorImg}" style="width: 32px; height: 32px; border-radius: 4px; border: 1px solid #7a7973;" alt="${escapeHtml(actor.name)}">
+          <img src="${escapeHtml(actorImg)}" style="width: 32px; height: 32px; border-radius: 4px; border: 1px solid #7a7973;" alt="${escapeHtml(actor.name)}">
           <h3 style="margin: 0; font-size: 1.1em; line-height: 1.2; font-weight: bold; border-bottom: none;">
             ${game.i18n.format("TENEBRE.Ammo.ReloadChatTitle", { actor: escapeHtml(actor.name) })}
           </h3>
         </div>
         <div class="tenebre-chat-item" style="display: flex; align-items: center; gap: 10px; padding: 6px; border: 1px dashed #7a7973; background: rgba(0,0,0,0.05); border-radius: 4px;">
-          <img src="${ammoImg}" style="width: 28px; height: 28px; border: none; background: transparent;" alt="">
+          <img src="${escapeHtml(ammoImg)}" style="width: 28px; height: 28px; border: none; background: transparent;" alt="">
           <div style="flex: 1; font-size: 0.95em;">
             <strong>${finalQty}x</strong> ${escapeHtml(looseItem.name)} <br>
             <span style="font-size: 0.85em; color: #555;">
               ${game.i18n.localize("TENEBRE.Ammo.ReloadChatTarget")} <strong>${escapeHtml(quiverItem.name)}</strong> (${getQuiverLoadedTotal(quiverItem)}/${quiverCapacity})
             </span>
           </div>
-          <img src="${quiverImg}" style="width: 28px; height: 28px; border: none; background: transparent;" alt="">
+          <img src="${escapeHtml(quiverImg)}" style="width: 28px; height: 28px; border: none; background: transparent;" alt="">
         </div>
       </div>
     `;
@@ -647,7 +653,7 @@ async function postAmmoCard(actor, ammo) {
           ammo: escapeHtml(ammo.name)
         })}</h3>
         <div class="tenebre-chat-item">
-          <img src="${ammo.img}" alt="">
+          <img src="${escapeHtml(ammo.img)}" alt="">
           <div>${description}</div>
         </div>
       </div>

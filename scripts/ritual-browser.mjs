@@ -36,7 +36,7 @@ export const RitualBrowserService = {
           default: true
         }]
       });
-      await dialog.render(true);
+      await dialog.render({ force: true });
       activateRitualLinks(dialog.element, rituals);
       resetRitualBrowserScroll(dialog.element);
       return dialog;

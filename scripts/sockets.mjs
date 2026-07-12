@@ -1,4 +1,12 @@
 import { MODULE_ID } from "./constants.mjs";
+import {
+  assertSafeBatch,
+  assertSafePayload,
+  isAllowedCombatantUpdate,
+  isAllowedToughnessUpdate,
+  isModuleManeuverEffect,
+  sanitizeSocketOptions
+} from "./socket-policy.mjs";
 
 let moduleSocket = null;
 
@@ -144,29 +152,44 @@ export class SocketService {
 
 async function createEmbeddedDocumentsAsGM(parentUuid, embeddedName, data, options = {}) {
   const parent = await getDocument(parentUuid);
-  await parent.createEmbeddedDocuments(embeddedName, data, options);
+  const user = getRequestUser(this);
+  assertSafeBatch(data, "Embedded document data");
+  authorizeEmbeddedOperation({ user, parent, embeddedName, sources: data });
+  await parent.createEmbeddedDocuments(embeddedName, data, sanitizeSocketOptions(options));
   return true;
 }
 
 async function deleteEmbeddedDocumentsAsGM(parentUuid, embeddedName, ids, options = {}) {
   const parent = await getDocument(parentUuid);
-  await parent.deleteEmbeddedDocuments(embeddedName, ids, options);
+  const user = getRequestUser(this);
+  assertSafeBatch(ids, "Embedded document ids");
+  const sources = ids.map((id) => parent.getEmbeddedDocument?.(embeddedName, id)).filter(Boolean);
+  if (sources.length !== ids.length) throw new Error("One or more embedded documents were not found.");
+  authorizeEmbeddedOperation({ user, parent, embeddedName, sources });
+  await parent.deleteEmbeddedDocuments(embeddedName, ids, sanitizeSocketOptions(options));
   return true;
 }
 
 async function markActorDeadAsGM(actorUuid) {
   const actor = await getDocument(actorUuid);
+  authorizeOwnedDocument(getRequestUser(this), actor, "mark actor dead");
   return markActorDeadLocal(actor);
 }
 
 async function setFlagAsGM(documentUuid, scope, key, value) {
   const document = await getDocument(documentUuid);
+  const user = getRequestUser(this);
+  authorizeOwnedDocument(user, document, "set flag");
+  if (scope !== MODULE_ID || typeof key !== "string" || !key) throw new Error("Invalid module flag operation.");
+  assertSafePayload(value, "Flag value");
   await document.setFlag(scope, key, value);
   return true;
 }
 
 async function unsetFlagAsGM(documentUuid, scope, key) {
   const document = await getDocument(documentUuid);
+  authorizeOwnedDocument(getRequestUser(this), document, "unset flag");
+  if (scope !== MODULE_ID || typeof key !== "string" || !key) throw new Error("Invalid module flag operation.");
   await document.unsetFlag(scope, key);
   return true;
 }
@@ -175,20 +198,77 @@ async function updateCombatantAsGM(combatUuidOrId, combatantId, updates, options
   const combat = await getCombat(combatUuidOrId);
   const combatant = combat?.combatants?.get?.(combatantId);
   if (!combatant) throw new Error(`Combatant not found: ${combatantId}`);
-  await combatant.update(updates, options);
+  const user = getRequestUser(this);
+  if (!user.isGM) authorizeOwnedDocument(user, combatant.actor, "update combatant");
+  if (!isAllowedCombatantUpdate(updates)) throw new Error("Invalid combatant update payload.");
+  await combatant.update(updates, sanitizeSocketOptions(options));
   return true;
 }
 
 async function updateDocumentAsGM(documentUuid, updates, options = {}) {
   const document = await getDocument(documentUuid);
-  await document.update(updates, options);
+  const user = getRequestUser(this);
+  assertSafePayload(updates, "Document update");
+  if (!user.isGM && !hasOwnerPermission(document, user)) {
+    if (!isTargetedActor(document, user)
+      || !isAllowedToughnessUpdate(updates, document.system?.health?.toughness?.value)) {
+      throw new Error("Unauthorized document update.");
+    }
+  }
+  await document.update(updates, sanitizeSocketOptions(options));
   return true;
 }
 
 async function updateEmbeddedDocumentsAsGM(parentUuid, embeddedName, updates, options = {}) {
   const parent = await getDocument(parentUuid);
-  await parent.updateEmbeddedDocuments(embeddedName, updates, options);
+  const user = getRequestUser(this);
+  assertSafeBatch(updates, "Embedded document updates");
+  const sources = updates.map((update) => {
+    const existing = parent.getEmbeddedDocument?.(embeddedName, update?._id);
+    if (!existing) throw new Error(`Embedded document not found: ${update?._id ?? "unknown"}`);
+    return existing;
+  });
+  authorizeEmbeddedOperation({ user, parent, embeddedName, sources });
+  await parent.updateEmbeddedDocuments(embeddedName, updates, sanitizeSocketOptions(options));
   return true;
+}
+
+function getRequestUser(context) {
+  const senderId = context?.socketdata?.userId;
+  const user = senderId ? game.users?.get?.(senderId) : (game.user?.isGM ? game.user : null);
+  if (!user?.active) throw new Error("Socket request has no authenticated active user.");
+  return user;
+}
+
+function authorizeEmbeddedOperation({ user, parent, embeddedName, sources }) {
+  if (user.isGM || hasOwnerPermission(parent, user)) return;
+  if (parent.documentName !== "Actor" || embeddedName !== "ActiveEffect" || !isTargetedActor(parent, user)) {
+    throw new Error("Unauthorized embedded document operation.");
+  }
+  if (!sources.every((source) => isModuleManeuverEffect(source, MODULE_ID))) {
+    throw new Error("Only module maneuver effects may be changed on a targeted actor.");
+  }
+}
+
+function authorizeOwnedDocument(user, document, action) {
+  if (user.isGM || hasOwnerPermission(document, user)) return;
+  throw new Error(`Unauthorized socket operation: ${action}.`);
+}
+
+function hasOwnerPermission(document, user) {
+  if (!document || !user) return false;
+  try {
+    return document.testUserPermission?.(user, globalThis.CONST?.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3) === true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isTargetedActor(actor, user) {
+  if (!actor || actor.documentName !== "Actor") return false;
+  return Array.from(user.targets ?? []).some((token) => {
+    return token.actor?.uuid === actor.uuid || token.actor?.id === actor.id;
+  });
 }
 
 async function getDocument(uuid) {

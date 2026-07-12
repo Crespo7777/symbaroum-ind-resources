@@ -402,6 +402,7 @@ function onSettingChanged(key, value) {
   if (key === "enableEncumbrance") {
     refreshEncumbranceActors({ autoAssign: Boolean(value), clearPenalty: !value });
     if (value) game.tenebreResources?.encumbrance?.startDynamicWeightFileWatcher?.();
+    else game.tenebreResources?.encumbrance?.stopDynamicWeightFileWatcher?.();
   }
 
   if (key === "encumbranceDiscoveredWeights") {
@@ -436,7 +437,10 @@ function onSettingChanged(key, value) {
 function refreshEncumbranceActors({ autoAssign = false, clearPenalty = false } = {}) {
   for (const actor of game.actors ?? []) {
     if (actor.type !== "player" || !(actor.isOwner || game.user?.isGM)) continue;
-    if (autoAssign) game.tenebreResources?.encumbrance?.autoAssignAll?.(actor);
+    if (autoAssign) {
+      void Promise.resolve(game.tenebreResources?.encumbrance?.autoAssignAll?.(actor))
+        .catch((error) => console.warn(`${MODULE_ID} | Could not refresh encumbrance for ${actor.name}.`, error));
+    }
     actor.prepareData?.();
     if (clearPenalty) EncumbranceService.clearDefensePenalty(actor);
   }

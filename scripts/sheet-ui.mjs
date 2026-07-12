@@ -37,21 +37,6 @@ const knownRitualsByActor = new Map();
 const ritualActorsByItem = new Map();
 const deletingRitualIdsByActor = new Map();
 
-// Listas de hooks
-const ACTOR_SHEET_HOOKS = [
-  "renderPlayerSheet",
-  "renderSymbaroumActorSheet",
-  "renderActorSheet"
-];
-
-const ITEM_SHEET_HOOKS = [
-  "renderEquipmentSheet",
-  "renderWeaponSheet",
-  "renderArmorSheet",
-  "renderSymbaroumItemSheet",
-  "renderItemSheet"
-];
-
 const selectedManeuversByActor = new Map();
 
 // Registro de hooks
@@ -61,11 +46,7 @@ export function registerSheetHooks() {
   patchRitualistInlineDeletion();
   patchRitualistDropCreation();
   patchSymbaroumItemChatSender();
-  for (const hook of ACTOR_SHEET_HOOKS) Hooks.on(hook, onRenderActorSheet);
-  for (const hook of ITEM_SHEET_HOOKS) {
-    Hooks.on(hook, onRenderItemSheet);
-  }
-  Hooks.on("renderApplication", onRenderApplication);
+  Hooks.on("renderApplicationV2", onRenderApplicationV2);
   Hooks.on("renderDialog", onRenderDialog);
   Hooks.on("renderTemplate", onRenderTemplate);
   Hooks.on("closeDialog", onCloseDialog);
@@ -248,8 +229,8 @@ function patchSymbaroumItemChatSender() {
 }
 
 /**
- * Foundry v13: injeta UI via activateListeners (sempre executado ao renderizar a ficha).
- * Hooks legados como renderActorSheet não existem mais no core.
+ * O Symbaroum 6.1.6 ainda usa fichas V1. A injeção ocorre uma vez por render,
+ * depois do activateListeners original, sem repetir o trabalho pelos hooks de herança.
  */
 function patchSymbaroumSheetListeners() {
   for (const type of ["player", "monster"]) {
@@ -289,13 +270,10 @@ function patchSheetActivateListeners(SheetClass, callback) {
   };
 }
 
-function onRenderApplication(app, html) {
-  const name = app.constructor?.name;
-  if (["PlayerSheet", "MonsterSheet", "SymbaroumActorSheet"].includes(name)) {
-    onRenderActorSheet(app, html);
-  } else if (["EquipmentSheet", "WeaponSheet", "ArmorSheet"].includes(name)) {
-    onRenderItemSheet(app, html);
-  }
+function onRenderApplicationV2(app, element) {
+  const document = app.actor ?? app.item ?? app.document;
+  if (document?.documentName === "Actor") onRenderActorSheet(app, element);
+  else if (document?.documentName === "Item") onRenderItemSheet(app, element);
 }
 
 function getActorFromDom(elem) {
@@ -1652,7 +1630,9 @@ function onRenderDialog(dialog, html, data) {
               chosenAmmo = prepareSelectedAmmoForRoll(el, activeRoll);
             } catch (err) {
               console.error("Tenebre Resources | Error preparing ammo modifiers:", err);
-              ui.notifications.error("Error preparing ammo modifiers: " + err.message);
+              ui.notifications.error(game.i18n.format("TENEBRE.Ammo.PrepareModifiersError", {
+                error: err.message
+              }));
             }
 
             if (!chosenAmmo) {

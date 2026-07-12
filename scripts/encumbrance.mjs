@@ -124,6 +124,7 @@ const HEAVY_ARMOR_TERMS = [
 
 let dynamicWeightFileFingerprint = null;
 let dynamicWeightFileWatcher = null;
+let dynamicWeightFileWatcherBusy = false;
 let dynamicWeightFileMissing = false;
 let activeWeightConfigFingerprint = null;
 let weightConfigModuleId = null;
@@ -162,6 +163,8 @@ export class EncumbranceService {
     if (dynamicWeightFileWatcher) return false;
 
     dynamicWeightFileWatcher = globalThis.setInterval(async () => {
+      if (dynamicWeightFileWatcherBusy) return;
+      dynamicWeightFileWatcherBusy = true;
       try {
         let baseChanged = false;
         if (weightConfigModuleId) {
@@ -179,9 +182,19 @@ export class EncumbranceService {
         rerenderOpenActorSheets();
       } catch (err) {
         console.warn("Tenebre Resources | Could not watch the encumbrance weight file.", err);
+      } finally {
+        dynamicWeightFileWatcherBusy = false;
       }
     }, intervalMs);
 
+    return true;
+  }
+
+  static stopDynamicWeightFileWatcher() {
+    if (!dynamicWeightFileWatcher) return false;
+    globalThis.clearInterval(dynamicWeightFileWatcher);
+    dynamicWeightFileWatcher = null;
+    dynamicWeightFileWatcherBusy = false;
     return true;
   }
 

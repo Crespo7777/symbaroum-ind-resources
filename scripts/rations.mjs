@@ -2,7 +2,7 @@ import { FLAG_SCOPE } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { changeItemQuantity, findRationItems, getRationRule, itemQuantity, sumItemQuantities } from "./item-flags.mjs";
 import { SocketService } from "./sockets.mjs";
-import { normalize } from "./utils.mjs";
+import { escapeHtml, normalize } from "./utils.mjs";
 
 const pendingConsolidations = new Set();
 
@@ -127,9 +127,11 @@ export class RationService {
   }
 
   static async #postRationChat(actor, newState) {
-    const title = game.i18n.format("TENEBRE.Rations.ChatTitle", { actor: actor.name, item: newState.itemName });
+    const actorName = escapeHtml(actor.name);
+    const itemName = escapeHtml(newState.itemName);
+    const title = game.i18n.format("TENEBRE.Rations.ChatTitle", { actor: actorName, item: itemName });
     const content = game.i18n.format("TENEBRE.Rations.ChatContent", {
-      item: newState.itemName,
+      item: itemName,
       uses: newState.usesRemaining,
       max: newState.usesPerUnit,
       quantity: newState.quantity,
@@ -142,7 +144,7 @@ export class RationService {
       content: `
         <div class="tenebre-chat-card">
           <div class="tenebre-chat-item">
-            <img src="${actor.img}" alt="${actor.name}">
+            <img src="${escapeHtml(actor.img)}" alt="${actorName}">
             <div>
               <h3>${title}</h3>
               ${content}
@@ -156,15 +158,15 @@ export class RationService {
 
 function buildState(_actor, rule, items, current) {
   const usesPerUnit = Math.max(1, Number(rule?.usesPerUnit) || 1);
-    const quantity = sumItemQuantities(items);
+  const quantity = sumItemQuantities(items);
   const ruleState = current.byRule?.[rule.key] ?? {};
   const legacyUsesRemaining = rule.key === "travelBread" ? current.usesRemaining : undefined;
   let usesRemaining = Number(ruleState.usesRemaining ?? legacyUsesRemaining ?? usesPerUnit);
-    if (quantity <= 0) usesRemaining = 0;
-    if (usesRemaining <= 0 && quantity > 0) usesRemaining = usesPerUnit;
-    usesRemaining = Math.min(usesRemaining, usesPerUnit);
-    const totalUsesRemaining = quantity > 0 ? ((quantity - 1) * usesPerUnit) + usesRemaining : 0;
-    const totalUsesCapacity = quantity * usesPerUnit;
+  if (quantity <= 0) usesRemaining = 0;
+  if (usesRemaining <= 0 && quantity > 0) usesRemaining = usesPerUnit;
+  usesRemaining = Math.min(usesRemaining, usesPerUnit);
+  const totalUsesRemaining = quantity > 0 ? ((quantity - 1) * usesPerUnit) + usesRemaining : 0;
+  const totalUsesCapacity = quantity * usesPerUnit;
   return {
     key: rule.key,
     name: rule.name,

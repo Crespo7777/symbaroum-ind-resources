@@ -300,7 +300,7 @@ export class InspirationDie extends BaseDie {
     }
 
     getResultLabel(result) {
-        return `<img src="${assetPath}/inspirationdice/i${this.denomination}d${result.result}.png" data-tooltip="${result.tooltip}"/>`;
+        return `<img src="${assetPath}/inspirationdice/i${this.denomination}d${result.result}.png" data-tooltip="${escapeHtml(result.tooltip)}"/>`;
     }
 }
 
@@ -1099,13 +1099,13 @@ export function setupBithirMod() {
             if (!result) return;
             if (result === 'restoreshadow') {
                 let originalShadow = await actor.getFlag(moduleId, 'originalShadow');
-                actor.update({ 'system.bio.shadow': originalShadow });
+                await actor.update({ 'system.bio.shadow': originalShadow });
             } else {
                 if (actor.system.bio?.shadow && actor.system.bio.shadow !== '') {
                     await actor.setFlag(moduleId, 'originalShadow', actor.system.bio.shadow);
                 }
                 const newShadow = await api.generateShadow(result, actor);
-                actor.update({ 'system.bio.shadow': newShadow.capitalize() });
+                await actor.update({ 'system.bio.shadow': newShadow.capitalize() });
             }
         });
         

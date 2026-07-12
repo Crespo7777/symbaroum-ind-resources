@@ -13,7 +13,6 @@ import { HungerService } from "./hunger.mjs";
 import { ContainerService } from "./containers.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
 import { setupBithirMod } from "./bithir-macros.mjs";
-import { SocketService } from "./sockets.mjs";
 import { TokenActionHudIntegration } from "./token-action-hud.mjs";
 import { MovementService } from "./movement-ruler.mjs";
 import { ChatItemUseService } from "./chat-item-use.mjs";
@@ -73,7 +72,6 @@ Hooks.once("ready", async () => {
   patchSymbaroumActorUsePower();
   patchSymbaroumDerivedPenalties();
   Hooks.on("preCreateChatMessage", applyPowerChatContextToMessage);
-  ManeuverService.registerStatusEffects();
 
   // Aplica desvantagem de Fome para a rota simples de atributo.
   if (game.symbaroum?.api?.rollAttribute) {
@@ -111,7 +109,6 @@ Hooks.once("ready", async () => {
     ritualBrowser: RitualBrowserService,
     compatibility: CompatibilityService,
     tokenActionHud: TokenActionHudIntegration,
-    sockets: SocketService,
     bithir: game.bithirmod,
 
     inspectActorResources,
@@ -125,7 +122,7 @@ Hooks.once("ready", async () => {
   if (TenebreSettings.get("enableEncumbrance")) {
     for (const actor of game.actors) {
       if (actor.type === "player" && actor.isOwner) {
-        EncumbranceService.autoAssignAll(actor);
+        await EncumbranceService.autoAssignAll(actor);
         EncumbranceService.applyDefensePenalty(actor);
       }
     }

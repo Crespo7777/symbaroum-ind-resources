@@ -24,7 +24,6 @@ const MOVEMENT_SPENT_EFFECTS = new Set([
 ]);
 
 let originalTokenRulerClass = null;
-let originalPreUpdateMovement = null;
 let movementValidationPatched = false;
 
 export class MovementService {
@@ -110,27 +109,10 @@ export class MovementService {
   static patchMovementValidation() {
     if (movementValidationPatched) return true;
     if (CompatibilityService.shouldSkipMovementValidation()) return false;
-    const TokenDocumentClass = CONFIG.Token?.documentClass;
-    if (!TokenDocumentClass?.prototype?._preUpdateMovement) return false;
-    if (TokenDocumentClass.prototype._preUpdateMovement._tenebreMovementWrapped) return true;
-
-    originalPreUpdateMovement = TokenDocumentClass.prototype._preUpdateMovement;
-    const wrappedPreUpdateMovement = async function(wrapped, movement, operation) {
-      const originalResult = await wrapped.call(this, movement, operation);
-      if (originalResult === false) return false;
-      return MovementService.validateMovement(this, movement, operation) === false ? false : originalResult;
-    };
-
-    if (CompatibilityService.canUseLibWrapper()) {
-      libWrapper.register(MODULE_ID, "CONFIG.Token.documentClass.prototype._preUpdateMovement", wrappedPreUpdateMovement, "WRAPPER");
-      movementValidationPatched = true;
-    } else {
-      TokenDocumentClass.prototype._preUpdateMovement = async function tenebrePreUpdateMovement(movement, operation) {
-        return wrappedPreUpdateMovement.call(this, originalPreUpdateMovement, movement, operation);
-      };
-      TokenDocumentClass.prototype._preUpdateMovement._tenebreMovementWrapped = true;
-      movementValidationPatched = true;
-    }
+    Hooks.on("preMoveToken", (tokenDocument, movement, operation) => {
+      return MovementService.validateMovement(tokenDocument, movement, operation);
+    });
+    movementValidationPatched = true;
     return true;
   }
 

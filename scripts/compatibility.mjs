@@ -129,7 +129,7 @@ export class CompatibilityService {
           }
         ]
       });
-      await dialog.render(true);
+      await dialog.render({ force: true });
       return true;
     }
 
