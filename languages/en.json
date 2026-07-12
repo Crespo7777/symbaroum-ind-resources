@@ -4,6 +4,7 @@
   "TENEBRE.Common.Save": "Save",
   "TENEBRE.Common.Yes": "Yes",
   "TENEBRE.Common.No": "No",
+  "TENEBRE.Common.Close": "Close",
   "TENEBRE.Settings.MenuName": "Tenebre Resources",
   "TENEBRE.Settings.MenuLabel": "Configure",
   "TENEBRE.Settings.MenuTitle": "Tenebre Resources",
@@ -624,5 +625,19 @@
   "TENEBRE.ModernChat.MacroCharacterImporterFlavor": "{actor} was created by the importer.",
   "TENEBRE.RollPrivacy.Label": "Private roll",
   "TENEBRE.RollPrivacy.ShortLabel": "Private",
-  "TENEBRE.RollPrivacy.Hint": "When enabled, only the Game Master can see roll results made by this sheet."
+  "TENEBRE.RollPrivacy.Hint": "When enabled, only the Game Master can see roll results made by this sheet.",
+  "TENEBRE.RitualBrowser.ContextMenu": "View Rituals",
+  "TENEBRE.RitualBrowser.Title": "Available Rituals",
+  "TENEBRE.RitualBrowser.ProgressionTitle": "Ritualist progression",
+  "TENEBRE.RitualBrowser.Progression": "Novice: 1 ritual. Adept: +2 rituals (3 total). Master: +3 rituals (6 total).",
+  "TENEBRE.RitualBrowser.AccessWarning": "Ritualist can learn rituals from any tradition when the character has access to the teaching. Entries marked as restricted belong to specific professions or specializations and are not free choices for the common ability.",
+  "TENEBRE.RitualBrowser.Learned": "Learned",
+  "TENEBRE.RitualBrowser.Restricted": "Restricted",
+  "TENEBRE.RitualBrowser.OpenRitual": "Open ritual sheet",
+  "TENEBRE.RitualBrowser.ToggleOwned": "Expand or collapse known rituals",
+  "TENEBRE.RitualBrowser.NoKnownRituals": "No known rituals.",
+  "TENEBRE.RitualBrowser.Ritual": "Ritual",
+  "TENEBRE.RitualBrowser.Use": "Use ritual",
+  "TENEBRE.RitualBrowser.Unavailable": "The {name} sheet is not available in the installed content.",
+  "TENEBRE.RitualBrowser.LoadError": "The ritual catalog could not be loaded."
 }

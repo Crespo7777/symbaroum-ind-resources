@@ -2050,6 +2050,111 @@
   display: none !important;
 }
 
+/* Rituais conhecidos agrupados visualmente sob a habilidade Ritualista. */
+.tenebre-hidden-owned-ritual {
+  display: none !important;
+}
+
+.abilities-powers .tenebre-ritualist-anchor {
+  cursor: pointer;
+}
+
+.abilities-powers .tenebre-ritualist-anchor:hover {
+  box-shadow: inset 3px 0 0 rgba(204, 158, 62, 0.9);
+}
+
+.abilities-powers .tenebre-ritualist-inline-row {
+  flex: 0 0 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.abilities-powers .tenebre-ritualist-inline {
+  box-sizing: border-box;
+  width: calc(50% - 10px);
+  margin: 3px 5px 7px;
+  padding: 5px 6px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-left: 3px solid rgba(120, 90, 45, 0.72);
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.abilities-powers .tenebre-ritualist-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.abilities-powers .tenebre-ritualist-item {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 20%;
+  min-width: 0;
+  min-height: 38px;
+  align-items: stretch;
+}
+
+.symbaroum.sheet.actor .abilities-powers .tenebre-ritualist-item nav#context-menu i.fa-trash,
+.symbaroum.sheet.actor .abilities-powers .tenebre-ritualist-item nav#context-menu i.fa-trash-alt {
+  color: var(--color-label, #fff) !important;
+}
+
+.abilities-powers .tenebre-ritualist-item button {
+  min-width: 0;
+  height: 38px;
+  margin: 0;
+  border-radius: 0;
+}
+
+.abilities-powers .tenebre-ritualist-use {
+  padding: 0;
+  border: 1px solid #000;
+  background-color: #111;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.abilities-powers .tenebre-ritualist-name {
+  overflow: hidden;
+  padding: 0 8px;
+  border: 0;
+  background: url("/systems/symbaroum/asset/image/background/title.webp") center / cover;
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.abilities-powers .tenebre-ritualist-name:hover,
+.abilities-powers .tenebre-ritualist-name:focus-visible {
+  color: #d4b24c;
+  box-shadow: inset 0 0 0 1px rgba(212, 178, 76, 0.8);
+}
+
+.abilities-powers .tenebre-ritualist-action {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 0 4px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  background: url("/systems/symbaroum/asset/image/background/not-editable.webp") center / cover;
+  color: #111;
+  text-align: center;
+}
+
+.abilities-powers .tenebre-ritualist-empty {
+  margin: 0;
+  padding: 4px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
 /* ── Bithir Mod Styles (Inspiration Dice & Generator UI) ───────────────── */
 
 .bithirmod h1 {
@@ -2431,4 +2536,191 @@ div .bithirmod .inspirationdie > img {
   height: 14px;
   margin: 0;
   accent-color: #b9974f;
+}
+
+/* Ritualist catalog */
+.application:has(.tenebre-ritual-browser) .window-content,
+.window-app:has(.tenebre-ritual-browser) .window-content {
+  min-height: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.tenebre-ritual-browser {
+  box-sizing: border-box;
+  display: block;
+  position: static;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 5px;
+  transform: none;
+  color: var(--color-text);
+}
+
+.tenebre-ritual-browser-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  background: url("/systems/symbaroum/asset/image/background/title.webp") repeat;
+  color: #fff;
+}
+
+.tenebre-ritual-browser-header img {
+  width: 52px;
+  height: 52px;
+  border: 2px solid #111;
+  object-fit: cover;
+}
+
+.tenebre-ritual-browser-header h2,
+.tenebre-ritual-browser-header p {
+  margin: 0;
+  color: inherit;
+}
+
+.tenebre-ritual-browser-header h2 {
+  font-family: var(--font-header);
+  font-size: 24px;
+}
+
+.tenebre-ritual-rules {
+  display: grid;
+  gap: 3px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid #a23f35;
+  background: rgba(120, 80, 40, 0.1);
+  line-height: 1.3;
+}
+
+.tenebre-ritual-rules small {
+  font-style: italic;
+}
+
+.tenebre-ritual-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  height: auto;
+  margin-top: 10px;
+  padding: 0;
+  overflow: visible;
+}
+
+.tenebre-ritual-group {
+  border: 1px solid rgba(92, 60, 39, 0.7);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.tenebre-ritual-group > summary {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 9px;
+  background: url("/systems/symbaroum/asset/image/background/title.webp") repeat;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.tenebre-ritual-count {
+  min-width: 24px;
+  padding: 0 5px;
+  border: 1px solid #b9974f;
+  text-align: center;
+}
+
+.tenebre-ritual-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px;
+}
+
+.tenebre-ritual-entry {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  height: auto !important;
+  min-height: 34px;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 5px;
+  border: 1px solid rgba(92, 60, 39, 0.38);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.28);
+  color: var(--color-text);
+  font-family: var(--font-text);
+  font-size: 13px;
+  line-height: 1.15;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.tenebre-ritual-entry:hover,
+.tenebre-ritual-entry:focus-visible {
+  border-color: #a23f35;
+  background: rgba(162, 63, 53, 0.12);
+  box-shadow: 0 0 4px rgba(162, 63, 53, 0.45);
+}
+
+.tenebre-ritual-entry > img {
+  box-sizing: border-box;
+  display: block;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  border: 1px solid #17130f;
+  object-fit: cover;
+}
+
+.tenebre-ritual-entry-body,
+.tenebre-ritual-entry-title {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.tenebre-ritual-entry-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 30px;
+}
+
+.tenebre-ritual-entry-title strong {
+  overflow-wrap: anywhere;
+}
+
+.tenebre-ritual-badge {
+  display: inline-block;
+  margin-left: 3px;
+  padding: 1px 4px;
+  border: 1px solid currentColor;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.tenebre-ritual-badge.learned {
+  color: #18783e;
+}
+
+.tenebre-ritual-badge.restricted {
+  color: #a1302c;
+}
+
+@media (max-width: 620px) {
+  .tenebre-ritual-list {
+    grid-template-columns: 1fr;
+  }
 }

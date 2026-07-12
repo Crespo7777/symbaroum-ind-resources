@@ -28,6 +28,8 @@ Principais frentes:
 - Sistema de **recipientes** com sublistas expansivas na ficha.
 - **Regua de movimento** baseada na distancia de Symbaroum.
 - Automacao de **manobras de combate**.
+- Catalogo de **Ritualista** com todos os rituais dos livros Básico e Guia
+  Avançado do Jogador, agrupados por tradição e com restrições identificadas.
 - Chat moderno no estilo **Ilustrado**, com opcao **Legacy** para voltar ao
   visual original do sistema.
 - Compatibilidade com **Dice So Nice**, **Automated Animations**, **Token Action
@@ -604,6 +606,28 @@ marcada, somente usuarios GM recebem o resultado daquela rolagem.
 ---
 
 ## Envio de itens, habilidades e rituais ao chat
+
+### Catalogo de Ritualista
+
+Ao clicar com o botão direito na habilidade **Ritualista**, a opção **Ver
+Rituais** abre um catálogo com os 66 rituais encontrados no Livro Básico e no
+Guia Avançado do Jogador.
+
+O catálogo:
+
+- agrupa rituais por tradição;
+- mostra nomes em PT-BR ou inglês conforme o idioma do Foundry;
+- usa as imagens do conteúdo oficial instalado quando disponíveis;
+- marca rituais já presentes na ficha;
+- identifica como **Restrito** o conteúdo exclusivo de profissões ou
+  especializações;
+- abre a ficha oficial do ritual ao clicar em sua linha, permitindo consultar
+  a descrição completa no visual original do sistema.
+
+Ritualista permite aprender rituais de qualquer tradição, mas o personagem
+precisa ter acesso ao ensinamento. A progressão é 1 ritual no nível Novato, mais
+2 no Adepto e mais 3 no Mestre, totalizando 6. Rituais marcados como restritos
+não são escolhas livres da habilidade comum.
 
 Quando a opcao **Ativar envio de itens/habilidades para animacoes** esta ligada,
 itens e poderes que normalmente nao gerariam card podem ser enviados ao chat.

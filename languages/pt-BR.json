@@ -4,6 +4,7 @@
   "TENEBRE.Common.Save": "Salvar",
   "TENEBRE.Common.Yes": "Sim",
   "TENEBRE.Common.No": "Não",
+  "TENEBRE.Common.Close": "Fechar",
   "TENEBRE.Settings.MenuName": "Tenebre Resources",
   "TENEBRE.Settings.MenuLabel": "Configurar",
   "TENEBRE.Settings.MenuTitle": "Tenebre Resources",
@@ -624,5 +625,19 @@
   "TENEBRE.ModernChat.MacroCharacterImporterFlavor": "{actor} foi criado pelo importador.",
   "TENEBRE.RollPrivacy.Label": "Rolagem privada",
   "TENEBRE.RollPrivacy.ShortLabel": "Privado",
-  "TENEBRE.RollPrivacy.Hint": "Quando marcado, somente o Mestre verá os resultados das rolagens feitas por esta ficha."
+  "TENEBRE.RollPrivacy.Hint": "Quando marcado, somente o Mestre verá os resultados das rolagens feitas por esta ficha.",
+  "TENEBRE.RitualBrowser.ContextMenu": "Ver Rituais",
+  "TENEBRE.RitualBrowser.Title": "Rituais Disponíveis",
+  "TENEBRE.RitualBrowser.ProgressionTitle": "Progressão de Ritualista",
+  "TENEBRE.RitualBrowser.Progression": "Novato: 1 ritual. Adepto: +2 rituais (3 no total). Mestre: +3 rituais (6 no total).",
+  "TENEBRE.RitualBrowser.AccessWarning": "Ritualista permite aprender rituais de qualquer tradição, desde que o personagem tenha acesso ao ensinamento. Entradas marcadas como restritas pertencem a profissões ou especializações específicas e não são escolhas livres da habilidade comum.",
+  "TENEBRE.RitualBrowser.Learned": "Aprendido",
+  "TENEBRE.RitualBrowser.Restricted": "Restrito",
+  "TENEBRE.RitualBrowser.OpenRitual": "Abrir ficha do ritual",
+  "TENEBRE.RitualBrowser.ToggleOwned": "Expandir ou recolher rituais conhecidos",
+  "TENEBRE.RitualBrowser.NoKnownRituals": "Nenhum ritual conhecido.",
+  "TENEBRE.RitualBrowser.Ritual": "Ritual",
+  "TENEBRE.RitualBrowser.Use": "Usar ritual",
+  "TENEBRE.RitualBrowser.Unavailable": "A ficha de {name} não está disponível no conteúdo instalado.",
+  "TENEBRE.RitualBrowser.LoadError": "Não foi possível carregar o catálogo de rituais."
 }

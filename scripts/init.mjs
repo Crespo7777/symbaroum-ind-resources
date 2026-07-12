@@ -20,6 +20,7 @@ import { ChatItemUseService } from "./chat-item-use.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
 import { ModernChatService } from "./modern-chat.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
+import { RitualBrowserService } from "./ritual-browser.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -107,6 +108,7 @@ Hooks.once("ready", async () => {
     chatItemUse: ChatItemUseService,
     modernChat: ModernChatService,
     rollPrivacy: RollPrivacyService,
+    ritualBrowser: RitualBrowserService,
     compatibility: CompatibilityService,
     tokenActionHud: TokenActionHudIntegration,
     sockets: SocketService,
