@@ -385,7 +385,8 @@ function patchContextMenu() {
         this.originalMenuItems.push({
           name: "TENEBRE.RitualBrowser.ContextMenu",
           icon: `<i class="fas fa-book-open" style="color: currentColor;"></i>`,
-          isVisible: (item) => RitualBrowserService.isRitualistAbility(item),
+          isVisible: (item) => TenebreSettings.get("enableRitualCatalog")
+            && RitualBrowserService.isRitualistAbility(item),
           callback: function(elem) {
             const actor = getActorFromDom(elem);
             if (actor) void RitualBrowserService.open(actor);
@@ -529,6 +530,18 @@ function injectRitualistInlineList(app, html, actor) {
 
   const ritualistRow = findAbilityItemRow(el, ritualist.id);
   if (!ritualistRow) return;
+
+  if (!TenebreSettings.get("enableRitualistGrouping")) {
+    revealRitualRows();
+    const previousToggleHandler = ritualistRow._tenebreRitualistToggleHandler;
+    if (previousToggleHandler) ritualistRow.removeEventListener("click", previousToggleHandler, true);
+    delete ritualistRow._tenebreRitualistToggleHandler;
+    delete ritualistRow.dataset.tenebreRitualistToggle;
+    ritualistRow.classList.remove("tenebre-ritualist-anchor", "tenebre-ritualist-expanded");
+    ritualistRow.removeAttribute("aria-expanded");
+    ritualistRow.removeAttribute("title");
+    return;
+  }
 
   const hideRitualRows = () => {
     for (const ritual of rituals) {

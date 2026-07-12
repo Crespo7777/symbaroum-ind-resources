@@ -6,16 +6,30 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const catalog = JSON.parse(fs.readFileSync(path.join(root, "data", "rituals.json"), "utf8"));
 
+let ritualCatalogEnabled = true;
 globalThis.game = {
-  i18n: { lang: "pt-BR" }
+  i18n: { lang: "pt-BR" },
+  settings: {
+    get(_moduleId, key) {
+      if (key === "enableRitualCatalog") return ritualCatalogEnabled;
+      return undefined;
+    }
+  }
 };
 
 const {
+  RitualBrowserService,
   isRestrictedTradition,
   isRitualDocument,
   isRitualistAbility,
   mergeRitualSources
 } = await import("../scripts/ritual-browser.mjs");
+
+assert.equal(RitualBrowserService.isEnabled(), true);
+ritualCatalogEnabled = false;
+assert.equal(RitualBrowserService.isEnabled(), false, "catalog setting must be read without a stale cache");
+assert.equal(await RitualBrowserService.open(null), null, "disabled catalog must not build or render a dialog");
+ritualCatalogEnabled = true;
 
 assert.equal(catalog.version, 1);
 assert.equal(catalog.rituals.length, 66, "the official ritual catalog must contain all 66 rituals");

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 let preCreateHook = null;
+let rollPrivacyEnabled = true;
 globalThis.Hooks = {
   on(name, callback) {
     if (name === "preCreateChatMessage") preCreateHook = callback;
@@ -12,6 +13,12 @@ globalThis.game = {
     { id: "gm", isGM: true },
     { id: "player", isGM: false }
   ],
+  settings: {
+    get(_moduleId, key) {
+      if (key === "enableRollPrivacy") return rollPrivacyEnabled;
+      return undefined;
+    }
+  },
   i18n: {
     localize(key) {
       return key === "TENEBRE.RollPrivacy.Label" ? "Rolagem privada" : "Somente o Mestre verá o resultado";
@@ -84,5 +91,12 @@ await RollPrivacyService.runPrivateRoll(true, async () => {
   preCreateHook(diceSoNiceMessage, {}, {}, "player");
 });
 assert.deepEqual(diceSoNiceMessage.whisper, ["gm"]);
+
+rollPrivacyEnabled = false;
+assert.equal(RollPrivacyService.fieldHtml(), "");
+assert.equal(RollPrivacyService.injectField("<div>Roll</div>"), "<div>Roll</div>");
+await RollPrivacyService.runPrivateRoll(true, async () => {
+  assert.equal(RollPrivacyService.isPrivateRollActive(), false);
+});
 
 console.log("roll privacy tests passed");

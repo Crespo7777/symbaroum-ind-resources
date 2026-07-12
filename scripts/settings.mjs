@@ -2,6 +2,7 @@ import { DEFAULTS, MODULE_ID } from "./constants.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+let pendingSheetRerender = null;
 
 export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV2) {
   static settingCategory = "rations";
@@ -140,6 +141,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableMovementEncumbranceModifier",
       "enableMovementEffectModifiers",
       "enableManeuvers",
+      "enableRollPrivacy",
       "enableModernChat",
       "enableChatItemUse",
       "enableAutomatedAnimationsIntegration",
@@ -147,6 +149,8 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableClearEffectsButton",
       "enableTokenActionHudIntegration",
       "enableBithirUtilities",
+      "enableRitualCatalog",
+      "enableRitualistGrouping",
       "enableGenerateShadow",
       "hideShadowGeneration",
       "hideShadowLabel"
@@ -306,6 +310,7 @@ export class TenebreSettings {
     register("movementBaseFeet", Number, DEFAULTS.movementBaseFeet, "TENEBRE.Settings.MovementBaseFeet", "TENEBRE.Settings.MovementBaseFeetHint");
 
     register("enableManeuvers", Boolean, true, "TENEBRE.Settings.EnableManeuvers", "TENEBRE.Settings.EnableManeuversHint");
+    register("enableRollPrivacy", Boolean, true, "TENEBRE.Settings.EnableRollPrivacy", "TENEBRE.Settings.EnableRollPrivacyHint");
     register("enableModernChat", Boolean, true, "TENEBRE.Settings.EnableModernChat", "TENEBRE.Settings.EnableModernChatHint");
     register("modernChatStyle", String, "illustrated", "TENEBRE.Settings.ModernChatStyle", "TENEBRE.Settings.ModernChatStyleHint", {
       choices: {
@@ -318,6 +323,8 @@ export class TenebreSettings {
     register("enableClearEffectsButton", Boolean, true, "TENEBRE.Settings.EnableClearEffectsButton", "TENEBRE.Settings.EnableClearEffectsButtonHint");
     register("enableTokenActionHudIntegration", Boolean, true, "TENEBRE.Settings.EnableTokenActionHudIntegration", "TENEBRE.Settings.EnableTokenActionHudIntegrationHint");
     register("enableBithirUtilities", Boolean, true, "TENEBRE.Settings.EnableBithirUtilities", "TENEBRE.Settings.EnableBithirUtilitiesHint");
+    register("enableRitualCatalog", Boolean, true, "TENEBRE.Settings.EnableRitualCatalog", "TENEBRE.Settings.EnableRitualCatalogHint");
+    register("enableRitualistGrouping", Boolean, true, "TENEBRE.Settings.EnableRitualistGrouping", "TENEBRE.Settings.EnableRitualistGroupingHint");
     register("enableGenerateShadow", Boolean, true, "TENEBRE.Settings.EnableGenerateShadow", "TENEBRE.Settings.EnableGenerateShadowHint");
     register("hideShadowGeneration", Boolean, false, "BITHIRMOD.SHADOW_hideGeneration", "BITHIRMOD.SHADOW_hideGeneration_hint");
     register("hideShadowLabel", Boolean, false, "BITHIRMOD.SHADOW_hideLabel", "BITHIRMOD.SHADOW_hideLabel_hint");
@@ -387,6 +394,7 @@ function onSettingChanged(key, value) {
     "enableContainers",
     "encumbranceDiscoveredWeights",
     "enableManeuvers",
+    "enableRitualistGrouping",
     "enableChatItemUse",
     "enableBithirUtilities",
     "enableGenerateShadow",
@@ -431,7 +439,7 @@ function onSettingChanged(key, value) {
   }
 
   game.tenebreResources?.hotbar?.refresh?.();
-  if (requiresForcedSheetRender) rerenderOpenSheets({ force: true });
+  if (requiresForcedSheetRender) scheduleOpenSheetRerender({ force: true });
 }
 
 function refreshEncumbranceActors({ autoAssign = false, clearPenalty = false } = {}) {
@@ -876,4 +884,12 @@ function rerenderOpenSheets({ force = false } = {}) {
     if (ApplicationV2 && app instanceof ApplicationV2) app.render({ force });
     else app.render(force);
   }
+}
+
+function scheduleOpenSheetRerender({ force = false } = {}) {
+  if (pendingSheetRerender !== null) window.clearTimeout(pendingSheetRerender);
+  pendingSheetRerender = window.setTimeout(() => {
+    pendingSheetRerender = null;
+    rerenderOpenSheets({ force });
+  }, 50);
 }

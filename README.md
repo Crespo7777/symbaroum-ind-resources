@@ -109,23 +109,18 @@ As configuracoes ficam em:
 Configuracoes de Jogo -> Configure Settings -> Symbaroum Ind Resources / Tenebre Resources
 ```
 
+Cada categoria abre um formulario independente. As alteracoes passam a valer ao
+salvar; fichas, chat, HUD e controles afetados sao atualizados sem exigir F5
+sempre que a API do Foundry permite.
+
 ### Alimentacao
 
 | Opcao | Efeito |
 | --- | --- |
 | Ativar Pao de Viagem | Ativa o controle especial de Pao de Viagem / Waybread. |
 | Usos por pao | Define quantos dias cada unidade alimenta. Padrao: 7. |
-
-### Municao
-
-| Opcao | Efeito |
-| --- | --- |
-| Ativar consumo automatico | Consome municao carregada quando a arma a distancia dispara. |
-| Ativar rastreamento de acertos | Registra flechas/virotes que acertaram para recuperacao posterior. |
-| Ativar recuperacao | Permite testar recuperacao de projeteis. |
-| Exibir botao de recuperacao na HUD | Mostra o botao de projeteis recuperaveis perto da hotbar. |
-| Exibir aljavas na HUD | Mostra aljavas equipadas/ativas e sua carga atual. |
-| Exibir municoes especiais no chat | Envia card de descricao quando uma municao especial e usada. |
+| Usar outros alimentos | Permite transformar itens de comida em suprimentos com usos configuraveis. |
+| Alimentos configuraveis | Adiciona, remove, cria e define usos por unidade; itens criados ficam na pasta `Alimentos`. |
 
 ### Descanso e Fome
 
@@ -134,41 +129,71 @@ Configuracoes de Jogo -> Configure Settings -> Symbaroum Ind Resources / Tenebre
 | Ativar Fome | Adiciona o efeito Fome e aplica a regra opcional de inanicao. |
 | Exibir botao Descanso nas fichas | Adiciona o botao Descanso no cabecalho da ficha. |
 | Ativar recuperacao automatica | Recupera Vitalidade pelo descanso. |
-| HP/Vitalidade por dia de descanso | Valor recuperado por dia. Padrao: 1. |
+| HP/Vitalidade por dia de descanso | Define o valor recuperado por dia. Padrao: 1. |
+
+### Municao
+
+| Opcao | Efeito |
+| --- | --- |
+| Ativar consumo automatico | Consome munição quando uma arma marcada dispara. |
+| Usar aljava carregada | Alterna entre o fluxo de aljavas e o consumo direto de munição avulsa. |
+| Capacidade da aljava | Define quantas flechas/virotes cada aljava comporta. |
+| Ativar rastreamento de acertos | Registra projeteis que acertaram para recuperacao posterior. |
+| Ativar recuperacao | Habilita os testes de recuperacao de projeteis registrados. |
+| Um teste por clique | Alterna entre recuperar um projetil ou resolver todos os pendentes por clique. |
+| Recuperacao por tipo/qualidade | Usa alvos diferentes para munição comum, de qualidade e mistica. |
+| Recuperacao unica | Define o alvo comum quando a separacao por qualidade estiver desligada. |
+| Recuperacao comum | Define o alvo para munição comum. |
+| Recuperacao de qualidade | Define o alvo para munição de qualidade. |
+| Recuperacao mistica | Define o alvo para munição mistica/alquimica. |
+| Exibir botao de recuperacao na HUD | Mostra o contador/botao perto da hotbar. |
+| Exibir aljavas na HUD | Mostra aljavas equipadas/ativas e sua carga atual. |
+| Exibir municoes especiais no chat | Envia a descricao da munição especial usada. |
 
 ### Sobrecarga e recipientes
 
 | Opcao | Efeito |
 | --- | --- |
-| Ativar Sobrecarga | Ativa calculo de peso/carga pela regra opcional. |
-| Ativar gerenciamento de recipientes | Permite guardar, retirar e abrir recipientes na ficha. |
+| Ativar Sobrecarga | Ativa peso, limites, penalidade de Defesa e imobilizacao. |
+| Ativar gerenciamento de recipientes | Ativa guardar, retirar, arrastar, expandir e proteger recipientes com conteudo. |
 
 ### Movimento
 
 | Opcao | Efeito |
 | --- | --- |
-| Ativar regra de movimento | Ativa a regua colorida e validacao de movimento. |
+| Ativar regua de movimento | Ativa medicao e validacao de movimento do modulo. |
+| Colorir regua por distancia | Colore uma acao, duas acoes e distancia bloqueada. |
+| Exibir limites na etiqueta | Mostra distancia medida e limite atual. |
+| Bloquear movimento acima do limite | Cancela movimentos acima do permitido durante combate. |
+| Aplicar Fome ao movimento | Reduz o movimento de personagens famintos. |
+| Aplicar Sobrecarga ao movimento | Aplica imobilizacao por excesso de carga. |
+| Aplicar efeitos ao movimento | Respeita efeitos de manobras e flags de movimento. |
 | Unidades de movimento | Alterna entre metros e pes. |
-| Distancia de um movimento (metros) | Padrao: 10 m. |
-| Distancia de um movimento (pes) | Padrao: 30 ft. |
+| Distancia de um movimento | Define 10 m ou 30 ft por padrao, conforme a unidade escolhida. |
 
-### Automacao de combate
+### Combate
 
 | Opcao | Efeito |
 | --- | --- |
-| Ativar manobras | Mostra e automatiza manobras na ficha e no Token Action HUD. |
-| Ativar visual moderno do chat | Reformula cards de chat. |
-| Estilo do chat moderno | `Ilustrado` ou `Legacy`. |
-| Ativar envio de itens/habilidades para animacoes | Envia itens, habilidades, rituais e poderes ao chat com dados detectaveis. |
-| Exibir botao Limpar efeitos | Mostra botao para remover efeitos ativos da ficha. |
-| Ativar integracao com Token Action HUD | Adiciona acoes do modulo ao Token Action HUD quando disponivel. |
+| Ativar manobras | Mostra e automatiza manobras na ficha. |
+| Exibir opcao de rolagem privada | Permite enviar resultado e dados 3D somente aos Mestres em cada rolagem. |
+| Ativar visual moderno do chat | Ativa a transformacao das mensagens de chat. |
+| Estilo do chat moderno | Alterna entre `Ilustrado` e `Legacy`. |
+| Ativar uso e envio de itens/habilidades no chat | Habilita uso manual de habilidades, poderes, rituais e itens sem acao ativa. |
+| Ativar integracao com Automated Animations | Inclui os metadados consumidos pela integracao. |
+| Exibir botao Limpar efeitos | Mostra o comando nas fichas com efeitos ativos. |
+| Ativar integracao com Token Action HUD | Adiciona as manobras ao HUD quando disponivel. |
 
 ### Utilidades
 
 | Opcao | Efeito |
 | --- | --- |
-| Ativar macros e tabelas de utilidade | Ativa versos, inspiracao, geradores, eventos de floresta e utilidades Bithir internas. |
-| Ativar Gerar Sombra | Exibe o controle Gerar Sombra nas fichas quando as utilidades estao ativas. |
+| Ativar catalogo de rituais | Adiciona `Ver Rituais` ao menu da habilidade Ritualista. |
+| Agrupar rituais em Ritualista | Transforma Ritualista em uma lista expansivel dos rituais conhecidos. |
+| Ativar macros e tabelas de utilidade | Ativa versos, inspiracao, geradores e eventos de floresta. |
+| Ativar Gerar Sombra | Exibe o controle Gerar Sombra nas fichas. |
+| Ocultar geracao de Sombra | Esconde o comando sem desativar as outras utilidades. |
+| Ocultar texto de Sombra | Mantem o comando, mas oculta seu texto visivel. |
 
 ---
 
@@ -434,10 +459,10 @@ Botao direito em um item:
 Guardar
 ```
 
-Botao direito em um recipiente:
+Clique esquerdo em um recipiente:
 
 ```text
-Abrir
+Abrir ou recolher
 ```
 
 Dentro da sublista:
@@ -596,8 +621,9 @@ Isso evita que o chat mostre o resultado antes do dado terminar de rolar.
 
 ### Rolagem privada
 
-Os dialogos de rolagem possuem a opcao **Rolagem privada**. Quando ela e
-marcada, somente usuarios GM recebem o resultado daquela rolagem.
+Quando **Exibir opcao de rolagem privada** esta ativa, os dialogos de rolagem
+mostram **Rolagem privada**. Ao marca-la, somente usuarios GM recebem o
+resultado daquela rolagem.
 
 - A escolha vale apenas para a rolagem atual.
 - Dados 3D privados tambem sao enviados somente aos GMs.
@@ -609,9 +635,9 @@ marcada, somente usuarios GM recebem o resultado daquela rolagem.
 
 ### Catalogo de Ritualista
 
-Ao clicar com o botão direito na habilidade **Ritualista**, a opção **Ver
-Rituais** abre um catálogo com os 66 rituais encontrados no Livro Básico e no
-Guia Avançado do Jogador.
+Quando **Ativar catalogo de rituais** esta ligado, clicar com o botão direito na
+habilidade **Ritualista** mostra **Ver Rituais**. A opção abre um catálogo com os
+66 rituais encontrados no Livro Básico e no Guia Avançado do Jogador.
 
 O catálogo:
 
@@ -623,6 +649,11 @@ O catálogo:
   especializações;
 - abre a ficha oficial do ritual ao clicar em sua linha, permitindo consultar
   a descrição completa no visual original do sistema.
+
+Quando **Agrupar rituais em Ritualista** está ativo, os rituais conhecidos deixam
+de ocupar linhas soltas. Um clique esquerdo em **Ritualista** expande ou recolhe
+a sublista; cada ritual continua permitindo usar, ver/editar e excluir pelo
+fluxo normal da ficha.
 
 Ritualista permite aprender rituais de qualquer tradição, mas o personagem
 precisa ter acesso ao ensinamento. A progressão é 1 ritual no nível Novato, mais

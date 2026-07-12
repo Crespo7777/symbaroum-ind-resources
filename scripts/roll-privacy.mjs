@@ -9,17 +9,26 @@ export class RollPrivacyService {
     this.#registered = true;
     Hooks.on("preCreateChatMessage", (message, data, _options, userId) => {
       if (userId && userId !== game.user?.id) return;
+      if (!this.isEnabled()) return;
       if (!this.isPrivateRollActive() || !this.#isRollMessage(message, data)) return;
       this.applyToMessageSource(message, data);
     });
   }
 
+  static isEnabled() {
+    try {
+      return game.settings.get(MODULE_ID, "enableRollPrivacy") !== false;
+    } catch (_error) {
+      return true;
+    }
+  }
+
   static isPrivateRollActive() {
-    return this.#privateRollDepth > 0;
+    return this.isEnabled() && this.#privateRollDepth > 0;
   }
 
   static async runPrivateRoll(enabled, callback) {
-    if (!enabled) return callback();
+    if (!this.isEnabled() || !enabled) return callback();
     this.#privateRollDepth += 1;
     try {
       return await callback();
@@ -29,11 +38,13 @@ export class RollPrivacyService {
   }
 
   static isChecked(root) {
+    if (!this.isEnabled()) return false;
     const element = root?.[0] ?? root;
     return Boolean(element?.querySelector?.('input[name="tenebrePrivateRoll"]')?.checked);
   }
 
   static fieldHtml() {
+    if (!this.isEnabled()) return "";
     const label = game.i18n.localize("TENEBRE.RollPrivacy.Label");
     const hint = game.i18n.localize("TENEBRE.RollPrivacy.Hint");
     return `
@@ -46,6 +57,7 @@ export class RollPrivacyService {
 
   static injectField(content) {
     const source = String(content ?? "");
+    if (!this.isEnabled()) return source;
     if (!source || source.includes('name="tenebrePrivateRoll"')) return source;
     const favourIndex = source.indexOf('<div class="favour">');
     if (favourIndex >= 0) {
@@ -57,7 +69,7 @@ export class RollPrivacyService {
   }
 
   static prepareChatData(chatData, { rollCandidate = false } = {}) {
-    if (!chatData || !rollCandidate || !this.isPrivateRollActive()) return chatData;
+    if (!this.isEnabled() || !chatData || !rollCandidate || !this.isPrivateRollActive()) return chatData;
     const flags = foundry.utils.deepClone(chatData.flags ?? {});
     flags[MODULE_ID] = {
       ...(flags[MODULE_ID] ?? {}),
@@ -71,6 +83,7 @@ export class RollPrivacyService {
   }
 
   static applyToMessageSource(message, data = {}) {
+    if (!this.isEnabled()) return false;
     const flags = foundry.utils.deepClone(message?.flags ?? data?.flags ?? {});
     flags[MODULE_ID] = {
       ...(flags[MODULE_ID] ?? {}),
@@ -85,7 +98,7 @@ export class RollPrivacyService {
   }
 
   static diceRecipients() {
-    if (!this.isPrivateRollActive()) return null;
+    if (!this.isEnabled() || !this.isPrivateRollActive()) return null;
     return Array.from(game.users ?? []).filter((user) => user.isGM);
   }
 

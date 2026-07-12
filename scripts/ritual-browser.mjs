@@ -10,7 +10,16 @@ let installedRitualsPromise = null;
 export const RitualBrowserService = {
   isRitualistAbility,
 
+  isEnabled() {
+    try {
+      return game.settings.get(MODULE_ID, "enableRitualCatalog") !== false;
+    } catch (_error) {
+      return true;
+    }
+  },
+
   async open(actor) {
+    if (!this.isEnabled()) return null;
     const catalog = await loadCatalog();
     const installed = await loadInstalledRituals();
     const rituals = mergeRitualSources(catalog, installed, actor);

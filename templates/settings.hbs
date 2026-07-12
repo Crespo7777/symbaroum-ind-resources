@@ -236,6 +236,10 @@
         <input type="checkbox" name="enableManeuvers" {{checked settings.enableManeuvers}}>
       </label>
       <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableRollPrivacy"}}</span>
+        <input type="checkbox" name="enableRollPrivacy" {{checked settings.enableRollPrivacy}}>
+      </label>
+      <label class="tenebre-settings-field">
         <span>{{localize "TENEBRE.Settings.EnableModernChat"}}</span>
         <input type="checkbox" name="enableModernChat" {{checked settings.enableModernChat}}>
       </label>
@@ -268,6 +272,16 @@
   {{#if showUtilities}}
     <section class="tenebre-settings-section">
       <h2>{{localize "TENEBRE.Settings.UtilitiesGroup"}}</h2>
+      <h3>{{localize "TENEBRE.Settings.RitualistGroup"}}</h3>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableRitualCatalog"}}</span>
+        <input type="checkbox" name="enableRitualCatalog" {{checked settings.enableRitualCatalog}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableRitualistGrouping"}}</span>
+        <input type="checkbox" name="enableRitualistGrouping" {{checked settings.enableRitualistGrouping}}>
+      </label>
+      <h3>{{localize "TENEBRE.Settings.BithirUtilitiesGroup"}}</h3>
       <label class="tenebre-settings-field">
         <span>{{localize "TENEBRE.Settings.EnableBithirUtilities"}}</span>
         <input type="checkbox" name="enableBithirUtilities" {{checked settings.enableBithirUtilities}}>
