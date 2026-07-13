@@ -4,6 +4,7 @@ import { getWeaponAmmoType } from "./item-flags.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
+import { canAttackWithWeapon, resolveWeaponItem, WeaponReadinessService } from "./weapon-readiness.mjs";
 
 let patched = false;
 
@@ -23,6 +24,14 @@ export function patchWeaponRolls() {
 
     if (this?.type !== "player") {
       return wrapped.call(this, weapon, ...args);
+    }
+
+    const weaponItem = resolveWeaponItem(this, weapon);
+    if (WeaponReadinessService.isEnabled() && weaponItem && !canAttackWithWeapon(weaponItem)) {
+      ui.notifications.warn(game.i18n.format("TENEBRE.WeaponReadiness.AttackBlocked", {
+        weapon: weaponItem.name
+      }));
+      return undefined;
     }
 
     const ammoType = getWeaponAmmoType(weapon);

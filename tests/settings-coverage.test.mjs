@@ -16,7 +16,8 @@ const formFields = new Set(Array.from(templateSource.matchAll(/\bname="([^"]+)"/
 const internalSettings = new Set([
   "hideCompatibilityNotice",
   "compatibilityNoticeAcknowledged",
-  "encumbranceDiscoveredWeights"
+  "encumbranceDiscoveredWeights",
+  "weaponReadinessButtonPosition"
 ]);
 
 test("every settings form field has a registered setting", () => {

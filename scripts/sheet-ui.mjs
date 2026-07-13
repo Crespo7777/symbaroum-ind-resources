@@ -12,8 +12,10 @@ import { ManeuverService } from "./maneuvers.mjs";
 import { SocketService } from "./sockets.mjs";
 import { ChatItemUseService } from "./chat-item-use.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
+import { isWeaponReadinessIndicatorEffect } from "./weapon-readiness-visuals.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { RitualBrowserService, isRitualDocument } from "./ritual-browser.mjs";
+import { WeaponReadinessService } from "./weapon-readiness.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -394,6 +396,32 @@ function patchContextMenu() {
         });
 
         this.originalMenuItems.push({
+          name: "TENEBRE.WeaponReadiness.Draw",
+          icon: `<i class="fas fa-hand-fist" style="color: currentColor;"></i>`,
+          isVisible: (item) => WeaponReadinessService.isEnabled()
+            && WeaponReadinessService.isEligibleWeapon(item)
+            && !WeaponReadinessService.isDrawn(item),
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const item = actor?.items?.get(elem.dataset.itemId);
+            if (item) void WeaponReadinessService.setDrawn(item, true);
+          }
+        });
+
+        this.originalMenuItems.push({
+          name: "TENEBRE.WeaponReadiness.Sheathe",
+          icon: `<i class="fas fa-shield-halved" style="color: currentColor;"></i>`,
+          isVisible: (item) => WeaponReadinessService.isEnabled()
+            && WeaponReadinessService.isEligibleWeapon(item)
+            && WeaponReadinessService.isDrawn(item),
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const item = actor?.items?.get(elem.dataset.itemId);
+            if (item) void WeaponReadinessService.setDrawn(item, false);
+          }
+        });
+
+        this.originalMenuItems.push({
           name: "TENEBRE.Ammo.ReloadQuiverContextMenu",
           icon: `<i class="fas fa-redo" style="color: currentColor;"></i>`,
           isVisible: (item) => {
@@ -488,9 +516,50 @@ function onRenderActorSheet(app, html) {
   injectRitualistInlineList(app, html, actor);
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
+  injectWeaponReadinessControls(app, html, actor);
   injectEncumbrancePanel(app, html, actor);
   injectManeuverPanel(app, html, actor);
   wireChatItemUseIconFallback(app, html, actor);
+}
+
+function injectWeaponReadinessControls(_app, html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  el.querySelectorAll(".tenebre-weapon-readiness-button").forEach((button) => button.remove());
+  el.querySelectorAll(".tenebre-weapon-drawn").forEach((row) => row.classList.remove("tenebre-weapon-drawn"));
+  el.querySelectorAll(".tenebre-weapon-drawn-icon").forEach((icon) => icon.remove());
+  if (!WeaponReadinessService.isEnabled()) return;
+
+  const weapons = WeaponReadinessService.getEligibleWeapons(actor);
+  const section = el.querySelector(".combat .weapons");
+  const header = section?.querySelector(".item-header");
+  if (!section || !header || weapons.length === 0) return;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "tenebre-weapon-readiness-button";
+  button.title = game.i18n.localize("TENEBRE.WeaponReadiness.ButtonHint");
+  button.innerHTML = `<i class="fas fa-hand-fist"></i><span>${escapeHtml(game.i18n.localize("TENEBRE.WeaponReadiness.Button"))}</span>`;
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void WeaponReadinessService.open(actor);
+  });
+  header.append(button);
+
+  for (const weapon of weapons) {
+    if (!WeaponReadinessService.isDrawn(weapon)) continue;
+    const row = section.querySelector(`.item[data-item-id="${CSS.escape(weapon.id)}"]`);
+    if (!row) continue;
+    row.classList.add("tenebre-weapon-drawn");
+    const rollButton = row.querySelector(".roll-weapon");
+    if (!rollButton) continue;
+    const icon = document.createElement("i");
+    icon.className = "fas fa-hand-fist tenebre-weapon-drawn-icon";
+    icon.title = game.i18n.localize("TENEBRE.WeaponReadiness.Drawn");
+    rollButton.prepend(icon);
+  }
 }
 
 function injectRitualistInlineList(app, html, actor) {
@@ -1222,11 +1291,11 @@ function patchPlayerSheetHeaderButtons() {
 }
 
 function hasActorEffects(actor) {
-  return Array.from(actor?.effects ?? []).length > 0;
+  return Array.from(actor?.effects ?? []).some((effect) => !isWeaponReadinessIndicatorEffect(effect));
 }
 
 async function clearActorEffects(actor) {
-  const effects = Array.from(actor?.effects ?? []).filter((effect) => effect?.id);
+  const effects = Array.from(actor?.effects ?? []).filter((effect) => effect?.id && !isWeaponReadinessIndicatorEffect(effect));
   if (!actor || !effects.length) return 0;
   await ManeuverService.prepareEffectsForRemoval(actor, effects);
   await SocketService.deleteEmbeddedDocuments(actor, "ActiveEffect", effects.map((effect) => effect.id), { render: true });

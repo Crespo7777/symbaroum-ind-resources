@@ -207,7 +207,7 @@
   margin: 5px 10px;
 }
 
-.tenebre-rest-dialog label {
+.tenebre-rest-dialog .damagemodifier > label {
   box-sizing: border-box;
   flex: 1 1 0;
   display: flex;
@@ -250,6 +250,63 @@
 
 .tenebre-rest-dialog input[disabled] {
   opacity: 1;
+}
+
+.tenebre-rest-private-control {
+  position: relative;
+  box-sizing: border-box;
+  flex: 1 1 0;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  width: auto;
+  height: 28px;
+  min-height: 28px;
+  border: 1px solid var(--color-border);
+  border-left: 0;
+  background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat;
+  box-shadow: inset 0 0 6px black;
+}
+
+.tenebre-rest-private-control input[type="checkbox"] {
+  position: absolute !important;
+  inset: 0;
+  z-index: 1;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  margin: 0 !important;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tenebre-rest-dialog .tenebre-rest-private-check {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  min-height: 14px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #17130f;
+  border-radius: 2px;
+  background: #f2eee5;
+  color: #17130f;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.tenebre-rest-private-control input[type="checkbox"]:checked + .tenebre-rest-private-check::after {
+  content: "\2713";
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tenebre-rest-private-control input[type="checkbox"]:focus-visible + .tenebre-rest-private-check {
+  outline: 2px solid var(--color-focus, #ff6400);
+  outline-offset: 1px;
 }
 
 .tenebre-rest-dialog input[type=number]::-webkit-outer-spin-button,
@@ -2723,4 +2780,341 @@ div .bithirmod .inspirationdie > img {
   .tenebre-ritual-list {
     grid-template-columns: 1fr;
   }
+}
+
+/* Weapon readiness */
+
+.tenebre-weapon-readiness-floating {
+  position: fixed;
+  z-index: 100;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  place-items: center;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: 4px 3px 2px;
+  border: 1px solid rgba(190, 150, 70, 0.55);
+  border-radius: 4px;
+  background: url("/systems/symbaroum/asset/image/background/title.webp") repeat;
+  color: #f0e6c8;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.65);
+  cursor: grab;
+  touch-action: none;
+  transition: none !important;
+  user-select: none;
+  will-change: transform;
+}
+
+.tenebre-weapon-readiness-floating:hover,
+.tenebre-weapon-readiness-floating:focus-visible {
+  border-color: #d4a83f;
+  color: #fff;
+  box-shadow: 0 0 6px rgba(212, 168, 63, 0.75);
+}
+
+.tenebre-weapon-readiness-floating.is-dragging {
+  cursor: grabbing;
+  opacity: 0.88;
+}
+
+.tenebre-weapon-readiness-floating[data-drawn="true"] {
+  border-color: #d4a83f;
+  box-shadow: inset 0 0 7px rgba(212, 168, 63, 0.42), 0 2px 7px rgba(0, 0, 0, 0.65);
+}
+
+.tenebre-weapon-readiness-floating > img {
+  width: 19px;
+  height: 19px;
+  border: 0;
+  object-fit: contain;
+  filter: sepia(1) saturate(2.4) hue-rotate(355deg) brightness(0.9);
+  pointer-events: none;
+}
+
+.tenebre-weapon-readiness-floating-count {
+  min-width: 24px;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-family: var(--font-text);
+  font-size: 10px;
+  line-height: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.tenebre-weapon-readiness-quick-menu {
+  position: fixed;
+  z-index: 101;
+  box-sizing: border-box;
+  display: grid;
+  gap: 2px;
+  width: 230px;
+  max-height: min(420px, calc(100vh - 8px));
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid rgba(190, 150, 70, 0.72);
+  border-radius: 3px;
+  background: url("/systems/symbaroum/asset/image/background/paper.webp") repeat;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.72);
+}
+
+.tenebre-weapon-readiness-quick-menu > header {
+  min-height: 26px;
+  padding: 4px 7px;
+  background: url("/systems/symbaroum/asset/image/background/title.webp") repeat;
+  color: #fff;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.tenebre-weapon-readiness-quick-option,
+.tenebre-weapon-readiness-quick-sheathe {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  margin: 0;
+  padding: 2px 5px;
+  border: 1px solid rgba(74, 55, 43, 0.48);
+  border-radius: 0;
+  background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat;
+  color: #17130f;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: left;
+}
+
+.tenebre-weapon-readiness-quick-option:hover,
+.tenebre-weapon-readiness-quick-option:focus-visible,
+.tenebre-weapon-readiness-quick-option[data-drawn="true"] {
+  border-color: #b78d2f;
+  box-shadow: inset 3px 0 0 #c99b2f;
+}
+
+.tenebre-weapon-readiness-quick-option > img {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  border: 1px solid #17130f;
+  object-fit: cover;
+}
+
+.tenebre-weapon-readiness-quick-option > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenebre-weapon-readiness-quick-sheathe {
+  display: block;
+  min-height: 28px;
+  background: url("/systems/symbaroum/asset/image/background/title.webp") repeat;
+  color: #fff;
+  text-align: center;
+}
+
+.symbaroum.sheet.actor .player .main .combat .weapons .item-header {
+  display: flex;
+  align-items: center;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-weapon-readiness-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 5px;
+  align-items: center;
+  width: auto;
+  min-width: 0;
+  height: 24px;
+  margin: 0 4px 0 auto;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-family: var(--font-text);
+  font-size: 12px;
+  line-height: 24px;
+  box-shadow: none;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-weapon-readiness-button:hover,
+.symbaroum.sheet.actor .player .main .combat .tenebre-weapon-readiness-button:focus-visible {
+  color: var(--color-active);
+  text-shadow: 0 0 8px #000;
+  box-shadow: none;
+}
+
+.symbaroum.sheet.actor .player .main .combat .weapon.tenebre-weapon-drawn {
+  box-shadow: inset 3px 0 0 #c99b2f;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-weapon-drawn-icon {
+  flex: 0 0 auto;
+  margin: 0 5px;
+  color: #d4a83f;
+}
+
+.tenebre-weapon-readiness-dialog {
+  display: grid;
+  gap: 2px;
+  padding: 4px 5px 0;
+}
+
+.tenebre-weapon-readiness-list {
+  display: grid;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.tenebre-symbaroum-dialog .tenebre-weapon-readiness-option {
+  position: relative;
+  box-sizing: border-box;
+  display: grid !important;
+  grid-template-columns: 14px 28px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  justify-content: stretch;
+  width: 100%;
+  min-height: 30px;
+  padding: 1px 4px;
+  border: 1px solid var(--color-border);
+  background: url("/systems/symbaroum/asset/image/background/editable.webp") repeat !important;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: left;
+}
+
+.tenebre-weapon-readiness-option img {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  border: 1px solid #17130f;
+  object-fit: cover;
+}
+
+.tenebre-weapon-readiness-option input[type="checkbox"],
+.tenebre-weapon-readiness-sheathe-all input[type="checkbox"] {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 1px !important;
+  min-height: 1px !important;
+  margin: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tenebre-weapon-readiness-check {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #17130f;
+  border-radius: 2px;
+  background: #f2eee5;
+  color: #17130f;
+  line-height: 1;
+}
+
+.tenebre-weapon-readiness-option input[type="checkbox"]:checked + .tenebre-weapon-readiness-check::after,
+.tenebre-weapon-readiness-sheathe-all input[type="checkbox"]:checked + .tenebre-weapon-readiness-check::after {
+  content: "\2713";
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tenebre-weapon-readiness-option input[type="checkbox"]:focus-visible + .tenebre-weapon-readiness-check,
+.tenebre-weapon-readiness-sheathe-all input[type="checkbox"]:focus-visible + .tenebre-weapon-readiness-check {
+  outline: 2px solid var(--color-focus, #ff6400);
+  outline-offset: 1px;
+}
+
+.tenebre-symbaroum-dialog .tenebre-weapon-readiness-sheathe-all {
+  position: relative;
+  box-sizing: border-box;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 14px;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  min-height: 28px;
+  padding: 2px 7px;
+  border: 1px solid var(--color-border);
+  background: url("/systems/symbaroum/asset/image/background/title.webp") repeat !important;
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 18px;
+}
+
+.tenebre-weapon-readiness-sheathe-all .tenebre-weapon-readiness-check {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.tenebre-weapon-readiness-sheathe-label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.application:has(.tenebre-weapon-readiness-dialog) footer,
+.window-app:has(.tenebre-weapon-readiness-dialog) footer,
+.application:has(.tenebre-weapon-readiness-dialog) .form-footer,
+.window-app:has(.tenebre-weapon-readiness-dialog) .form-footer,
+.application:has(.tenebre-weapon-readiness-dialog) .dialog-buttons,
+.window-app:has(.tenebre-weapon-readiness-dialog) .dialog-buttons {
+  gap: 5px;
+  margin: 4px 5px 7px;
+}
+
+.application:has(.tenebre-weapon-readiness-dialog) footer button,
+.window-app:has(.tenebre-weapon-readiness-dialog) footer button,
+.application:has(.tenebre-weapon-readiness-dialog) .form-footer button,
+.window-app:has(.tenebre-weapon-readiness-dialog) .form-footer button,
+.application:has(.tenebre-weapon-readiness-dialog) .dialog-buttons button,
+.window-app:has(.tenebre-weapon-readiness-dialog) .dialog-buttons button {
+  height: 30px;
+  min-height: 30px;
+  font-size: 12px;
+}
+
+.tenebre-weapon-readiness-chat {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 7px;
+  border: 1px solid rgba(92, 60, 39, 0.7);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.tenebre-weapon-readiness-chat > img {
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  border: 1px solid #17130f;
+  object-fit: cover;
+}
+
+.tenebre-weapon-readiness-chat p {
+  margin: 2px 0 0;
 }

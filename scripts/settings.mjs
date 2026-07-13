@@ -73,6 +73,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
     syncCombatSettingsVisibility(form);
     form?.querySelector?.('input[name="enableManeuvers"]')?.addEventListener("change", () => syncCombatSettingsVisibility(form));
     form?.querySelector?.('input[name="enableModernChat"]')?.addEventListener("change", () => syncCombatSettingsVisibility(form));
+    form?.querySelector?.('input[name="enableWeaponReadiness"]')?.addEventListener("change", () => syncCombatSettingsVisibility(form));
     syncUtilitiesSettingsVisibility(form);
     form?.querySelector?.('input[name="enableBithirUtilities"]')?.addEventListener("change", () => syncUtilitiesSettingsVisibility(form));
     form?.querySelector?.('input[name="enableGenerateShadow"]')?.addEventListener("change", () => syncUtilitiesSettingsVisibility(form));
@@ -142,6 +143,10 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableMovementEffectModifiers",
       "enableManeuvers",
       "enableRollPrivacy",
+      "enableWeaponReadiness",
+      "showWeaponReadinessButton",
+      "showWeaponReadinessTokenIndicator",
+      "enableWeaponReadinessAnimation",
       "enableModernChat",
       "enableChatItemUse",
       "enableAutomatedAnimationsIntegration",
@@ -311,6 +316,11 @@ export class TenebreSettings {
 
     register("enableManeuvers", Boolean, true, "TENEBRE.Settings.EnableManeuvers", "TENEBRE.Settings.EnableManeuversHint");
     register("enableRollPrivacy", Boolean, true, "TENEBRE.Settings.EnableRollPrivacy", "TENEBRE.Settings.EnableRollPrivacyHint");
+    register("enableWeaponReadiness", Boolean, true, "TENEBRE.Settings.EnableWeaponReadiness", "TENEBRE.Settings.EnableWeaponReadinessHint");
+    register("showWeaponReadinessButton", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessButton", "TENEBRE.Settings.ShowWeaponReadinessButtonHint");
+    register("showWeaponReadinessTokenIndicator", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator", "TENEBRE.Settings.ShowWeaponReadinessTokenIndicatorHint");
+    register("enableWeaponReadinessAnimation", Boolean, true, "TENEBRE.Settings.EnableWeaponReadinessAnimation", "TENEBRE.Settings.EnableWeaponReadinessAnimationHint");
+    register("weaponReadinessButtonPosition", Object, {}, "TENEBRE.Settings.WeaponReadinessButtonPosition", "TENEBRE.Settings.WeaponReadinessButtonPositionHint", { scope: "client" });
     register("enableModernChat", Boolean, true, "TENEBRE.Settings.EnableModernChat", "TENEBRE.Settings.EnableModernChatHint");
     register("modernChatStyle", String, "illustrated", "TENEBRE.Settings.ModernChatStyle", "TENEBRE.Settings.ModernChatStyleHint", {
       choices: {
@@ -394,6 +404,7 @@ function onSettingChanged(key, value) {
     "enableContainers",
     "encumbranceDiscoveredWeights",
     "enableManeuvers",
+    "enableWeaponReadiness",
     "enableRitualistGrouping",
     "enableChatItemUse",
     "enableBithirUtilities",
@@ -501,9 +512,11 @@ function syncCombatSettingsVisibility(form) {
   if (!form?.querySelector?.('input[name="enableManeuvers"]')) return;
   const maneuversEnabled = Boolean(form.querySelector('input[name="enableManeuvers"]')?.checked);
   const modernChatEnabled = Boolean(form.querySelector('input[name="enableModernChat"]')?.checked);
+  const weaponReadinessEnabled = Boolean(form.querySelector('input[name="enableWeaponReadiness"]')?.checked);
 
   setHidden(form.querySelectorAll("[data-combat-maneuvers-dependent]"), !maneuversEnabled);
   setHidden(form.querySelectorAll("[data-combat-modern-chat-dependent]"), !modernChatEnabled);
+  setHidden(form.querySelectorAll("[data-combat-weapon-readiness-dependent]"), !weaponReadinessEnabled);
 }
 
 function syncUtilitiesSettingsVisibility(form) {

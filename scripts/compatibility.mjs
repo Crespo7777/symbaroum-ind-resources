@@ -66,6 +66,10 @@ export class CompatibilityService {
       && typeof globalThis.libWrapper?.register === "function";
   }
 
+  static buildVisualActiveEffectData(data) {
+    return buildVisualActiveEffectData(data);
+  }
+
   static shouldSkipBundledBithir() {
     return this.isModuleActive(COMPAT_MODULES.symbaroumBithir);
   }
@@ -289,6 +293,23 @@ export class CompatibilityService {
 
     console.info(`${MODULE_ID} | Compatibility guard active.`, this.getReport());
   }
+}
+
+export function buildVisualActiveEffectData(data, generation = getFoundryGeneration()) {
+  const effect = {
+    name: data.name,
+    img: data.img,
+    changes: data.changes ?? [],
+    disabled: false,
+    transfer: false,
+    statuses: data.statuses ?? [],
+    flags: data.flags ?? {}
+  };
+
+  if (generation >= 14) {
+    effect.showIcon = globalThis.CONST?.ACTIVE_EFFECT_SHOW_ICON?.ALWAYS ?? 2;
+  }
+  return effect;
 }
 
 function resolveDialogElement(value) {

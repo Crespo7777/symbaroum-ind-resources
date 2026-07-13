@@ -13,6 +13,17 @@ export class RestService {
     const restHealingEnabled = TenebreSettings.get("enableRestHealing");
     const configuredHealing = Number(TenebreSettings.get("restHealing"));
     const defaultHealing = restHealingEnabled && Number.isFinite(configuredHealing) ? configuredHealing : 0;
+    const privateRollField = RollPrivacyService.isEnabled()
+      ? `
+        <div class="damagemodifier tenebre-rest-private-row" title="${escapeHtml(game.i18n.localize("TENEBRE.RollPrivacy.Hint"))}">
+          <label for="tenebre-rest-private-roll">${escapeHtml(game.i18n.localize("TENEBRE.RollPrivacy.Label"))}</label>
+          <div class="tenebre-rest-private-control">
+            <input type="checkbox" id="tenebre-rest-private-roll" name="tenebrePrivateRoll">
+            <span class="tenebre-rest-private-check" aria-hidden="true"></span>
+          </div>
+        </div>
+      `
+      : "";
 
     const content = `
       <div class="symbaroum dialog tenebre-rest-dialog">
@@ -28,7 +39,7 @@ export class RestService {
           <label for="tenebre-healing">${game.i18n.localize("TENEBRE.Rest.HealingPerDay")}</label>
           <input type="number" id="tenebre-healing" name="healing" value="${defaultHealing}" min="0" max="100">
         </div>
-        ${RollPrivacyService.fieldHtml()}
+        ${privateRollField}
       </div>
     `;
 

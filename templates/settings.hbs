@@ -240,6 +240,22 @@
         <input type="checkbox" name="enableRollPrivacy" {{checked settings.enableRollPrivacy}}>
       </label>
       <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableWeaponReadiness"}}</span>
+        <input type="checkbox" name="enableWeaponReadiness" {{checked settings.enableWeaponReadiness}}>
+      </label>
+      <label class="tenebre-settings-field" data-combat-weapon-readiness-dependent>
+        <span>{{localize "TENEBRE.Settings.ShowWeaponReadinessButton"}}</span>
+        <input type="checkbox" name="showWeaponReadinessButton" {{checked settings.showWeaponReadinessButton}}>
+      </label>
+      <label class="tenebre-settings-field" data-combat-weapon-readiness-dependent>
+        <span>{{localize "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator"}}</span>
+        <input type="checkbox" name="showWeaponReadinessTokenIndicator" {{checked settings.showWeaponReadinessTokenIndicator}}>
+      </label>
+      <label class="tenebre-settings-field" data-combat-weapon-readiness-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableWeaponReadinessAnimation"}}</span>
+        <input type="checkbox" name="enableWeaponReadinessAnimation" {{checked settings.enableWeaponReadinessAnimation}}>
+      </label>
+      <label class="tenebre-settings-field">
         <span>{{localize "TENEBRE.Settings.EnableModernChat"}}</span>
         <input type="checkbox" name="enableModernChat" {{checked settings.enableModernChat}}>
       </label>

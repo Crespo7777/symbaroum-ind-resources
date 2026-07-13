@@ -20,6 +20,9 @@ import { CompatibilityService } from "./compatibility.mjs";
 import { ModernChatService } from "./modern-chat.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { RitualBrowserService } from "./ritual-browser.mjs";
+import { WeaponReadinessService } from "./weapon-readiness.mjs";
+import { WeaponReadinessHudService } from "./weapon-readiness-hud.mjs";
+import { WeaponReadinessVisualService } from "./weapon-readiness-visuals.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -67,6 +70,10 @@ Hooks.once("ready", async () => {
   HotbarService.register();
   HungerService.registerHooks();
   ManeuverService.registerHooks();
+  WeaponReadinessService.registerHooks();
+  WeaponReadinessVisualService.registerHooks();
+  WeaponReadinessVisualService.refreshAllIndicators();
+  WeaponReadinessHudService.register();
   MovementService.register();
   patchSymbaroumRollDialogs();
   patchSymbaroumActorUsePower();
@@ -107,6 +114,9 @@ Hooks.once("ready", async () => {
     modernChat: ModernChatService,
     rollPrivacy: RollPrivacyService,
     ritualBrowser: RitualBrowserService,
+    weaponReadiness: WeaponReadinessService,
+    weaponReadinessHud: WeaponReadinessHudService,
+    weaponReadinessVisuals: WeaponReadinessVisualService,
     compatibility: CompatibilityService,
     tokenActionHud: TokenActionHudIntegration,
     bithir: game.bithirmod,

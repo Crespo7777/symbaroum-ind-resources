@@ -1,5 +1,6 @@
 import { MODULE_ID } from "./constants.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
+import { isWeaponReadinessIndicatorEffect } from "./weapon-readiness-visuals.mjs";
 import { SocketService } from "./sockets.mjs";
 import { TenebreSettings } from "./settings.mjs";
 
@@ -142,11 +143,11 @@ function getHandlerActor(handler) {
 }
 
 function hasActorEffects(actor) {
-  return Array.from(actor?.effects ?? []).length > 0;
+  return Array.from(actor?.effects ?? []).some((effect) => !isWeaponReadinessIndicatorEffect(effect));
 }
 
 async function clearActorEffects(actor) {
-  const effects = Array.from(actor?.effects ?? []).filter((effect) => effect?.id);
+  const effects = Array.from(actor?.effects ?? []).filter((effect) => effect?.id && !isWeaponReadinessIndicatorEffect(effect));
   if (!actor || !effects.length) return 0;
 
   await ManeuverService.prepareEffectsForRemoval(actor, effects);
