@@ -9,6 +9,7 @@ import {
   isDrawn,
   isEligibleWeapon,
   resolveWeaponItem,
+  WEAPON_READINESS_ICON,
   WEAPON_READINESS_FLAG
 } from "../scripts/weapon-readiness.mjs";
 import {
@@ -18,6 +19,10 @@ import {
 import { buildVisualActiveEffectData } from "../scripts/compatibility.mjs";
 
 const scope = "symbaroum-ind-resources";
+
+test("sheet and HUD readiness indicators share the Symbaroum weapon icon", () => {
+  assert.equal(WEAPON_READINESS_ICON, "/systems/symbaroum/asset/image/weapon.png");
+});
 
 function weapon(id, { state = "active", reference = "1handed", readiness, qualities = {} } = {}) {
   return {

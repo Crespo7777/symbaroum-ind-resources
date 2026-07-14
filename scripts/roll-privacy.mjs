@@ -2,6 +2,7 @@ import { MODULE_ID } from "./constants.mjs";
 
 export class RollPrivacyService {
   static #privateRollDepth = 0;
+  static #pendingPrivateRolls = new Map();
   static #registered = false;
 
   static register() {
@@ -10,8 +11,16 @@ export class RollPrivacyService {
     Hooks.on("preCreateChatMessage", (message, data, _options, userId) => {
       if (userId && userId !== game.user?.id) return;
       if (!this.isEnabled()) return;
-      if (!this.isPrivateRollActive() || !this.#isRollMessage(message, data)) return;
+      if (!this.#isRollMessage(message, data)) return;
+
+      const action = this.#pendingAction(userId);
+      if (!action && this.#privateRollDepth <= 0) return;
+
       this.applyToMessageSource(message, data);
+      if (action) {
+        action.matched = true;
+        if (this.#privateRollDepth <= 0) this.#clearPendingAction(action.userId, action);
+      }
     });
   }
 
@@ -24,16 +33,25 @@ export class RollPrivacyService {
   }
 
   static isPrivateRollActive() {
-    return this.isEnabled() && this.#privateRollDepth > 0;
+    return this.isEnabled() && (
+      this.#privateRollDepth > 0
+      || Boolean(this.#pendingAction(game.user?.id))
+    );
   }
 
   static async runPrivateRoll(enabled, callback) {
     if (!this.isEnabled() || !enabled) return callback();
+    const userId = game.user?.id;
+    const action = this.#queuePendingAction(userId);
     this.#privateRollDepth += 1;
     try {
       return await callback();
+    } catch (error) {
+      this.#clearPendingAction(userId, action);
+      throw error;
     } finally {
       this.#privateRollDepth = Math.max(0, this.#privateRollDepth - 1);
+      if (action.matched) this.#clearPendingAction(userId, action);
     }
   }
 
@@ -111,6 +129,34 @@ export class RollPrivacyService {
       message?.flags?.[MODULE_ID]?.privateRollCandidate
       ?? data?.flags?.[MODULE_ID]?.privateRollCandidate
     );
+  }
+
+  static #queuePendingAction(userId) {
+    const key = String(userId ?? "");
+    const previous = this.#pendingPrivateRolls.get(key);
+    if (previous?.timer) clearTimeout(previous.timer);
+
+    const action = {
+      userId: key,
+      matched: false,
+      timer: null
+    };
+    action.timer = setTimeout(() => this.#clearPendingAction(key, action), 5000);
+    action.timer?.unref?.();
+    this.#pendingPrivateRolls.set(key, action);
+    return action;
+  }
+
+  static #pendingAction(userId) {
+    return this.#pendingPrivateRolls.get(String(userId ?? game.user?.id ?? "")) ?? null;
+  }
+
+  static #clearPendingAction(userId, expectedAction) {
+    const key = String(userId ?? "");
+    const current = this.#pendingPrivateRolls.get(key);
+    if (!current || (expectedAction && current !== expectedAction)) return;
+    if (current.timer) clearTimeout(current.timer);
+    this.#pendingPrivateRolls.delete(key);
   }
 
   static #gmUserIds() {

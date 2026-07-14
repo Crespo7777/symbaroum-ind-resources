@@ -15,6 +15,15 @@ export function normalize(value) {
     .toLowerCase();
 }
 
+export function documentSourceUuid(document, fallback = "") {
+  return String(
+    document?._stats?.compendiumSource
+      ?? document?.flags?.core?.sourceId
+      ?? fallback
+      ?? ""
+  );
+}
+
 export async function promptDialog({
   title = "",
   content,

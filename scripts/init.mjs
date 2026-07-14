@@ -23,12 +23,15 @@ import { RitualBrowserService } from "./ritual-browser.mjs";
 import { WeaponReadinessService } from "./weapon-readiness.mjs";
 import { WeaponReadinessHudService } from "./weapon-readiness-hud.mjs";
 import { WeaponReadinessVisualService } from "./weapon-readiness-visuals.mjs";
+import { InventoryCleanupService } from "./inventory-cleanup.mjs";
+import { CombatChatPrivacyService } from "./combat-chat-privacy.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
   CompatibilityService.register();
   ModernChatService.register();
   RollPrivacyService.register();
+  CombatChatPrivacyService.register();
   registerKeybindings();
   TokenActionHudIntegration.register();
 
@@ -67,6 +70,8 @@ Hooks.once("ready", async () => {
   patchWeaponRolls();
   registerSheetHooks();
   ContainerService.registerHooks();
+  InventoryCleanupService.registerHooks();
+  await InventoryCleanupService.cleanupExisting();
   HotbarService.register();
   HungerService.registerHooks();
   ManeuverService.registerHooks();

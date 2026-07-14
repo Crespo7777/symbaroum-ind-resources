@@ -90,12 +90,12 @@ export function patchWeaponRolls() {
       if (chosenAmmo) {
         if (!rollState.consumed) {
           rollState.consumed = true;
-          await AmmoService.consumeAmmo(this, chosenAmmo, weapon, ammoType);
+          rollState.shot = await AmmoService.consumeAmmo(this, chosenAmmo, weapon, ammoType);
         }
 
         if (!rollState.hitRecorded && isSuccessfulWeaponResult(result)) {
           rollState.hitRecorded = true;
-          await AmmoService.recordHit(this, chosenAmmo);
+          await AmmoService.recordHit(this, rollState.shot ?? chosenAmmo);
         }
       }
 

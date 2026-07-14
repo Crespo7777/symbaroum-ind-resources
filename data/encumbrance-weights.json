@@ -567,6 +567,14 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "Arrow - Flame": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Arrow - Grappling Hook": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Arrow - Hammer Head": {
       "bundleSize": 10,
       "slots": 1
@@ -695,11 +703,27 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "Flecha - Arpéu": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha - Cabeça de Martelo": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha - Cauda de Andorinha": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Flecha - Cortador de Corda": {
       "bundleSize": 10,
       "slots": 1
     },
     "Flecha - Flamejante": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha - de Laço": {
       "bundleSize": 10,
       "slots": 1
     },
@@ -851,6 +875,10 @@
       "bundleSize": 50,
       "slots": 1
     },
+    "Raio Atordoante": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Sibilante": {
       "bundleSize": 10,
       "slots": 1
@@ -868,6 +896,10 @@
       "slots": 1
     },
     "Stunning Bolt": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "True Arrow": {
       "bundleSize": 10,
       "slots": 1
     },

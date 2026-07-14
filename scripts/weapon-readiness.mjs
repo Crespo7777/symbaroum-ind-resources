@@ -4,6 +4,7 @@ import { escapeHtml, promptDialog } from "./utils.mjs";
 export const WEAPON_READINESS_FLAG = "weaponReadiness";
 export const WEAPON_READY_STATE = "drawn";
 export const WEAPON_HAND_LIMIT = 2;
+export const WEAPON_READINESS_ICON = "/systems/symbaroum/asset/image/weapon.png";
 
 const actorUpdates = new Map();
 

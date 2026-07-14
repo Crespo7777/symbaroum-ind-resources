@@ -1201,6 +1201,29 @@
   font-family: "Philosopher", var(--font-text), serif;
 }
 
+.tenebre-modern-chat-private-roll {
+  gap: 4px;
+  padding: 7px 8px;
+}
+
+.tenebre-modern-chat-private-roll .tenebre-illustrated-title {
+  font-size: 22px;
+}
+
+.tenebre-modern-chat-private-roll .tenebre-illustrated-separator img {
+  height: 20px;
+}
+
+.tenebre-modern-chat-private-roll .tenebre-illustrated-details {
+  min-height: 0;
+  padding: 7px;
+  text-align: center;
+}
+
+.tenebre-modern-chat-private-roll .tenebre-illustrated-flavor {
+  margin: 0;
+}
+
 .tenebre-illustrated-title {
   margin: 0;
   border: 0;
@@ -1374,6 +1397,25 @@
 .tenebre-illustrated-item-link::before,
 .tenebre-illustrated-item-link::after {
   content: none;
+}
+
+.tenebre-illustrated-flavor .tenebre-illustrated-inline-item-link {
+  display: inline;
+  min-height: 0;
+  color: #6f241e;
+  font: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.tenebre-illustrated-flavor .tenebre-illustrated-inline-item-link:hover,
+.tenebre-illustrated-flavor .tenebre-illustrated-inline-item-link:focus,
+.tenebre-illustrated-flavor .tenebre-illustrated-inline-item-link:active {
+  color: #6f241e;
+  text-decoration: underline;
 }
 
 .tenebre-illustrated-actor {
@@ -1670,6 +1712,10 @@
   overflow-y: visible;
 }
 
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-panel .item-list .items {
+  overflow: visible;
+}
+
 .symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-panel .item-header {
   margin-top: 5px;
   margin-bottom: 5px;
@@ -1687,9 +1733,10 @@
 
 .symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px 76px;
+  grid-template-columns: minmax(0, 1fr) 28px 72px 76px;
   align-items: center;
   gap: 5px;
+  overflow: visible;
   width: 100%;
   min-height: 28px;
   margin-bottom: 5px;
@@ -1764,8 +1811,82 @@
   color: #ffffff !important;
 }
 
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-info {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: none;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  color: #ffffff !important;
+  cursor: help;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-info > i {
+  color: #d8b65b !important;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-tooltip {
+  position: absolute;
+  z-index: 100;
+  top: calc(100% + 5px);
+  right: 0;
+  display: block;
+  visibility: hidden;
+  width: min(320px, calc(100vw - 48px));
+  padding: 8px 10px;
+  border: 1px solid #8f7741;
+  background-color: #0b0a08;
+  background-image: url("/systems/symbaroum/asset/image/background/title.webp");
+  background-repeat: repeat;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: normal;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  text-align: left;
+  white-space: normal;
+  transform: translateY(-3px);
+  transition: opacity 100ms ease, transform 100ms ease, visibility 100ms ease;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-tooltip strong,
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-tooltip span {
+  display: block;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-tooltip strong {
+  margin-bottom: 4px;
+  color: #d8b65b;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-tooltip span + span {
+  margin-top: 5px;
+}
+
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-info:hover .tenebre-maneuver-tooltip,
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-info:focus-visible .tenebre-maneuver-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-select:hover,
 .symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-select:focus,
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-info:hover,
+.symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-info:focus-visible,
 .symbaroum.sheet.actor .player .main .combat .tenebre-maneuver-roll:hover {
   color: #ffffff !important;
   text-shadow: 0 0 10px var(--color-active);
@@ -2121,11 +2242,17 @@
 }
 
 .abilities-powers .tenebre-ritualist-inline-row {
+  display: flex;
   flex: 0 0 100%;
+  justify-content: flex-start;
   width: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.abilities-powers .tenebre-ritualist-inline-row-right {
+  justify-content: flex-end;
 }
 
 .abilities-powers .tenebre-ritualist-inline {
@@ -2965,8 +3092,13 @@ div .bithirmod .inspirationdie > img {
 
 .symbaroum.sheet.actor .player .main .combat .tenebre-weapon-drawn-icon {
   flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
   margin: 0 5px;
-  color: #d4a83f;
+  border: 0;
+  object-fit: contain;
+  filter: sepia(1) saturate(2.4) hue-rotate(355deg) brightness(0.9);
+  pointer-events: none;
 }
 
 .tenebre-weapon-readiness-dialog {

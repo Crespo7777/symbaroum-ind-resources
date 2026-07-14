@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const catalog = JSON.parse(fs.readFileSync(path.join(root, "data", "rituals.json"), "utf8"));
+const sheetUiSource = fs.readFileSync(path.join(root, "scripts", "sheet-ui.mjs"), "utf8");
 
 let ritualCatalogEnabled = true;
 globalThis.game = {
@@ -47,6 +48,17 @@ assert.equal(isRitualDocument({ type: "ability", system: { isRitual: true } }), 
 assert.equal(isRestrictedTradition("Disponível apenas para Confessores"), true);
 assert.equal(isRestrictedTradition("Confessors only"), true);
 assert.equal(isRestrictedTradition("Teurgia"), false);
+
+assert.match(
+  sheetUiSource,
+  /const ritualistRow = findAbilityItemRow[\s\S]*?moveAbilityRowToEnd\(ritualistRow\);[\s\S]*?enableRitualistGrouping/,
+  "Ritualist must be moved to the end before grouped rituals are rendered"
+);
+assert.match(
+  sheetUiSource,
+  /tenebre-ritualist-inline-row-right[\s\S]*?isAbilityRowInRightColumn\(ritualistRow\)/,
+  "grouped rituals must follow Ritualist's rendered column"
+);
 
 const merged = mergeRitualSources(
   catalog.rituals,

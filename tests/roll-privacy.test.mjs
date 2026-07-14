@@ -21,12 +21,12 @@ globalThis.game = {
   },
   i18n: {
     localize(key) {
-      return key === "TENEBRE.RollPrivacy.Label" ? "Rolagem privada" : "Somente o Mestre verá o resultado";
+      if (key === "TENEBRE.RollPrivacy.Label") return "Rolagem privada";
+      return "Somente o Mestre verá o resultado";
     }
   }
 };
 globalThis.foundry = { utils: { deepClone: (value) => structuredClone(value) } };
-
 const { RollPrivacyService } = await import("../scripts/roll-privacy.mjs");
 RollPrivacyService.register();
 
@@ -57,6 +57,14 @@ await RollPrivacyService.runPrivateRoll(true, async () => {
   assert.equal(narrative.whisper, undefined);
 });
 
+assert.equal(RollPrivacyService.isPrivateRollActive(), false);
+
+await RollPrivacyService.runPrivateRoll(true, async () => undefined);
+assert.equal(RollPrivacyService.isPrivateRollActive(), true, "delayed system roll lost its private intent");
+const delayedPrivateRoll = createMessage({ rolls: [{ total: 19 }] });
+preCreateHook(delayedPrivateRoll, {}, {}, "player");
+assert.deepEqual(delayedPrivateRoll.whisper, ["gm"], "delayed system roll was published");
+assert.equal(delayedPrivateRoll.blind, true);
 assert.equal(RollPrivacyService.isPrivateRollActive(), false);
 
 await RollPrivacyService.runPrivateRoll(true, async () => {
@@ -91,6 +99,7 @@ await RollPrivacyService.runPrivateRoll(true, async () => {
   preCreateHook(diceSoNiceMessage, {}, {}, "player");
 });
 assert.deepEqual(diceSoNiceMessage.whisper, ["gm"]);
+await Promise.resolve();
 
 rollPrivacyEnabled = false;
 assert.equal(RollPrivacyService.fieldHtml(), "");

@@ -272,6 +272,17 @@ export function getStackBundleSlots(itemName) {
   return getStackBundleRule(itemName)?.slots ?? 1;
 }
 
+/**
+ * Calcula a carga de uma pilha usando uma regra de pacote validada.
+ */
+export function calculateStackBundleSlots(quantity, rule) {
+  const amount = Math.max(0, Math.floor(Number(quantity) || 0));
+  const bundleSize = Math.floor(Number(rule?.bundleSize));
+  const slots = Number(rule?.slots);
+  if (!Number.isFinite(bundleSize) || bundleSize <= 1 || !Number.isFinite(slots) || slots < 0) return 0;
+  return Math.floor(amount / bundleSize) * slots;
+}
+
 function matchesAliases(normalizedName, aliases) {
   const searchableName = toSearchableText(normalizedName);
   return aliases.some((alias) => {

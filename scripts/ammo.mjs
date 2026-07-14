@@ -1,8 +1,8 @@
 import { AMMO_TYPES, FLAG_SCOPE } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver, isAmmo, getQuiverCapacity, getQuiverLoadedAmmo, getQuiverLoadedTotal } from "./item-flags.mjs";
-import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryThreshold } from "./special-ammo.mjs";
-import { escapeHtml, promptDialog } from "./utils.mjs";
+import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryClass, getAmmoRecoveryThreshold } from "./special-ammo.mjs";
+import { documentSourceUuid, escapeHtml, promptDialog } from "./utils.mjs";
 import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs";
 
 export class AmmoService {
@@ -96,10 +96,15 @@ export class AmmoService {
       ammoName: shot?.name ?? ammo.name,
       ammoType: shot?.ammoType ?? ammoType,
       ammoImg: shot?.img ?? ammo.img,
+      sourceUuid: shot?.sourceUuid ?? "",
+      description: shot?.description ?? "",
+      recoveryClass: shot?.recoveryClass ?? "common",
+      recoveryThreshold: shot?.recoveryThreshold ?? 10,
       weaponId: weapon.id,
-      timestamp: Date.now()
+      timestamp: shot?.lastUsedAt ?? Date.now()
     });
 
+    return shot;
   }
 
   static async reloadQuiverPrompt(actor, quiverItem) {
@@ -163,6 +168,8 @@ export class AmmoService {
     const finalQty = Math.min(quantity, remainingCapacity, itemQuantity(looseItem));
     if (finalQty <= 0) return;
 
+    const ammoMetadata = snapshotAmmoMetadata(looseItem);
+
     // Consome munição avulsa
     await changeItemQuantity(looseItem, -finalQty);
 
@@ -171,12 +178,14 @@ export class AmmoService {
     let entry = loadedAmmo.find(e => e.name === looseItem.name);
     if (entry) {
       entry.quantity = (Number(entry.quantity) || 0) + finalQty;
+      Object.assign(entry, ammoMetadata);
     } else {
       entry = {
         id: looseItem.id,
         name: looseItem.name,
         quantity: finalQty,
-        img: looseItem.img
+        img: looseItem.img,
+        ...ammoMetadata
       };
       loadedAmmo.push(entry);
     }
@@ -192,7 +201,7 @@ export class AmmoService {
     const quiverImg = quiverItem.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp";
 
     const chatContent = `
-      <div class="tenebre-chat-card tenebre-reload-card">
+      <div class="tenebre-chat-card tenebre-reload-card" data-ammo-uuid="${escapeHtml(ammoMetadata.sourceUuid)}">
         <div class="tenebre-chat-header" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
           <img src="${escapeHtml(actorImg)}" style="width: 32px; height: 32px; border-radius: 4px; border: 1px solid #7a7973;" alt="${escapeHtml(actor.name)}">
           <h3 style="margin: 0; font-size: 1.1em; line-height: 1.2; font-weight: bold; border-bottom: none;">
@@ -278,10 +287,9 @@ export class AmmoService {
       await changeItemQuantity(looseItem, finalQty);
     } else {
       await createRecoveredAmmo(actor, {
+        ...selectedEntry,
         itemId: selectedEntry.id,
-        name: selectedEntry.name,
-        ammoType: selectedEntry.ammoType || "ammo",
-        img: selectedEntry.img
+        ammoType: selectedEntry.ammoType || "ammo"
       }, finalQty);
     }
 
@@ -348,12 +356,22 @@ export class AmmoService {
       name: shot.name,
       ammoType: shot.ammoType,
       img: shot.img,
+      sourceUuid: shot.sourceUuid,
+      description: shot.description,
+      recoveryClass: shot.recoveryClass,
+      recoveryThreshold: shot.recoveryThreshold,
+      lastUsedAt: shot.lastUsedAt,
       count: 0
     };
     entry.itemId = shot.itemId;
     entry.name = shot.name;
     entry.ammoType = shot.ammoType;
     entry.img = shot.img;
+    entry.sourceUuid = shot.sourceUuid;
+    entry.description = shot.description;
+    entry.recoveryClass = shot.recoveryClass;
+    entry.recoveryThreshold = shot.recoveryThreshold;
+    entry.lastUsedAt = shot.lastUsedAt;
     entry.count += 1;
     ammoHits[shot.key] = entry;
 
@@ -412,7 +430,9 @@ export class AmmoService {
       return { status: "empty", remaining: 0 };
     }
 
-    const entryPair = Object.entries(hits.ammoHits).find(([, entry]) => Number(entry.count) > 0);
+    const entryPair = Object.entries(hits.ammoHits)
+      .filter(([, entry]) => Number(entry.count) > 0)
+      .sort(([, left], [, right]) => Number(right.lastUsedAt ?? 0) - Number(left.lastUsedAt ?? 0))[0];
     if (!entryPair) {
       await actor.setFlag(FLAG_SCOPE, "combat", {
         arrowsHit: 0,
@@ -443,7 +463,7 @@ export class AmmoService {
       return { status: "skipped", remaining: Math.max(0, totalHits - 1) };
     }
 
-    const recoveryTarget = getRecoveryTarget(recoveryEntry.name);
+    const recoveryTarget = getRecoveryTarget(recoveryEntry);
     const threshold = recoveryTarget.threshold;
     const roll = await evaluateRoll("1d20");
     const rollValue = rollTotal(roll);
@@ -489,7 +509,7 @@ export class AmmoService {
     });
 
     const chatContent = `
-      <div class="tenebre-chat-card tenebre-recovery-card">
+      <div class="tenebre-chat-card tenebre-recovery-card" data-ammo-uuid="${escapeHtml(recoveryEntry.sourceUuid ?? "")}">
         <h3 style="margin-bottom: 5px; border-bottom: 1px solid #7a7973; font-weight: bold;">
           ${game.i18n.localize("TENEBRE.Recovery.ChatTitle")}
         </h3>
@@ -525,8 +545,8 @@ function isPlayerActor(actor) {
   return actor?.type === "player";
 }
 
-function getRecoveryTarget(ammoName) {
-  const baseThreshold = getAmmoRecoveryThreshold(ammoName);
+function getRecoveryTarget(ammo) {
+  const baseThreshold = getAmmoRecoveryThreshold(ammo);
   if (!TenebreSettings.get("enableAmmoRecoveryByQuality")) {
     return {
       threshold: clampRecoveryTarget(TenebreSettings.get("ammoRecoveryFlatTarget"), 10),
@@ -586,13 +606,22 @@ function buildQuiverTransferDialogContent({
 function getRecoverableShotData(actor, ammo, fallbackAmmoType = "") {
   if (!ammo) return null;
 
+  if (ammo.key && ammo.name && ammo.ammoType) {
+    return {
+      ...ammo,
+      lastUsedAt: Number(ammo.lastUsedAt) || Date.now()
+    };
+  }
+
   if (ammo.isVirtual) {
     return {
       key: ammo.recoveryKey ?? ammo.recoveryItemId ?? ammo.id ?? ammo.name,
       itemId: ammo.recoveryItemId ?? ammo.id,
       name: ammo.recoveryName ?? ammo.name,
       ammoType: getAmmoType(ammo) || fallbackAmmoType || "ammo",
-      img: ammo.img
+      img: ammo.img,
+      ...snapshotAmmoMetadata(ammo),
+      lastUsedAt: Date.now()
     };
   }
 
@@ -604,7 +633,12 @@ function getRecoverableShotData(actor, ammo, fallbackAmmoType = "") {
       itemId: lastShot.ammoItemId,
       name: lastShot.ammoName,
       ammoType: lastShot.ammoType || fallbackAmmoType || "ammo",
-      img: lastShot.ammoImg
+      img: lastShot.ammoImg,
+      sourceUuid: lastShot.sourceUuid ?? "",
+      description: lastShot.description ?? "",
+      recoveryClass: lastShot.recoveryClass ?? getAmmoRecoveryClass(lastShot.ammoName),
+      recoveryThreshold: lastShot.recoveryThreshold ?? getAmmoRecoveryThreshold(lastShot.ammoName),
+      lastUsedAt: Number(lastShot.timestamp) || Date.now()
     };
   }
 
@@ -614,7 +648,9 @@ function getRecoverableShotData(actor, ammo, fallbackAmmoType = "") {
     itemId: ammo.id,
     name: ammo.name,
     ammoType: getAmmoType(ammo) || fallbackAmmoType || "ammo",
-    img: ammo.img
+    img: ammo.img,
+    ...snapshotAmmoMetadata(ammo),
+    lastUsedAt: Date.now()
   };
 }
 
@@ -633,7 +669,26 @@ function getRecoverableEntryData(actor, entry) {
     itemId: lastShot.ammoItemId,
     name: lastShot.ammoName,
     ammoType: lastShot.ammoType || entry.ammoType || "ammo",
-    img: lastShot.ammoImg || entry.img
+    img: lastShot.ammoImg || entry.img,
+    sourceUuid: lastShot.sourceUuid ?? entry.sourceUuid ?? "",
+    description: lastShot.description ?? entry.description ?? "",
+    recoveryClass: lastShot.recoveryClass ?? entry.recoveryClass ?? getAmmoRecoveryClass(lastShot.ammoName),
+    recoveryThreshold: lastShot.recoveryThreshold ?? entry.recoveryThreshold ?? getAmmoRecoveryThreshold(lastShot.ammoName),
+    lastUsedAt: Number(lastShot.timestamp) || Number(entry.lastUsedAt) || Date.now()
+  };
+}
+
+function snapshotAmmoMetadata(ammo) {
+  const sourceUuid = [
+    ammo?.sourceUuid,
+    ammo?.itemUuid,
+    documentSourceUuid(ammo, ammo?.uuid)
+  ].map((value) => String(value ?? "").trim()).find(Boolean) ?? "";
+  return {
+    sourceUuid,
+    description: getAmmoDescription(ammo),
+    recoveryClass: getAmmoRecoveryClass(ammo),
+    recoveryThreshold: getAmmoRecoveryThreshold(ammo)
   };
 }
 
@@ -662,18 +717,25 @@ async function postAmmoCard(actor, ammo) {
 }
 
 async function createRecoveredAmmo(actor, entry, recovered) {
+  const system = foundry.utils.deepClone(game.model.Item.equipment ?? {});
+  if (entry.description) system.description = entry.description;
   const itemData = {
     name: entry.name,
     type: "equipment",
     img: entry.img ?? "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp",
-    system: foundry.utils.deepClone(game.model.Item.equipment ?? {}),
+    system,
     flags: {
       [FLAG_SCOPE]: {
         isAmmo: true,
-        ammoType: entry.ammoType
+        ammoType: entry.ammoType,
+        ammoRecoveryClass: entry.recoveryClass,
+        ammoRecoveryThreshold: entry.recoveryThreshold
       }
     }
   };
+  if (String(entry.sourceUuid ?? "").startsWith("Compendium.")) {
+    itemData._stats = { compendiumSource: entry.sourceUuid };
+  }
   itemData.system.number = recovered;
   await actor.createEmbeddedDocuments("Item", [itemData], { render: false });
 }

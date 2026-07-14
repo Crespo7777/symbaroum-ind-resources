@@ -1,6 +1,7 @@
 import { AMMO_TYPES, DEFAULTS, FLAG_SCOPE, WEAPON_AMMO_TYPES } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
 import { getSpecialAmmoType } from "./special-ammo.mjs";
+import { deleteDepletedInventoryItem, isDepletableInventoryItem } from "./inventory-cleanup.mjs";
 import { normalize } from "./utils.mjs";
 
 const RATION_ALIASES = ["pao de viagem", "waybread", "travel bread", "racao de viagem", "racao", "ration", "rations"];
@@ -11,6 +12,26 @@ const ARROW_ALIASES = [
   "Arrows/Bolts - Regular",
   "Flechas/Virotes - Regulares",
   "arrows",
+  "arrow - armor-piercing head",
+  "arrow - flame",
+  "arrow - grappling hook",
+  "arrow - hammer head",
+  "arrow - precision",
+  "arrow - rope cutter",
+  "arrow - snaring",
+  "arrow - swallow's tail",
+  "arrow - swallow’s tail",
+  "arrow - whistler",
+  "flecha - arpeu",
+  "flecha - cabeca de martelo",
+  "flecha - cauda de andorinha",
+  "flecha - cortador de corda",
+  "flecha - de laco",
+  "flecha - flamejante",
+  "flecha - ponta perfurante de armadura",
+  "flecha - precisao",
+  "flecha - sibilante",
+  "flecha certeira",
   "precision arrow",
   "flaming arrow",
   "grappling arrow",
@@ -24,6 +45,7 @@ const BOLT_ALIASES = [
   "bolts",
   "quarrel",
   "quarrels",
+  "raio atordoante",
   "stun bolt",
   "stunning bolt"
 ];
@@ -109,6 +131,9 @@ export function itemQuantity(item) {
 export async function changeItemQuantity(item, delta) {
   const current = itemQuantity(item);
   const next = Math.max(0, current + delta);
+  if (next <= 0 && isDepletableInventoryItem(item)) {
+    return deleteDepletedInventoryItem(item, next);
+  }
   return item.update({ "system.number": next });
 }
 

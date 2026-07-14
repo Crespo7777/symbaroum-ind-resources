@@ -1,6 +1,6 @@
 import { MODULE_ID } from "./constants.mjs";
 import { TenebreSettings } from "./settings.mjs";
-import { WeaponReadinessService } from "./weapon-readiness.mjs";
+import { WEAPON_READINESS_ICON, WeaponReadinessService } from "./weapon-readiness.mjs";
 
 const BUTTON_ID = "tenebre-weapon-readiness-floating";
 const QUICK_MENU_ID = "tenebre-weapon-readiness-quick-menu";
@@ -98,7 +98,7 @@ function getOrCreateButton() {
   button.type = "button";
   button.className = "tenebre-weapon-readiness-floating";
   button.innerHTML = `
-    <img src="/systems/symbaroum/asset/image/weapon.png" alt="" aria-hidden="true">
+    <img src="${WEAPON_READINESS_ICON}" alt="" aria-hidden="true">
     <span class="tenebre-weapon-readiness-floating-count" aria-hidden="true">0/0</span>
   `;
   registerPointerControls(button);

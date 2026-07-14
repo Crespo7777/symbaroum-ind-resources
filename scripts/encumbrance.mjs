@@ -2,6 +2,7 @@ import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { actorItems, getAmmoShots, isQuiver, itemQuantity } from "./item-flags.mjs";
 import {
   applyDynamicEncumbranceWeights,
+  calculateStackBundleSlots,
   detectEncumbranceSlots,
   getDynamicEncumbranceWeights,
   getMergedEncumbranceWeights,
@@ -272,11 +273,33 @@ export class EncumbranceService {
   }
 
   /**
+   * Retorna a carga da pilha sem considerar se o item esta equipado ou guardado.
+   * Usado pela ficha do item para exibir o peso derivado da quantidade.
+   */
+  static getItemStackSlots(item) {
+    if (!item) return 0;
+    const slotsPerUnit = this.getItemSlots(item);
+
+    if (isQuiver(item)) {
+      const shots = getAmmoShots(item);
+      const bundleRule = getStackBundleRule("flechas");
+      return bundleRule ? calculateStackBundleSlots(shots, bundleRule) : Math.floor(shots / 10);
+    }
+
+    return calculateStackedSlots(item, slotsPerUnit, encumbranceQuantity(item));
+  }
+
+  static hasComputedStackWeight(item) {
+    return Boolean(getStackBundleRule(item?.name));
+  }
+
+  /**
    * Retorna a carga efetiva do item no ator, respeitando estado ativo/equipado/guardado.
    */
   static getItemLoad(item) {
     const slotsPerUnit = this.getItemSlots(item);
     const state = item?.system?.state;
+    const bundleRule = getStackBundleRule(item?.name);
 
     if (!isTrackedGear(item)) {
       return {
@@ -299,7 +322,7 @@ export class EncumbranceService {
       };
     }
 
-    if (!stored && hasGearState(item) && !isEquippedGearState(item)) {
+    if (!stored && hasGearState(item) && !isEquippedGearState(item) && !isProjectileBundleRule(bundleRule)) {
       return {
         slotsPerUnit,
         quantity: 0,
@@ -311,9 +334,9 @@ export class EncumbranceService {
 
     if (isQuiver(item)) {
       const shots = getAmmoShots(item);
-      const bundleRule = getStackBundleRule("flechas");
-      const totalSlots = bundleRule
-        ? Math.floor(shots / bundleRule.bundleSize) * bundleRule.slots
+      const quiverBundleRule = getStackBundleRule("flechas");
+      const totalSlots = quiverBundleRule
+        ? calculateStackBundleSlots(shots, quiverBundleRule)
         : Math.floor(shots / 10);
       return {
         slotsPerUnit,
@@ -325,9 +348,8 @@ export class EncumbranceService {
     }
 
     const quantity = encumbranceQuantity(item);
-    const bundleRule = getStackBundleRule(item?.name);
     if (isProjectileBundleRule(bundleRule)) {
-      const totalSlots = calculateStackedSlots(item, slotsPerUnit, quantity);
+      const totalSlots = calculateStackBundleSlots(quantity, bundleRule);
       return {
         slotsPerUnit,
         quantity,
@@ -512,7 +534,7 @@ function encumbranceQuantity(item) {
 
 function calculateStackedSlots(item, slotsPerUnit, quantity) {
   const bundleRule = getStackBundleRule(item?.name);
-  if (bundleRule) return Math.floor(quantity / bundleRule.bundleSize) * bundleRule.slots;
+  if (bundleRule) return calculateStackBundleSlots(quantity, bundleRule);
   return slotsPerUnit * quantity;
 }
 

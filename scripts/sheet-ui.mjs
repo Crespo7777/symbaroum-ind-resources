@@ -7,7 +7,7 @@ import { getAmmoModifiers, getSpecialAmmo } from "./special-ammo.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { ContainerService } from "./containers.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
-import { normalize, promptDialog } from "./utils.mjs";
+import { documentSourceUuid, normalize, promptDialog } from "./utils.mjs";
 import { ManeuverService } from "./maneuvers.mjs";
 import { SocketService } from "./sockets.mjs";
 import { ChatItemUseService } from "./chat-item-use.mjs";
@@ -15,7 +15,7 @@ import { CompatibilityService } from "./compatibility.mjs";
 import { isWeaponReadinessIndicatorEffect } from "./weapon-readiness-visuals.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { RitualBrowserService, isRitualDocument } from "./ritual-browser.mjs";
-import { WeaponReadinessService } from "./weapon-readiness.mjs";
+import { WEAPON_READINESS_ICON, WeaponReadinessService } from "./weapon-readiness.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -555,8 +555,11 @@ function injectWeaponReadinessControls(_app, html, actor) {
     row.classList.add("tenebre-weapon-drawn");
     const rollButton = row.querySelector(".roll-weapon");
     if (!rollButton) continue;
-    const icon = document.createElement("i");
-    icon.className = "fas fa-hand-fist tenebre-weapon-drawn-icon";
+    const icon = document.createElement("img");
+    icon.className = "tenebre-weapon-drawn-icon";
+    icon.src = WEAPON_READINESS_ICON;
+    icon.alt = "";
+    icon.setAttribute("aria-hidden", "true");
     icon.title = game.i18n.localize("TENEBRE.WeaponReadiness.Drawn");
     rollButton.prepend(icon);
   }
@@ -600,6 +603,8 @@ function injectRitualistInlineList(app, html, actor) {
   const ritualistRow = findAbilityItemRow(el, ritualist.id);
   if (!ritualistRow) return;
 
+  moveAbilityRowToEnd(ritualistRow);
+
   if (!TenebreSettings.get("enableRitualistGrouping")) {
     revealRitualRows();
     const previousToggleHandler = ritualistRow._tenebreRitualistToggleHandler;
@@ -639,10 +644,12 @@ function injectRitualistInlineList(app, html, actor) {
     ritualistRow.classList.toggle("tenebre-ritualist-expanded", expanded);
     ritualistRow.setAttribute("aria-expanded", expanded ? "true" : "false");
     if (expanded) {
-      ritualistRow.insertAdjacentElement(
-        "afterend",
-        buildRitualistInlineRow(el, actor, rituals, ritualistRow)
+      const inlineRow = buildRitualistInlineRow(el, actor, rituals, ritualistRow);
+      inlineRow.classList.toggle(
+        "tenebre-ritualist-inline-row-right",
+        isAbilityRowInRightColumn(ritualistRow)
       );
+      ritualistRow.insertAdjacentElement("afterend", inlineRow);
     }
   };
 
@@ -678,6 +685,20 @@ function injectRitualistInlineList(app, html, actor) {
 function findAbilityItemRow(root, itemId) {
   return root.querySelector(`.abilities-powers [data-item-id="${itemId}"]`)
     ?? root.querySelector(`[data-item-id="${itemId}"]`);
+}
+
+function moveAbilityRowToEnd(row) {
+  const list = row?.parentElement;
+  if (!list || list.lastElementChild === row) return;
+  list.append(row);
+}
+
+function isAbilityRowInRightColumn(row) {
+  const list = row?.parentElement;
+  if (!list?.getBoundingClientRect || !row?.getBoundingClientRect) return false;
+  const listRect = list.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  return rowRect.left + (rowRect.width / 2) > listRect.left + (listRect.width / 2);
 }
 
 function buildRitualistInlineRow(root, actor, rituals, anchorRow) {
@@ -1337,7 +1358,14 @@ async function injectItemWeightField(app, html, item) {
   if (!root) return;
 
   const existingRows = Array.from(root.querySelectorAll(".tenebre-weight-row"));
-  if (existingRows.length === 1) return;
+  if (existingRows.length === 1) {
+    const input = existingRows[0].querySelector(".tenebre-weight-input");
+    if (input) {
+      input.value = String(getDisplayedItemWeight(item));
+      input.disabled = !Boolean(app.isEditable && item.isOwner && !EncumbranceService.hasComputedStackWeight(item));
+    }
+    return;
+  }
   if (existingRows.length > 1) {
     existingRows.slice(1).forEach((row) => row.remove());
     return;
@@ -1362,7 +1390,7 @@ async function injectItemWeightField(app, html, item) {
   root.querySelectorAll(".tenebre-weight-row").forEach((row) => row.remove());
 
   const slots = getDisplayedItemWeight(item);
-  const editable = Boolean(app.isEditable && item.isOwner);
+  const editable = Boolean(app.isEditable && item.isOwner && !EncumbranceService.hasComputedStackWeight(item));
   const row = createWeightRow(slots, editable, numberRow.style);
 
   numberRow.element.insertAdjacentElement(numberRow.insert, row);
@@ -1578,10 +1606,12 @@ function injectManeuverPanel(app, html, actor) {
   panel.className = "tenebre-maneuver-panel";
   panel.innerHTML = buildManeuverPanelHtml(selectedManeuverId);
   anchor.classList.add("tenebre-has-maneuvers");
+  updateManeuverInformation(panel, selectedManeuverId);
 
   const maneuverSelect = panel.querySelector(".tenebre-maneuver-select");
   maneuverSelect?.addEventListener("change", () => {
     selectedManeuversByActor.set(selectionKey, maneuverSelect.value);
+    updateManeuverInformation(panel, maneuverSelect.value);
   });
 
   for (const button of panel.querySelectorAll(".tenebre-maneuver-roll")) {
@@ -1625,6 +1655,10 @@ function buildManeuverPanelHtml(selectedManeuverId) {
           <select class="tenebre-maneuver-select" aria-label="${game.i18n.localize("TENEBRE.Maneuvers.Select")}">
             ${options}
           </select>
+          <button type="button" class="tenebre-maneuver-info">
+            <i class="fas fa-info-circle" aria-hidden="true"></i>
+            <span class="tenebre-maneuver-tooltip" role="tooltip"></span>
+          </button>
           <label class="tenebre-maneuver-private-label" title="${escapeHtml(game.i18n.localize("TENEBRE.RollPrivacy.Hint"))}">
             <input type="checkbox" class="tenebre-maneuver-private-roll">
             <span>${game.i18n.localize("TENEBRE.RollPrivacy.ShortLabel")}</span>
@@ -1635,6 +1669,24 @@ function buildManeuverPanelHtml(selectedManeuverId) {
         </div>
       </div>
     </div>
+  `;
+}
+
+function updateManeuverInformation(panel, maneuverId) {
+  const maneuver = ManeuverService.get(maneuverId);
+  const button = panel?.querySelector(".tenebre-maneuver-info");
+  const tooltip = button?.querySelector(".tenebre-maneuver-tooltip");
+  if (!maneuver || !button || !tooltip) return;
+
+  const label = game.i18n.localize(maneuver.labelKey);
+  const notes = (maneuver.noteKeys ?? [])
+    .map((key) => game.i18n.localize(key))
+    .filter(Boolean);
+
+  button.setAttribute("aria-label", game.i18n.format("TENEBRE.Maneuvers.DescriptionFor", { maneuver: label }));
+  tooltip.innerHTML = `
+    <strong>${escapeHtml(label)}</strong>
+    ${notes.map((note) => `<span>${escapeHtml(note)}</span>`).join("")}
   `;
 }
 
@@ -1733,7 +1785,7 @@ function onRenderDialog(dialog, html, data) {
 
           if (activeRoll && isPlayerActor(activeRoll.actor) && chosenAmmo && !activeRoll.consumed) {
             activeRoll.consumed = true;
-            await AmmoService.consumeAmmo(activeRoll.actor, chosenAmmo, activeRoll.weapon, activeRoll.ammoType);
+            activeRoll.shot = await AmmoService.consumeAmmo(activeRoll.actor, chosenAmmo, activeRoll.weapon, activeRoll.ammoType);
           }
 
           return result;
@@ -1814,10 +1866,7 @@ function onRenderDialog(dialog, html, data) {
 }
 
 function getDisplayedItemWeight(item) {
-  const load = EncumbranceService.getItemLoad(item);
-  return load.quantity > 1 && load.totalSlots !== load.slotsPerUnit
-    ? load.totalSlots
-    : load.slotsPerUnit;
+  return EncumbranceService.getItemStackSlots(item);
 }
 
 function attachAmmoRollButtonCapture(dialog, contentEl, activeRoll) {
@@ -1933,10 +1982,17 @@ function getSelectedAmmoFromDialog(el, activeRoll) {
       recoveryName: entry.name,
       name: entry.name,
       img: entry.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp",
+      sourceUuid: entry.sourceUuid || documentSourceUuid(originalItem) || originalItem?.uuid || "",
+      itemUuid: entry.sourceUuid || originalItem?.uuid || "",
+      description: entry.description || originalItem?.system?.description || "",
+      recoveryClass: entry.recoveryClass,
+      recoveryThreshold: entry.recoveryThreshold,
       quiverId: quiver.id,
       loadedEntryId: entry.id || entryName,
       type: "equipment",
-      system: originalItem ? foundry.utils.deepClone(originalItem.system) : { description: "" },
+      system: originalItem
+        ? foundry.utils.deepClone(originalItem.system)
+        : { description: entry.description || "" },
       getFlag: (scope, key) => {
         if (originalItem) return originalItem.getFlag(scope, key);
         return undefined;

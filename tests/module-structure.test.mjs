@@ -52,4 +52,20 @@ for (const fileName of scriptFiles) {
 assert.deepEqual(missingImports, [], "Broken local module imports");
 assert.deepEqual(Array.from(missingTranslations).sort(), [], "Missing TENEBRE translations");
 
+const maneuverSource = fs.readFileSync(path.join(scriptDirectory, "maneuvers.mjs"), "utf8");
+const maneuverDefinitions = maneuverSource.match(/const MANEUVERS = \[([\s\S]*?)\n\];\n\nexport class ManeuverService/)?.[1] ?? "";
+const maneuverLabels = Array.from(maneuverDefinitions.matchAll(/labelKey:\s*"(TENEBRE\.Maneuvers\.[^"]+)"/g), (match) => match[1]);
+const maneuverNoteGroups = Array.from(maneuverDefinitions.matchAll(/noteKeys:\s*\[([\s\S]*?)\]/g), (match) => match[1]);
+const maneuverNoteKeys = maneuverNoteGroups.flatMap((group) => (
+  Array.from(group.matchAll(/"(TENEBRE\.Maneuvers\.[^"]+)"/g), (match) => match[1])
+));
+
+assert.equal(maneuverLabels.length > 0, true, "Maneuver definitions were not found");
+assert.equal(maneuverNoteGroups.length, maneuverLabels.length, "Every maneuver must provide tooltip notes");
+assert.deepEqual(
+  maneuverNoteKeys.filter((key) => !(key in pt) || !(key in en)),
+  [],
+  "Maneuver tooltip notes must be translated in Portuguese and English"
+);
+
 console.log(`module structure tests passed (${scriptFiles.length} scripts, ${Object.keys(pt).length} translations)`);
