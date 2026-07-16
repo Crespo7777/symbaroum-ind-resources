@@ -15,11 +15,15 @@ export function rollTotal(roll) {
   return Number(roll?.total ?? 0) || 0;
 }
 
-export async function createChatMessageAfterDice({ speaker, content, rolls = [] }) {
+export async function createChatMessageAfterDice({ speaker, content, rolls = [], flags = {} }) {
   const foundryRolls = rolls.filter(isFoundryRoll);
   const privateRoll = RollPrivacyService.isPrivateRollActive();
   const showed3d = await showDice3d(foundryRolls, { privateRoll });
   const chatData = { speaker, content };
+  const moduleFlags = { ...(flags?.[MODULE_ID] ?? {}) };
+  const otherFlags = Object.fromEntries(
+    Object.entries(flags ?? {}).filter(([scope]) => scope !== MODULE_ID)
+  );
 
   if (foundryRolls.length && !showed3d) {
     chatData.rolls = foundryRolls;
@@ -27,9 +31,14 @@ export async function createChatMessageAfterDice({ speaker, content, rolls = [] 
   }
 
   if (foundryRolls.length) {
-    chatData.flags = {
-      [MODULE_ID]: { privateRollCandidate: true }
-    };
+    moduleFlags.privateRollCandidate = true;
+  }
+
+  if (Object.keys(otherFlags).length || Object.keys(moduleFlags).length) {
+    chatData.flags = { ...otherFlags, [MODULE_ID]: moduleFlags };
+  }
+
+  if (foundryRolls.length) {
     RollPrivacyService.prepareChatData(chatData, { rollCandidate: true });
   }
 

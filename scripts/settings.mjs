@@ -156,6 +156,8 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableBithirUtilities",
       "enableRitualCatalog",
       "enableRitualistGrouping",
+      "enableGmLog",
+      "enableInventoryCleanup",
       "enableGenerateShadow",
       "hideShadowGeneration",
       "hideShadowLabel"
@@ -321,6 +323,7 @@ export class TenebreSettings {
     register("showWeaponReadinessTokenIndicator", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator", "TENEBRE.Settings.ShowWeaponReadinessTokenIndicatorHint");
     register("enableWeaponReadinessAnimation", Boolean, true, "TENEBRE.Settings.EnableWeaponReadinessAnimation", "TENEBRE.Settings.EnableWeaponReadinessAnimationHint");
     register("weaponReadinessButtonPosition", Object, {}, "TENEBRE.Settings.WeaponReadinessButtonPosition", "TENEBRE.Settings.WeaponReadinessButtonPositionHint", { scope: "client" });
+    register("gmLogWindowPosition", Object, {}, "TENEBRE.Settings.GmLogWindowPosition", "TENEBRE.Settings.GmLogWindowPositionHint", { scope: "client" });
     register("enableModernChat", Boolean, true, "TENEBRE.Settings.EnableModernChat", "TENEBRE.Settings.EnableModernChatHint");
     register("modernChatStyle", String, "illustrated", "TENEBRE.Settings.ModernChatStyle", "TENEBRE.Settings.ModernChatStyleHint", {
       choices: {
@@ -335,6 +338,8 @@ export class TenebreSettings {
     register("enableBithirUtilities", Boolean, true, "TENEBRE.Settings.EnableBithirUtilities", "TENEBRE.Settings.EnableBithirUtilitiesHint");
     register("enableRitualCatalog", Boolean, true, "TENEBRE.Settings.EnableRitualCatalog", "TENEBRE.Settings.EnableRitualCatalogHint");
     register("enableRitualistGrouping", Boolean, true, "TENEBRE.Settings.EnableRitualistGrouping", "TENEBRE.Settings.EnableRitualistGroupingHint");
+    register("enableGmLog", Boolean, true, "TENEBRE.Settings.EnableGmLog", "TENEBRE.Settings.EnableGmLogHint");
+    register("enableInventoryCleanup", Boolean, true, "TENEBRE.Settings.EnableInventoryCleanup", "TENEBRE.Settings.EnableInventoryCleanupHint");
     register("enableGenerateShadow", Boolean, true, "TENEBRE.Settings.EnableGenerateShadow", "TENEBRE.Settings.EnableGenerateShadowHint");
     register("hideShadowGeneration", Boolean, false, "BITHIRMOD.SHADOW_hideGeneration", "BITHIRMOD.SHADOW_hideGeneration_hint");
     register("hideShadowLabel", Boolean, false, "BITHIRMOD.SHADOW_hideLabel", "BITHIRMOD.SHADOW_hideLabel_hint");
@@ -431,6 +436,10 @@ function onSettingChanged(key, value) {
 
   if (key === "enableContainers" && value && game.user?.isGM) {
     recoverOrphanedStoredItems();
+  }
+
+  if (key === "enableInventoryCleanup" && value && game.user?.isGM) {
+    void game.tenebreResources?.inventoryCleanup?.cleanupExisting?.();
   }
 
   if (key === "enableMovementRuler" && value) {

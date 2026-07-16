@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   deleteDepletedInventoryItem,
+  isInventoryCleanupEnabled,
   isDepletableInventoryItem,
   isDepletedInventoryItem,
   updateDepletesInventoryItem
@@ -38,5 +39,20 @@ const depletedItem = {
 assert.equal(await deleteDepletedInventoryItem(depletedItem), true);
 assert.equal(deleteCalls, 1);
 assert.equal(await deleteDepletedInventoryItem({ ...depletedItem, type: "ritual" }), false);
+
+const originalGame = globalThis.game;
+try {
+  globalThis.game = {
+    settings: {
+      get: () => false
+    }
+  };
+  assert.equal(isInventoryCleanupEnabled(), false);
+
+  globalThis.game.settings.get = () => true;
+  assert.equal(isInventoryCleanupEnabled(), true);
+} finally {
+  globalThis.game = originalGame;
+}
 
 console.log("inventory cleanup tests passed");

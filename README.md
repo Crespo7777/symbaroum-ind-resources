@@ -18,22 +18,39 @@ O objetivo do modulo e manter o fluxo de jogo rapido, legivel e fiel as regras
 de Symbaroum, sem obrigar o Mestre a usar todas as funcoes ao mesmo tempo. Quase
 tudo pode ser ativado ou desativado nas configuracoes.
 
-Principais frentes:
+<a id="indice-de-funcionalidades"></a>
+## Funcionalidades
 
-- Controle de **Pao de Viagem / Waybread** com usos acumulados.
-- Sistema de **aljavas**, recarga, descarga, consumo automatico e recuperacao de
-  flechas/virotes.
-- Regra opcional de **Fome** e testes de inanição durante o descanso.
-- Regra opcional de **Sobrecarga** com pesos por item.
-- Sistema de **recipientes** com sublistas expansivas na ficha.
-- **Regua de movimento** baseada na distancia de Symbaroum.
-- Automacao de **manobras de combate**.
-- Catalogo de **Ritualista** com todos os rituais dos livros Básico e Guia
-  Avançado do Jogador, agrupados por tradição e com restrições identificadas.
-- Chat moderno no estilo **Ilustrado**, com opcao **Legacy** para voltar ao
-  visual original do sistema.
-- Compatibilidade com **Dice So Nice**, **Automated Animations**, **Token Action
-  HUD**, **Drag Ruler** e outros modulos comuns.
+Esta lista resume os recursos do modulo. Clique em uma funcionalidade para abrir
+sua explicacao detalhada:
+
+- [Configuracoes separadas por categoria](#configuracoes)
+- [Pao de Viagem e outros alimentos](#pao-de-viagem)
+- [Fome e inanicao](#fome)
+- [Descanso e recuperacao](#descanso)
+- [Aljavas, recarga e descarga](#aljavas-e-municao)
+- [Consumo automatico de municao](#consumo-automatico)
+- [Recuperacao de flechas e virotes](#recuperacao-de-municao)
+- [Municoes especiais e links no chat](#municoes-especiais)
+- [Sobrecarga e pesos por pacote](#sobrecarga)
+- [Recipientes e itens guardados](#recipientes)
+- [Limpeza automatica de itens esgotados](#limpeza-automatica-do-inventario)
+- [Regua e limites de movimento](#movimento)
+- [Sacar, guardar e trocar armas](#sacar-e-guardar-armas)
+- [Manobras de combate](#manobras)
+- [Chat Ilustrado e modo Legacy](#chat-moderno)
+- [Rolagens privadas](#rolagem-privada)
+- [Pedidos de resistencia](#pedidos-de-resistencia)
+- [Catalogo e agrupamento de Ritualista](#catalogo-de-ritualista)
+- [Envio de itens, habilidades e rituais ao chat](#envio-de-itens-habilidades-e-rituais-ao-chat)
+- [Registro flutuante do Mestre](#registro-do-mestre)
+- [Macros, tabelas e Gerar Sombra](#macros-e-utilidades)
+- [Dice So Nice, Automated Animations e Token Action HUD](#integracoes)
+- [Compatibilidade e blindagem contra conflitos](#compatibilidade-e-blindagem)
+- [Arquivos de dados editaveis](#arquivos-de-dados-editaveis)
+
+Todos os sistemas de regras sao opcionais. O Mestre pode combinar apenas os
+recursos adequados para sua mesa.
 
 ---
 
@@ -148,7 +165,7 @@ sempre que a API do Foundry permite.
 | Recuperacao mistica | Define o alvo para munição mistica/alquimica. |
 | Exibir botao de recuperacao na HUD | Mostra o contador/botao perto da hotbar. |
 | Exibir aljavas na HUD | Mostra aljavas equipadas/ativas e sua carga atual. |
-| Exibir municoes especiais no chat | Envia a descricao da munição especial usada. |
+| Exibir municoes especiais no chat | Identifica a munição usada e transforma seu nome em um link clicavel para a ficha do item. |
 
 ### Sobrecarga e recipientes
 
@@ -177,6 +194,10 @@ sempre que a API do Foundry permite.
 | --- | --- |
 | Ativar manobras | Mostra e automatiza manobras na ficha. |
 | Exibir opcao de rolagem privada | Permite enviar resultado e dados 3D somente aos Mestres em cada rolagem. |
+| Ativar Sacar/Guardar Armas | Controla o estado sacado das armas de personagens jogadores e impede ataques com armas guardadas. |
+| Exibir botao Sacar/Guardar Armas | Mostra o controle rapido e arrastavel na interface. |
+| Exibir indicador no token | Mostra no token quando o personagem possui arma sacada. |
+| Ativar animacao ao sacar/guardar | Reproduz o feedback visual opcional durante a troca de armas. |
 | Ativar visual moderno do chat | Ativa a transformacao das mensagens de chat. |
 | Estilo do chat moderno | Alterna entre `Ilustrado` e `Legacy`. |
 | Ativar uso e envio de itens/habilidades no chat | Habilita uso manual de habilidades, poderes, rituais e itens sem acao ativa. |
@@ -190,6 +211,8 @@ sempre que a API do Foundry permite.
 | --- | --- |
 | Ativar catalogo de rituais | Adiciona `Ver Rituais` ao menu da habilidade Ritualista. |
 | Agrupar rituais em Ritualista | Transforma Ritualista em uma lista expansivel dos rituais conhecidos. |
+| Ativar Registro do Mestre | Exibe o painel flutuante com eventos resumidos somente para usuarios GM. |
+| Remover automaticamente itens esgotados | Exclui equipamentos de Actor cuja quantidade alcance zero ou menos. |
 | Ativar macros e tabelas de utilidade | Ativa versos, inspiracao, geradores e eventos de floresta. |
 | Ativar Gerar Sombra | Exibe o controle Gerar Sombra nas fichas. |
 | Ocultar geracao de Sombra | Esconde o comando sem desativar as outras utilidades. |
@@ -218,6 +241,22 @@ Ao consumir:
 - 1 uso e removido.
 - Quando uma unidade inteira e consumida, a quantidade baixa automaticamente.
 - O chat recebe um card informando quantos usos ainda restam.
+
+### Outros alimentos
+
+O Mestre pode habilitar alimentos adicionais e definir quantos usos cada unidade
+fornece. A configuracao oferece uma lista baseada nos itens disponiveis no
+Foundry, comandos para adicionar ou remover todos e criacao de alimentos
+personalizados.
+
+Ao criar um alimento pelo formulario:
+
+- o modulo cria a pasta de Items **Alimentos**, caso ela ainda nao exista;
+- o novo Item e colocado nessa pasta;
+- o alimento passa a aparecer na configuracao enquanto o Item existir;
+- excluir o Item do mundo remove a opcao correspondente da lista;
+- remover um alimento da configuracao interrompe seu tratamento especial, mas
+  nao exclui copias que ja estejam nas fichas.
 
 ---
 
@@ -332,6 +371,11 @@ Exemplos:
 
 Municoes especiais podem alterar modificadores, enviar descricao ao chat ou
 registrar efeitos conforme a regra cadastrada.
+
+Quando uma munição possui UUID conhecido, seu nome aparece como link dentro da
+frase original do ataque, da recarga ou da recuperacao. Isso vale tanto para
+projeteis especiais quanto para flechas e virotes regulares; clicar no nome abre
+a ficha do Item e sua descricao completa.
 
 ---
 
@@ -516,6 +560,24 @@ Depois de inicializado, esses itens aparecem dentro da sublista do recipiente.
 
 ---
 
+<a id="limpeza-automatica-do-inventario"></a>
+## Limpeza automatica do inventario
+
+Quando ativada, a limpeza automatica remove da ficha equipamentos cuja quantidade
+chegue a zero ou a um valor negativo. Isso evita pilhas vazias de alimentos,
+flechas, virotes e outros consumiveis.
+
+- A regra atua somente em itens do tipo equipamento pertencentes a um Actor.
+- Armas, rituais, habilidades e outros tipos de Item nao sao removidos.
+- A exclusao usa a API de Documents do Foundry e e protegida contra chamadas
+  duplicadas.
+- Ao reativar a opcao, um GM ativo limpa os itens esgotados que ja existiam no
+  mundo.
+- Desative a opcao antes de manter propositalmente equipamentos com quantidade
+  zero.
+
+---
+
 ## Movimento
 
 A regua propria do modulo colore o movimento do token:
@@ -535,6 +597,47 @@ Fome, sobrecarga e efeitos de manobra podem reduzir ou bloquear movimento.
 
 Se **Drag Ruler** estiver ativo, o Tenebre desativa sua propria regua colorida
 para nao disputar a mesma area do Foundry.
+
+---
+
+<a id="sacar-e-guardar-armas"></a>
+## Sacar e Guardar Armas
+
+O sistema de prontidao de armas e exclusivo para personagens jogadores. Ele
+separa o estado nativo **Ativo/Equipado** da declaracao de que uma arma esta
+fisicamente sacada.
+
+### Fluxos disponiveis
+
+- **Clique esquerdo no controle:** abre a selecao de armas sacadas e permite
+  guardar todas em uma unica operacao.
+- **Clique direito no controle:** abre a troca rapida; escolher uma arma guarda
+  a atual e saca a nova atomicamente.
+- **Menu de contexto da arma:** permite sacar ou guardar diretamente pela ficha.
+- **Botao arrastavel:** o jogador pode posicionar o controle onde preferir; a
+  posicao e salva apenas para aquele cliente.
+
+### Regras aplicadas
+
+- Uma arma elegivel guardada nao pode ser usada para atacar.
+- Armas naturais continuam disponiveis e nao participam desse controle.
+- O limite de armas simultaneamente sacadas respeita o custo de maos representado
+  pelo sistema Symbaroum.
+- A troca atualiza as armas envolvidas em uma unica operacao de Embedded
+  Documents, reduzindo estados intermediarios.
+- PNJs e monstros nao recebem o botao nem o bloqueio de prontidao.
+
+### Feedback visual
+
+O modulo pode mostrar:
+
+- um pequeno indicador ao lado da arma na ficha;
+- um contador no botao rapido;
+- um indicador no token;
+- uma animacao opcional ao sacar, guardar ou trocar;
+- uma mensagem compacta no chat Ilustrado ou no formato Legacy.
+
+Cada uma dessas superficies possui opcao propria nas configuracoes de Combate.
 
 ---
 
@@ -631,6 +734,29 @@ resultado daquela rolagem.
 
 ---
 
+<a id="registro-do-mestre"></a>
+## Registro do Mestre
+
+O **Registro do Mestre** e um painel flutuante, compacto e exclusivo para
+usuarios GM. Ele resume eventos importantes sem repetir os cards grandes do chat.
+
+O painel:
+
+- abre pelo botao junto aos controles inferiores do chat;
+- pode ser movido, redimensionado e posicionado livremente;
+- salva tamanho e posicao por cliente;
+- filtra eventos por categoria;
+- diferencia visualmente sucesso, falha e informacao;
+- resume ataques, rolagens, manobras, municao, descanso, itens e prontidao de
+  armas quando esses eventos possuem dados estruturados;
+- deduplica variantes publicas e privadas do mesmo combate;
+- nao cria novas ChatMessages e nao envia seu historico aos jogadores.
+
+Ao desligar a opcao, o botao e o painel desaparecem imediatamente. Ao religar,
+o registro e reconstruido a partir das mensagens atuais do mundo, sem exigir F5.
+
+---
+
 ## Envio de itens, habilidades e rituais ao chat
 
 ### Catalogo de Ritualista
@@ -693,6 +819,24 @@ as utilidades internas equivalentes para evitar disputa de namespace.
 
 ---
 
+<a id="integracoes"></a>
+## Integracoes
+
+As integracoes sao opcionais e falham de forma segura quando o modulo externo
+nao esta instalado ou esta desativado.
+
+| Integracao | Comportamento |
+| --- | --- |
+| Dice So Nice | Exibe dados 3D e aguarda a animacao antes de publicar o resultado. Rolagens privadas continuam visiveis apenas para GMs. |
+| Automated Animations | Recebe metadados estruturados de itens, habilidades, poderes e rituais usados. |
+| JB2A | Pode fornecer os recursos visuais consumidos pelo Automated Animations. |
+| Token Action HUD | Recebe as manobras do modulo quando o HUD e sua integracao de Symbaroum estao ativos. |
+| Drag Ruler | Assume a medicao de movimento; a regua propria do Tenebre e cedida para evitar conflito. |
+| socketlib | Executa operacoes autorizadas que precisam de um GM responsavel. E dependencia obrigatoria. |
+| libWrapper | Melhora a convivencia com outros pacotes que modificam as mesmas superficies. E recomendado, mas opcional. |
+
+---
+
 ## Compatibilidade e blindagem
 
 O modulo possui uma camada central de compatibilidade em:
@@ -743,6 +887,13 @@ Servicos principais expostos:
 - `game.tenebreResources.movement`
 - `game.tenebreResources.rations`
 - `game.tenebreResources.rest`
+- `game.tenebreResources.rollPrivacy`
+- `game.tenebreResources.ritualBrowser`
+- `game.tenebreResources.weaponReadiness`
+- `game.tenebreResources.weaponReadinessHud`
+- `game.tenebreResources.weaponReadinessVisuals`
+- `game.tenebreResources.gmLog`
+- `game.tenebreResources.inventoryCleanup`
 - `game.tenebreResources.compatibility`
 
 ---
@@ -823,8 +974,14 @@ Arquivos principais:
 | `scripts/encumbrance.mjs` | Calculo de sobrecarga e defesa. |
 | `scripts/encumbrance-db.mjs` | Banco de pesos e bundles. |
 | `scripts/containers.mjs` | Recipientes e itens guardados. |
+| `scripts/inventory-cleanup.mjs` | Remocao opcional de equipamentos esgotados. |
 | `scripts/maneuvers.mjs` | Manobras de combate. |
 | `scripts/movement-ruler.mjs` | Regua de movimento. |
+| `scripts/weapon-readiness.mjs` | Sacar, guardar, trocar e validar o uso de armas. |
+| `scripts/roll-privacy.mjs` | Privacidade das rolagens da ficha. |
+| `scripts/ritual-browser.mjs` | Catalogo oficial e agrupamento de rituais. |
+| `scripts/gm-log-service.mjs` | Coleta e deduplicacao dos eventos do Registro do Mestre. |
+| `scripts/gm-log-ui.mjs` | Janela flutuante e controles do Registro do Mestre. |
 | `scripts/compatibility.mjs` | Blindagem contra conflitos com outros modulos. |
 | `scripts/chat-item-use.mjs` | Envio de itens/habilidades ao chat. |
 | `scripts/bithir-macros.mjs` | Utilidades e macros integradas. |
@@ -902,6 +1059,19 @@ Depois de instalar ou atualizar:
    - Manobra.
    - Rolagem de morte.
 10. Abra o console e confirme que nao ha erros novos do Tenebre.
+11. Teste Sacar/Guardar Armas:
+    - Clique esquerdo, troca rapida e guardar todas.
+    - Bloqueio de ataque com arma guardada.
+    - Indicadores da ficha, HUD e token.
+12. Teste Ritualista:
+    - Abrir o catalogo.
+    - Expandir a lista de rituais conhecidos.
+    - Adicionar e excluir um ritual sem recolher a lista.
+13. Teste o Registro do Mestre:
+    - Abrir, mover, redimensionar, filtrar e limpar.
+    - Confirmar que jogadores nao recebem o botao nem o painel.
+14. Desative e reative a limpeza automatica do inventario e confirme que apenas
+    equipamentos com quantidade zero ou menor sao removidos.
 
 ---
 

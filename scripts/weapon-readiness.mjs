@@ -194,15 +194,13 @@ async function createReadinessChatMessage(actor, drawn, sheathed) {
     weapons: formatWeaponNames(drawn.length > 0 ? drawn : sheathed)
   });
   const image = drawn[0]?.img ?? sheathed[0]?.img ?? actor.img;
-  const content = `
-    <article class="tenebre-modern-chat tenebre-weapon-readiness-chat">
-      <img src="${escapeHtml(image)}" alt="">
-      <div>
-        <strong>${escapeHtml(game.i18n.localize("TENEBRE.WeaponReadiness.ChatTitle"))}</strong>
-        <p>${escapeHtml(text)}</p>
-      </div>
-    </article>
-  `;
+  const content = buildWeaponReadinessChatContent({
+    title: game.i18n.localize("TENEBRE.WeaponReadiness.ChatTitle"),
+    text,
+    image,
+    illustrated: game.settings.get(MODULE_ID, "enableModernChat")
+      && game.settings.get(MODULE_ID, "modernChatStyle") !== "legacy"
+  });
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content,
@@ -215,6 +213,36 @@ async function createReadinessChatMessage(actor, drawn, sheathed) {
       }
     }
   });
+}
+
+export function buildWeaponReadinessChatContent({ title = "", text = "", image = "", illustrated = false } = {}) {
+  if (!illustrated) {
+    return `
+      <article class="tenebre-modern-chat tenebre-weapon-readiness-chat">
+        <img src="${escapeHtml(image)}" alt="">
+        <div>
+          <strong>${escapeHtml(title)}</strong>
+          <p>${escapeHtml(text)}</p>
+        </div>
+      </article>
+    `;
+  }
+
+  const separator = `
+    <div class="tenebre-illustrated-separator">
+      <img src="modules/${MODULE_ID}/assets/icons/illustrated-separator.png" alt="">
+    </div>
+  `;
+  return `
+    <article class="tenebre-modern-chat tenebre-modern-chat-illustrated tenebre-modern-chat-simple-weapon-readiness tenebre-modern-chat-neutral">
+      <h3 class="tenebre-illustrated-title">${escapeHtml(title)}</h3>
+      ${separator}
+      <div class="tenebre-illustrated-details">
+        <p class="tenebre-illustrated-flavor">${escapeHtml(text)}</p>
+      </div>
+      ${separator}
+    </article>
+  `;
 }
 
 function formatWeaponNames(weapons) {

@@ -464,7 +464,8 @@ async function rollOpposedManeuver(actor, maneuver, modifier) {
   await createChatMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
     content,
-    rolls: [roll]
+    rolls: [roll],
+    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel(maneuver.targetAttribute)}` })
   });
 
   return { success, result, diceTarget };
@@ -515,7 +516,8 @@ async function rollAttackManeuver(actor, maneuver, modifier) {
   await createChatMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
     content,
-    rolls: [roll]
+    rolls: [roll],
+    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel("defense")}` })
   });
 
   return { success, result, diceTarget };
@@ -565,7 +567,8 @@ async function rollKnockdownManeuver(actor, maneuver, modifier) {
   await createChatMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
     content,
-    rolls: [attackRoll, quickRoll]
+    rolls: [attackRoll, quickRoll],
+    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result: attackResult, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel(maneuver.targetAttribute)}` })
   });
 
   return { success, result: attackResult, diceTarget, staysStanding };
@@ -599,7 +602,8 @@ async function rollAttributeManeuver(actor, maneuver, modifier) {
   await createChatMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
     content,
-    rolls: [roll]
+    rolls: [roll],
+    flags: maneuverLogFlags({ actor, maneuver, success, result, formula: attributeLabel(maneuver.actingAttribute) })
   });
 
   return { success, result, diceTarget };
@@ -637,7 +641,8 @@ async function rollDamageCheck(actor, maneuver, damageValue) {
   await createChatMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
     content,
-    rolls: [roll]
+    rolls: [roll],
+    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: maneuver.formula })
   });
 
   return { success, result, damageValue };
@@ -714,10 +719,28 @@ async function postStatement(actor, maneuver) {
 
   await createChatMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content
+    content,
+    flags: maneuverLogFlags({ actor, maneuver })
   });
 
   return { success: true };
+}
+
+function maneuverLogFlags({ actor, targetActor = null, maneuver, success = null, result = "", formula = "" }) {
+  const outcome = success === true ? "success" : success === false ? "failure" : "info";
+  return {
+    [MODULE_ID]: {
+      gmLogAction: {
+        type: "combat.maneuver",
+        outcome,
+        actorUuid: actor?.uuid ?? "",
+        targetUuid: targetActor?.uuid ?? "",
+        targetName: targetActor?.name ?? "",
+        subjectName: localize(maneuver?.nameKey),
+        values: { formula, roll: result }
+      }
+    }
+  };
 }
 
 function getSingleTargetActor({ warn = true } = {}) {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildWeaponReadinessChatContent,
   buildWeaponReadinessPatches,
   canAttackWithWeapon,
   getWeaponHandCost,
@@ -19,9 +20,38 @@ import {
 import { buildVisualActiveEffectData } from "../scripts/compatibility.mjs";
 
 const scope = "symbaroum-ind-resources";
+globalThis.game = { symbaroum: {} };
 
 test("sheet and HUD readiness indicators share the Symbaroum weapon icon", () => {
   assert.equal(WEAPON_READINESS_ICON, "/systems/symbaroum/asset/image/weapon.png");
+});
+
+test("weapon readiness messages use the compact illustrated card when requested", () => {
+  const html = buildWeaponReadinessChatContent({
+    title: "Armas",
+    text: "Crespo sacou Arco.",
+    illustrated: true
+  });
+
+  assert.match(html, /tenebre-modern-chat-illustrated/);
+  assert.match(html, /tenebre-modern-chat-simple-weapon-readiness/);
+  assert.match(html, /illustrated-separator\.png/);
+  assert.match(html, /Crespo sacou Arco\./);
+  assert.doesNotMatch(html, /tenebre-weapon-readiness-chat/);
+});
+
+test("weapon readiness messages preserve legacy layout and escape content", () => {
+  const html = buildWeaponReadinessChatContent({
+    title: "Armas",
+    text: "Crespo sacou <Arco>.",
+    image: "weapon.png",
+    illustrated: false
+  });
+
+  assert.match(html, /tenebre-weapon-readiness-chat/);
+  assert.match(html, /weapon\.png/);
+  assert.match(html, /Crespo sacou &lt;Arco&gt;\./);
+  assert.doesNotMatch(html, /tenebre-modern-chat-illustrated/);
 });
 
 function weapon(id, { state = "active", reference = "1handed", readiness, qualities = {} } = {}) {

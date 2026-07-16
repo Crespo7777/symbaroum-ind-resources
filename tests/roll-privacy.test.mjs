@@ -46,6 +46,16 @@ assert.equal(publicRoll.whisper, undefined);
 
 await RollPrivacyService.runPrivateRoll(true, async () => {
   assert.equal(RollPrivacyService.isPrivateRollActive(), true);
+  const chatData = {
+    flags: {
+      "symbaroum-ind-resources": {
+        gmLogAction: { type: "ammo.recovery" }
+      }
+    }
+  };
+  RollPrivacyService.prepareChatData(chatData, { rollCandidate: true });
+  assert.deepEqual(chatData.flags["symbaroum-ind-resources"].gmLogAction, { type: "ammo.recovery" });
+
   const privateRoll = createMessage({ rolls: [{ total: 7 }] });
   preCreateHook(privateRoll, {}, {}, "player");
   assert.deepEqual(privateRoll.whisper, ["gm"]);

@@ -25,6 +25,8 @@ import { WeaponReadinessHudService } from "./weapon-readiness-hud.mjs";
 import { WeaponReadinessVisualService } from "./weapon-readiness-visuals.mjs";
 import { InventoryCleanupService } from "./inventory-cleanup.mjs";
 import { CombatChatPrivacyService } from "./combat-chat-privacy.mjs";
+import { GmLogService } from "./gm-log-service.mjs";
+import { GmLogUiService } from "./gm-log-ui.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -104,6 +106,9 @@ Hooks.once("ready", async () => {
     }
   }
 
+  GmLogService.register();
+  GmLogUiService.register();
+
   game.tenebreResources = {
     rations: RationService,
     ammo: AmmoService,
@@ -123,6 +128,8 @@ Hooks.once("ready", async () => {
     weaponReadinessHud: WeaponReadinessHudService,
     weaponReadinessVisuals: WeaponReadinessVisualService,
     compatibility: CompatibilityService,
+    gmLog: GmLogService,
+    inventoryCleanup: InventoryCleanupService,
     tokenActionHud: TokenActionHudIntegration,
     bithir: game.bithirmod,
 

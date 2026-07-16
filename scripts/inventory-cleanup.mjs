@@ -1,5 +1,15 @@
+import { MODULE_ID } from "./constants.mjs";
+
 const pendingDeletions = new Set();
 let hooksRegistered = false;
+
+export function isInventoryCleanupEnabled() {
+  try {
+    return Boolean(game.settings.get(MODULE_ID, "enableInventoryCleanup"));
+  } catch {
+    return true;
+  }
+}
 
 export function isDepletableInventoryItem(item) {
   return Boolean(item?.type === "equipment" && item?.parent?.documentName === "Actor");
@@ -43,12 +53,14 @@ export class InventoryCleanupService {
     hooksRegistered = true;
 
     Hooks.on("createItem", (item, options, userId) => {
+      if (!isInventoryCleanupEnabled()) return;
       if (userId && userId !== game.user?.id) return;
       if (!isDepletedInventoryItem(item)) return;
       this.deleteFromHook(item);
     });
 
     Hooks.on("updateItem", (item, changes, options, userId) => {
+      if (!isInventoryCleanupEnabled()) return;
       if (userId && userId !== game.user?.id) return;
       if (!updateDepletesInventoryItem(changes)) return;
       this.deleteFromHook(item);
@@ -62,6 +74,7 @@ export class InventoryCleanupService {
   }
 
   static async cleanupExisting() {
+    if (!isInventoryCleanupEnabled()) return 0;
     const activeGM = game.users?.activeGM;
     if (!game.user?.isGM || (activeGM && activeGM.id !== game.user.id)) return 0;
 

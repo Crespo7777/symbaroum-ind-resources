@@ -1,0 +1,37 @@
+<section class="tenebre-gm-log-shell">
+  <header class="tenebre-gm-log-toolbar">
+    <label>
+      <span>{{localize "TENEBRE.GmLog.Ui.Filter"}}</span>
+      <select class="tenebre-gm-log-filter">
+        {{#each categories}}
+          <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+        {{/each}}
+      </select>
+    </label>
+    <button
+      type="button"
+      class="tenebre-gm-log-clear"
+      data-action="clear-log"
+      aria-label="{{localize 'TENEBRE.GmLog.Ui.Clear'}}"
+      data-tooltip="{{localize 'TENEBRE.GmLog.Ui.Clear'}}"
+    >
+      <i class="fa-solid fa-trash" aria-hidden="true"></i>
+    </button>
+  </header>
+
+  <ol class="tenebre-gm-log-list" aria-live="polite">
+    {{#if hasEvents}}
+      {{#each events}}
+        <li
+          class="tenebre-gm-log-entry tenebre-gm-log-{{category}} tenebre-gm-log-{{outcome}}"
+          {{#if id}}data-event-id="{{id}}"{{/if}}
+        >
+          <time>{{time}}</time>
+          <span>{{text}}</span>
+        </li>
+      {{/each}}
+    {{else}}
+      <li class="tenebre-gm-log-empty">{{localize "TENEBRE.GmLog.Ui.Empty"}}</li>
+    {{/if}}
+  </ol>
+</section>

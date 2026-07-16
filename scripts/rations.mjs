@@ -118,6 +118,7 @@ export class RationService {
 
     await this.#postRationChat(actor, {
       itemName: state.name,
+      itemUuid: rationItem?.uuid ?? "",
       quantity: nextQuantity,
       usesRemaining: nextUsesRemaining,
       usesPerUnit: state.usesPerUnit,
@@ -151,7 +152,21 @@ export class RationService {
             </div>
           </div>
         </div>
-      `
+      `,
+      flags: {
+        [FLAG_SCOPE]: {
+          gmLogAction: {
+            type: "resource.ration",
+            actorUuid: actor.uuid,
+            subjectUuid: newState.itemUuid,
+            subjectName: newState.itemName,
+            values: {
+              amount: newState.totalUsesRemaining,
+              maximum: newState.totalUsesCapacity
+            }
+          }
+        }
+      }
     });
   }
 }

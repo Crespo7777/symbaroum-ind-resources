@@ -8,6 +8,9 @@ const templateSource = await readFile(new URL("../templates/settings.hbs", impor
 const rollPrivacySource = await readFile(new URL("../scripts/roll-privacy.mjs", import.meta.url), "utf8");
 const ritualBrowserSource = await readFile(new URL("../scripts/ritual-browser.mjs", import.meta.url), "utf8");
 const sheetSource = await readFile(new URL("../scripts/sheet-ui.mjs", import.meta.url), "utf8");
+const gmLogServiceSource = await readFile(new URL("../scripts/gm-log-service.mjs", import.meta.url), "utf8");
+const gmLogUiSource = await readFile(new URL("../scripts/gm-log-ui.mjs", import.meta.url), "utf8");
+const inventoryCleanupSource = await readFile(new URL("../scripts/inventory-cleanup.mjs", import.meta.url), "utf8");
 
 const registered = new Set(Array.from(settingsSource.matchAll(/\bregister\("([^"]+)"/g), (match) => match[1]));
 const registeredTypes = new Map(Array.from(settingsSource.matchAll(/\bregister\("([^"]+)",\s*(Boolean|Number|String|Object)/g), (match) => [match[1], match[2]]));
@@ -17,7 +20,8 @@ const internalSettings = new Set([
   "hideCompatibilityNotice",
   "compatibilityNoticeAcknowledged",
   "encumbranceDiscoveredWeights",
-  "weaponReadinessButtonPosition"
+  "weaponReadinessButtonPosition",
+  "gmLogWindowPosition"
 ]);
 
 test("every settings form field has a registered setting", () => {
@@ -79,6 +83,15 @@ test("recent roll and Ritualist features consume their settings", () => {
   assert.match(ritualBrowserSource, /enableRitualCatalog/);
   assert.match(sheetSource, /enableRitualCatalog/);
   assert.match(sheetSource, /enableRitualistGrouping/);
+});
+
+test("GM log and inventory cleanup settings control their complete lifecycle", () => {
+  assert.match(gmLogServiceSource, /enableGmLog/);
+  assert.match(gmLogServiceSource, /syncEnabledState/);
+  assert.match(gmLogUiSource, /enableGmLog/);
+  assert.match(gmLogUiSource, /await this\.#application\.close\(\)/);
+  assert.match(inventoryCleanupSource, /enableInventoryCleanup/);
+  assert.match(inventoryCleanupSource, /if \(!isInventoryCleanupEnabled\(\)\) return 0/);
 });
 
 test("settings changes notify consumers and batch forced sheet renders", () => {

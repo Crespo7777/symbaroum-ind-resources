@@ -223,7 +223,19 @@ export class AmmoService {
 
     await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
-      content: chatContent
+      content: chatContent,
+      flags: {
+        [FLAG_SCOPE]: {
+          gmLogAction: {
+            type: "ammo.reload",
+            actorUuid: actor.uuid,
+            targetUuid: quiverItem.uuid,
+            subjectUuid: ammoMetadata.sourceUuid || looseItem.uuid,
+            subjectName: looseItem.name,
+            values: { amount: finalQty }
+          }
+        }
+      }
     });
   }
 
@@ -534,7 +546,19 @@ export class AmmoService {
     await createChatMessageAfterDice({
       speaker: ChatMessage.getSpeaker({ actor }),
       content: chatContent,
-      rolls: [roll]
+      rolls: [roll],
+      flags: {
+        [FLAG_SCOPE]: {
+          gmLogAction: {
+            type: "ammo.recovery",
+            outcome: success ? "success" : "failure",
+            actorUuid: actor.uuid,
+            subjectUuid: recoveryEntry.sourceUuid,
+            subjectName: recoveryEntry.name,
+            values: { formula: "1d20", roll: rollValue, maximum: threshold }
+          }
+        }
+      }
     });
 
     return { status: "rolled", remaining: remainingTotal };

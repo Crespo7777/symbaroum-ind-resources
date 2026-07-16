@@ -227,7 +227,16 @@ export class RestService {
     await createChatMessageAfterDice({
       speaker: ChatMessage.getSpeaker({ actor }),
       content,
-      rolls
+      rolls,
+      flags: {
+        [MODULE_ID]: {
+          gmLogAction: {
+            type: "status.rest",
+            actorUuid: actor.uuid,
+            values: { days: results.days, amount: results.healed }
+          }
+        }
+      }
     });
   }
 }
