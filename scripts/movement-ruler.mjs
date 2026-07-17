@@ -28,7 +28,6 @@ let movementValidationPatched = false;
 
 export class MovementService {
   static register() {
-    if (!TenebreSettings.get("enableMovementRuler")) return;
     if (CompatibilityService.shouldSkipMovementRuler()) return;
     this.patchTokenRuler();
     this.patchMovementValidation();

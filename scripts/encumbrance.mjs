@@ -311,7 +311,7 @@ export class EncumbranceService {
       };
     }
 
-    const stored = ContainerService.isStored(item);
+    const stored = ContainerService.isEnabled() && ContainerService.isStored(item);
     if (stored && !isStoredInCarriedContainer(item)) {
       return {
         slotsPerUnit,

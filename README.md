@@ -523,6 +523,35 @@ Guardar e retirar so funciona se o item/recipiente estiver:
 
 Se estiver em **Outro**, o modulo bloqueia a acao e mostra aviso.
 
+Ao guardar um item, o modulo preserva seu estado anterior e o move internamente
+para **Outro**. Ao retirar, o estado original (**Equipado** ou **Ativo**) e
+restaurado. Isso evita que um item oculto continue sendo tratado pelo sistema
+como equipado fora do fluxo do recipiente.
+
+Desativar o gerenciamento de recipientes suspende a interface especial e a
+regra de peso dos itens guardados, sem apagar os vinculos existentes. Os itens
+voltam temporariamente ao seu estado visivel anterior. Ao reativar a opcao, os
+vinculos e estados internos sao restaurados automaticamente.
+
+### Integridade e seguranca
+
+- Um recipiente com conteudo nao pode ser excluido nem ter sua quantidade
+  reduzida a zero. Retire todos os itens antes dessas operacoes.
+- Vinculos orfaos ou invalidos sao recuperados automaticamente por um unico GM
+  ativo, restaurando os itens ao inventario principal.
+- Pilhas so sao combinadas quando tipo, nome, estado restaurado e demais dados
+  relevantes sao equivalentes. Itens apenas parecidos permanecem separados.
+- Divisoes e combinacoes de pilhas possuem reversao em caso de falha parcial,
+  reduzindo o risco de perda ou duplicacao.
+- Mutacoes exigem que o usuario seja GM ou proprietario do Actor e que item e
+  recipiente pertençam ao mesmo Actor.
+
+### Expansao da sublista
+
+O estado aberto/recolhido de cada recipiente e salvo por cliente. Assim, cada
+usuario pode organizar sua propria ficha sem alterar a visualizacao dos demais,
+e a escolha permanece depois de fechar e reabrir a ficha.
+
 ### Recipientes reconhecidos
 
 Exemplos reconhecidos:

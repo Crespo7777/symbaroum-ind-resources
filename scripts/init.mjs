@@ -31,6 +31,7 @@ import { GmLogUiService } from "./gm-log-ui.mjs";
 Hooks.once("init", () => {
   TenebreSettings.register();
   CompatibilityService.register();
+  MovementService.register();
   ModernChatService.register();
   RollPrivacyService.register();
   CombatChatPrivacyService.register();
@@ -81,7 +82,6 @@ Hooks.once("ready", async () => {
   WeaponReadinessVisualService.registerHooks();
   WeaponReadinessVisualService.refreshAllIndicators();
   WeaponReadinessHudService.register();
-  MovementService.register();
   patchSymbaroumRollDialogs();
   patchSymbaroumActorUsePower();
   patchSymbaroumDerivedPenalties();
@@ -150,12 +150,20 @@ Hooks.once("ready", async () => {
     }
   }
 
-  if (TenebreSettings.get("enableContainers") && game.user.isGM) {
+  const activeGms = [...(game.users ?? [])].filter((user) => user.active && user.isGM);
+  const isPrimaryActiveGm = game.user.isGM && (!activeGms.length || activeGms[0]?.id === game.user.id);
+  if (isPrimaryActiveGm) {
+    const containersEnabled = TenebreSettings.get("enableContainers");
     for (const actor of game.actors) {
       if (actor.type === "player") {
-        const recovered = await ContainerService.recoverOrphanedStoredItems(actor);
-        if (recovered > 0) {
-          console.warn(`${MODULE_ID} | Recovered ${recovered} orphaned stored item(s) for ${actor.name}.`);
+        try {
+          const recovered = await ContainerService.recoverOrphanedStoredItems(actor);
+          await ContainerService.synchronizeActorStates(actor, containersEnabled);
+          if (recovered > 0) {
+            console.warn(`${MODULE_ID} | Recovered ${recovered} orphaned stored item(s) for ${actor.name}.`);
+          }
+        } catch (error) {
+          console.warn(`${MODULE_ID} | Could not synchronize container states for ${actor.name}.`, error);
         }
       }
     }

@@ -57,6 +57,9 @@ export class ChatItemUseService {
       [MODULE_ID]: {
         chatItemUse: true,
         itemUuid: item.uuid,
+        itemName: item.name,
+        itemType: item.type,
+        isEquipment: item.type === "equipment" || item.system?.isEquipment === true,
         actorUuid: actor.uuid,
         tokenUuid: token?.document?.uuid ?? token?.uuid ?? null,
         targetTokenUuid: targetToken?.document?.uuid ?? targetToken?.uuid ?? null

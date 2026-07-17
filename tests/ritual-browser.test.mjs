@@ -59,6 +59,26 @@ assert.match(
   /tenebre-ritualist-inline-row-right[\s\S]*?isAbilityRowInRightColumn\(ritualistRow\)/,
   "grouped rituals must follow Ritualist's rendered column"
 );
+assert.match(
+  sheetUiSource,
+  /const ritualistRow = findAbilityItemRow[\s\S]*?if \(!ritualistRow\) \{[\s\S]*?scheduleRitualistInjectionRetry[\s\S]*?return;[\s\S]*?querySelectorAll\("\.tenebre-ritualist-inline-row"\)/,
+  "a transiently missing Ritualist row must not remove the existing inline list"
+);
+assert.match(
+  sheetUiSource,
+  /const renderExpandedState = \(\) => \{[\s\S]*?const rituals = getRituals\(\);[\s\S]*?buildRitualistInlineRow/,
+  "each expansion must rebuild from the actor's current ritual collection"
+);
+assert.match(
+  sheetUiSource,
+  /function refreshOpenRitualistLists[\s\S]*?injectRitualistInlineList\(app, root, actor\)/,
+  "ritual creation and deletion must reconcile every open sheet"
+);
+assert.match(
+  sheetUiSource,
+  /function scheduleRitualistInjectionRetry[\s\S]*?attempts >= 3[\s\S]*?currentRoot = getRoot\(app\?\.element\) \?\? root/,
+  "Ritualist injection retries must be bounded and follow a replaced sheet root"
+);
 
 const merged = mergeRitualSources(
   catalog.rituals,

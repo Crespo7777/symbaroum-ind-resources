@@ -300,6 +300,10 @@ export class TenebreSettings {
 
     register("enableEncumbrance", Boolean, true, "TENEBRE.Settings.EnableEncumbrance", "TENEBRE.Settings.EnableEncumbranceHint");
     register("enableContainers", Boolean, true, "TENEBRE.Settings.EnableContainers", "TENEBRE.Settings.EnableContainersHint");
+    register("containerExpansionState", Object, {}, "TENEBRE.Settings.ContainerExpansionState", "TENEBRE.Settings.ContainerExpansionStateHint", {
+      scope: "client",
+      skipNotify: true
+    });
     register("enableMovementRuler", Boolean, true, "TENEBRE.Settings.EnableMovementRuler", "TENEBRE.Settings.EnableMovementRulerHint");
     register("enableMovementColors", Boolean, DEFAULTS.enableMovementColors, "TENEBRE.Settings.EnableMovementColors", "TENEBRE.Settings.EnableMovementColorsHint");
     register("enableMovementLimitLabels", Boolean, DEFAULTS.enableMovementLimitLabels, "TENEBRE.Settings.EnableMovementLimitLabels", "TENEBRE.Settings.EnableMovementLimitLabelsHint");
@@ -376,6 +380,8 @@ function registerMenu(key, name, label, hint, icon, type) {
 function register(key, type, defaultValue, name, hint, extra = {}) {
   if (game.settings.settings.has(`${MODULE_ID}.${key}`)) return;
 
+  const { skipNotify = false, ...settingOptions } = extra;
+
   game.settings.register(MODULE_ID, key, {
     name,
     hint,
@@ -383,8 +389,8 @@ function register(key, type, defaultValue, name, hint, extra = {}) {
     config: false,
     default: defaultValue,
     type,
-    ...extra,
-    onChange: (value) => onSettingChanged(key, value)
+    ...settingOptions,
+    ...(skipNotify ? {} : { onChange: (value) => onSettingChanged(key, value) })
   });
 }
 
@@ -434,8 +440,8 @@ function onSettingChanged(key, value) {
     refreshEncumbranceActors({ autoAssign: false });
   }
 
-  if (key === "enableContainers" && value && game.user?.isGM) {
-    recoverOrphanedStoredItems();
+  if (key === "enableContainers" && isPrimaryActiveGm()) {
+    synchronizeContainerStates(Boolean(value));
   }
 
   if (key === "enableInventoryCleanup" && value && game.user?.isGM) {
@@ -474,12 +480,19 @@ function refreshEncumbranceActors({ autoAssign = false, clearPenalty = false } =
   }
 }
 
-function recoverOrphanedStoredItems() {
+function synchronizeContainerStates(enabled) {
   for (const actor of game.actors ?? []) {
     if (actor.type !== "player") continue;
-    game.tenebreResources?.containers?.recoverOrphanedStoredItems?.(actor)
-      ?.catch?.((error) => console.warn(`${MODULE_ID} | Could not recover orphaned stored items for ${actor.name}.`, error));
+    Promise.resolve(game.tenebreResources?.containers?.recoverOrphanedStoredItems?.(actor))
+      .then(() => game.tenebreResources?.containers?.synchronizeActorStates?.(actor, enabled))
+      .catch((error) => console.warn(`${MODULE_ID} | Could not synchronize container states for ${actor.name}.`, error));
   }
+}
+
+function isPrimaryActiveGm() {
+  if (!game.user?.isGM) return false;
+  const activeGms = [...(game.users ?? [])].filter((user) => user.active && user.isGM);
+  return !activeGms.length || activeGms[0]?.id === game.user.id;
 }
 
 function syncAmmoSettingsVisibility(form) {

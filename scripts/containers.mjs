@@ -1,12 +1,21 @@
-import { FLAG_SCOPE } from "./constants.mjs";
-import { actorItems, changeItemQuantity, itemQuantity } from "./item-flags.mjs";
+import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { escapeHtml, normalize, promptDialog } from "./utils.mjs";
 
 const STORABLE_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
 const ACCESSIBLE_STATES = new Set(["equipped", "active"]);
 const CAMPING_CONTENTS_SEEDED_FLAG = "campingContentsSeeded";
-const CONTAINER_EXPANDED_FLAG = "containerExpanded";
+const CONTAINER_EXPANSION_SETTING = "containerExpansionState";
+const STORED_ITEM_STATE = "other";
 let hooksRegistered = false;
+const sessionExpansionState = new Map();
+
+function actorItems(actor) {
+  return Array.from(actor?.items?.values?.() ?? []);
+}
+
+function itemQuantity(item) {
+  return Number(item?.system?.number ?? 0) || 0;
+}
 
 const LIGHT_CONTAINER_ALIASES = [
   "mochila",
@@ -103,8 +112,20 @@ export class ContainerService {
       return this.canDeleteItem(item);
     });
 
+    Hooks.on("preUpdateItem", (item, changes, options, userId) => {
+      if (userId !== game.user?.id) return true;
+      if (!this.isContainer(item) || !this.getStoredItems(item.parent, item).length) return true;
+      const quantity = changes?.system?.number ?? changes?.["system.number"];
+      if (quantity === undefined || quantity === null || quantity === "" || Number(quantity) > 0) return true;
+      ui.notifications.warn(game.i18n.format("TENEBRE.Containers.CannotDepleteNotEmpty", {
+        container: item.name
+      }));
+      return false;
+    });
+
     Hooks.on("deleteItem", (item, options, userId) => {
       if (userId !== game.user?.id) return;
+      if (item.parent && this.isContainer(item)) void setContainerExpanded(item.parent, item, false);
       this.recoverStoredItemsFromDeletedContainer(item).catch((error) => {
         console.warn("Tenebre Resources | Failed to recover stored items after container deletion.", error);
       });
@@ -119,6 +140,14 @@ export class ContainerService {
     return hasAlias(name, LIGHT_CONTAINER_ALIASES) || hasAlias(name, BULKY_CONTAINER_ALIASES);
   }
 
+  static isEnabled() {
+    try {
+      return Boolean(game.settings.get(MODULE_ID, "enableContainers"));
+    } catch {
+      return true;
+    }
+  }
+
   static isStored(item) {
     return Boolean(this.getStoredIn(item));
   }
@@ -128,13 +157,15 @@ export class ContainerService {
   }
 
   static canStoreItem(item) {
-    return this.canAttemptStoreItem(item) && isAccessibleState(item);
+    return this.isEnabled() && this.canAttemptStoreItem(item) && isAccessibleState(item);
   }
 
   static canAttemptStoreItem(item) {
     return Boolean(
-      item
+      this.isEnabled()
+      && item
       && STORABLE_TYPES.has(item.type)
+      && (item.type !== "equipment" || itemQuantity(item) > 0)
       && !this.isContainer(item)
       && !this.isStored(item)
       && item.id !== globalThis.game?.symbaroum?.config?.noArmorID
@@ -142,6 +173,7 @@ export class ContainerService {
   }
 
   static getContainers(actor, item = null) {
+    if (!this.isEnabled() || !canMutateActor(actor)) return [];
     return actorItems(actor).filter((candidate) => {
       return candidate.id !== item?.id
         && this.isContainer(candidate)
@@ -174,21 +206,21 @@ export class ContainerService {
   }
 
   static async storeItemPrompt(actor, item) {
-    if (!actor || !item) return;
+    if (!this.isEnabled() || !isValidOwnedActorItem(actor, item)) return false;
     if (!isAccessibleState(item)) {
       warnInaccessibleState("TENEBRE.Containers.CannotStoreOther");
-      return;
+      return false;
     }
-    if (!this.canStoreItem(item)) return;
+    if (!this.canStoreItem(item)) return false;
 
     const containers = this.getAvailableContainers(actor, item);
     if (!containers.length) {
       if (this.getContainers(actor, item).length > 0) {
         warnInaccessibleState("TENEBRE.Containers.CannotStoreInOther");
-        return;
+        return false;
       }
       ui.notifications.warn(game.i18n.localize("TENEBRE.Containers.NoContainers"));
-      return;
+      return false;
     }
 
     const quantity = getStorableQuantity(item);
@@ -206,29 +238,28 @@ export class ContainerService {
       })
     });
 
-    if (!result) return;
+    if (!result) return false;
     const container = actor.items.get(result.containerId);
-    if (!container) return;
-    await this.storeItem(actor, item, container, result.quantity);
+    if (!container) return false;
+    return this.storeItem(actor, item, container, result.quantity);
   }
 
   static async storeItemInContainerPrompt(actor, item, container) {
-    if (!actor || !item || !container) return;
+    if (!this.isEnabled() || !isValidStoreRelationship(actor, item, container)) return false;
     if (!isAccessibleState(item)) {
       warnInaccessibleState("TENEBRE.Containers.CannotStoreOther");
-      return;
+      return false;
     }
-    if (!this.canStoreItem(item)) return;
-    if (!this.isContainer(container)) return;
+    if (!this.canStoreItem(item)) return false;
+    if (!this.isContainer(container) || this.isStored(container)) return false;
     if (!isAccessibleState(container)) {
       warnInaccessibleState("TENEBRE.Containers.CannotStoreInOther");
-      return;
+      return false;
     }
 
     const quantity = getStorableQuantity(item);
     if (quantity <= 1) {
-      await this.storeItem(actor, item, container, 1);
-      return;
+      return this.storeItem(actor, item, container, 1);
     }
 
     const content = buildStoreDialogContent({ actor, item, containers: [container], quantity, fixedContainer: true });
@@ -242,40 +273,46 @@ export class ContainerService {
       callback: (element) => Number(element.querySelector('[name="quantity"]')?.value || quantity)
     });
 
-    if (amount === null) return;
-    await this.storeItem(actor, item, container, amount);
+    if (amount === null) return false;
+    return this.storeItem(actor, item, container, amount);
   }
 
   static async storeItem(actor, item, container, quantity = 1) {
+    if (!this.isEnabled() || !isValidStoreRelationship(actor, item, container)) return false;
+    if (!this.canAttemptStoreItem(item) || !this.isContainer(container) || this.isStored(container)) return false;
+    if (item.id === container.id || itemQuantity(container) <= 0) return false;
     if (!isAccessibleState(item)) {
       warnInaccessibleState("TENEBRE.Containers.CannotStoreOther");
-      return;
+      return false;
     }
     if (!isAccessibleState(container)) {
       warnInaccessibleState("TENEBRE.Containers.CannotStoreInOther");
-      return;
+      return false;
     }
 
     const storableQuantity = getStorableQuantity(item);
+    if (storableQuantity <= 0) return false;
     const amount = Math.max(1, Math.min(storableQuantity, Math.floor(Number(quantity) || 1)));
     const preStoredState = item.system?.state ?? "";
 
     if (item.type === "equipment" && storableQuantity > 1 && amount < storableQuantity) {
       const storedStack = findStoredStack(actor, item, container);
-      await changeItemQuantity(item, -amount);
       if (storedStack) {
-        await changeItemQuantity(storedStack, amount);
+        await actor.updateEmbeddedDocuments("Item", [
+          { _id: item.id, "system.number": storableQuantity - amount },
+          { _id: storedStack.id, "system.number": itemQuantity(storedStack) + amount }
+        ], { render: true });
       } else {
         const itemData = createStoredItemData(item, container, amount, preStoredState);
-        await actor.createEmbeddedDocuments("Item", [itemData], { render: true });
+        await createSplitStack(actor, item, itemData, storableQuantity - amount);
       }
     } else {
       const storedStack = item.type === "equipment" ? findStoredStack(actor, item, container) : null;
       if (storedStack) {
-        await changeItemQuantity(storedStack, itemQuantity(item));
-        await actor.deleteEmbeddedDocuments("Item", [item.id], { render: true });
+        await mergeAndDeleteStack(actor, item, storedStack, itemQuantity(item));
       } else {
         await item.update({
+          "system.state": STORED_ITEM_STATE,
           [`flags.${FLAG_SCOPE}.storedIn`]: container.id,
           [`flags.${FLAG_SCOPE}.storedInName`]: container.name,
           [`flags.${FLAG_SCOPE}.preStoredState`]: preStoredState
@@ -287,7 +324,7 @@ export class ContainerService {
       item: item.name,
       container: container.name
     }));
-    rerenderActorSheets(actor);
+    return true;
   }
 
   static async openContainer(actor, container) {
@@ -295,34 +332,32 @@ export class ContainerService {
   }
 
   static async toggleContainer(actor, container) {
-    if (!actor || !container) return false;
+    if (!this.isEnabled() || !isValidOwnedActorItem(actor, container) || !this.isContainer(container) || this.isStored(container)) return false;
 
     const isExpanded = !this.isContainerExpanded(actor, container);
     if (isExpanded) {
       await seedContainerContents(actor, container);
-      await container.setFlag(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG, true);
-    } else {
-      await container.setFlag(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG, false);
     }
-
+    await setContainerExpanded(actor, container, isExpanded);
     rerenderActorSheets(actor);
     return isExpanded;
   }
 
   static isContainerExpanded(actor, container) {
     if (!actor || !container) return false;
-    return container.getFlag?.(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG) === true;
+    return getContainerExpansionState().has(containerExpansionKey(actor, container));
   }
 
   static async collapseContainer(actor, container) {
-    if (!actor || !container) return false;
-    await container.setFlag(FLAG_SCOPE, CONTAINER_EXPANDED_FLAG, false);
+    if (!isValidOwnedActorItem(actor, container) || !this.isContainer(container)) return false;
+    await setContainerExpanded(actor, container, false);
+    rerenderActorSheets(actor);
     return true;
   }
 
   static async recoverStoredItemsFromDeletedContainer(container) {
     const actor = container?.parent;
-    if (!actor) return 0;
+    if (!actor || !canMutateActor(actor)) return 0;
 
     const storedItems = actorItems(actor).filter((item) => this.getStoredIn(item) === container.id);
     if (!storedItems.length) return 0;
@@ -332,35 +367,60 @@ export class ContainerService {
       count: storedItems.length,
       container: container.name
     }));
-    rerenderActorSheets(actor);
     return storedItems.length;
   }
 
   static async recoverOrphanedStoredItems(actor) {
-    if (!actor) return 0;
+    if (!actor || !canMutateActor(actor)) return 0;
     const orphanedItems = actorItems(actor).filter((item) => {
       const containerId = this.getStoredIn(item);
-      return containerId && !actor.items.get(containerId);
+      if (!containerId) return false;
+      const container = actor.items.get(containerId);
+      return !container || !this.isContainer(container) || this.isStored(container);
     });
     if (!orphanedItems.length) return 0;
 
     await restoreStoredItems(actor, orphanedItems);
-    rerenderActorSheets(actor);
     return orphanedItems.length;
   }
 
+  static async synchronizeActorStates(actor, enabled = this.isEnabled()) {
+    if (!actor || !canMutateActor(actor)) return 0;
+
+    const updates = [];
+    for (const item of actorItems(actor)) {
+      if (this.isStored(item)) {
+        const targetState = enabled
+          ? STORED_ITEM_STATE
+          : (item.getFlag?.(FLAG_SCOPE, "preStoredState") || "equipped");
+        if (item.system?.state !== targetState) {
+          updates.push({ _id: item.id, "system.state": targetState });
+        }
+      }
+
+      if (this.isContainer(item) && itemQuantity(item) <= 0 && this.getStoredItems(actor, item).length) {
+        updates.push({ _id: item.id, "system.number": 1 });
+      }
+    }
+
+    if (!updates.length) return 0;
+    const mergedUpdates = mergeItemUpdates(updates);
+    await actor.updateEmbeddedDocuments("Item", mergedUpdates, { render: true });
+    return mergedUpdates.length;
+  }
+
   static async withdrawItemPrompt(actor, item) {
-    if (!actor || !item || !this.isStored(item)) return;
+    if (!this.isEnabled() || !isValidOwnedActorItem(actor, item) || !this.isStored(item)) return false;
     const container = actor.items.get(this.getStoredIn(item));
+    if (!this.isContainer(container) || this.isStored(container)) return false;
     if (!isAccessibleState(container)) {
       warnInaccessibleState("TENEBRE.Containers.CannotWithdrawOther");
-      return;
+      return false;
     }
 
     const quantity = getStorableQuantity(item);
     if (item.type !== "equipment" || quantity <= 1) {
-      await this.withdrawItem(actor, item, quantity);
-      return;
+      return this.withdrawItem(actor, item, quantity);
     }
 
     const content = `
@@ -380,26 +440,31 @@ export class ContainerService {
       callback: (element) => Number(element.querySelector('[name="quantity"]')?.value || quantity)
     });
 
-    if (amount === null) return;
-    await this.withdrawItem(actor, item, amount);
+    if (amount === null) return false;
+    return this.withdrawItem(actor, item, amount);
   }
 
   static async withdrawItem(actor, item, quantity = null) {
-    if (!actor || !item || !this.isStored(item)) return;
+    if (!this.isEnabled() || !isValidOwnedActorItem(actor, item) || !this.isStored(item)) return false;
     const container = actor.items.get(this.getStoredIn(item));
+    if (!this.isContainer(container) || this.isStored(container)) return false;
     if (!isAccessibleState(container)) {
       warnInaccessibleState("TENEBRE.Containers.CannotWithdrawOther");
-      return;
+      return false;
     }
 
     const currentQuantity = getStorableQuantity(item);
+    if (currentQuantity <= 0) return false;
     const amount = Math.max(1, Math.min(currentQuantity, Math.floor(Number(quantity ?? currentQuantity) || currentQuantity)));
     const preStoredState = item.getFlag(FLAG_SCOPE, "preStoredState") || "equipped";
     const mergeTarget = findVisibleStack(actor, item);
 
     if (item.type === "equipment" && amount < currentQuantity) {
       if (mergeTarget) {
-        await changeItemQuantity(mergeTarget, amount);
+        await actor.updateEmbeddedDocuments("Item", [
+          { _id: item.id, "system.number": currentQuantity - amount },
+          { _id: mergeTarget.id, "system.number": itemQuantity(mergeTarget) + amount }
+        ], { render: true });
       } else {
         const itemData = item.toObject();
         delete itemData._id;
@@ -410,17 +475,14 @@ export class ContainerService {
         delete itemData.flags[FLAG_SCOPE]?.storedIn;
         delete itemData.flags[FLAG_SCOPE]?.storedInName;
         delete itemData.flags[FLAG_SCOPE]?.preStoredState;
-        await actor.createEmbeddedDocuments("Item", [itemData], { render: true });
+        await createSplitStack(actor, item, itemData, currentQuantity - amount);
       }
-
-      await changeItemQuantity(item, -amount);
-      return;
+      return true;
     }
 
     if (mergeTarget && item.type === "equipment") {
-      await changeItemQuantity(mergeTarget, itemQuantity(item));
-      await actor.deleteEmbeddedDocuments("Item", [item.id], { render: true });
-      return;
+      await mergeAndDeleteStack(actor, item, mergeTarget, itemQuantity(item));
+      return true;
     }
 
     await item.update({
@@ -429,11 +491,12 @@ export class ContainerService {
       [`flags.${FLAG_SCOPE}.-=storedInName`]: null,
       [`flags.${FLAG_SCOPE}.-=preStoredState`]: null
     });
+    return true;
   }
 }
 
 function getStorableQuantity(item) {
-  return item?.type === "equipment" ? Math.max(1, itemQuantity(item)) : 1;
+  return item?.type === "equipment" ? Math.max(0, itemQuantity(item)) : 1;
 }
 
 function buildStoreDialogContent({ actor, item, containers, quantity, fixedContainer = false }) {
@@ -480,30 +543,118 @@ function isAccessibleState(item) {
   return ACCESSIBLE_STATES.has(String(item?.system?.state ?? "").toLowerCase());
 }
 
+function canMutateActor(actor) {
+  return Boolean(actor && (game.user?.isGM || actor.isOwner));
+}
+
+function isValidOwnedActorItem(actor, item) {
+  if (!canMutateActor(actor) || !item || item.parent?.id !== actor.id) return false;
+  return actor.items?.get?.(item.id) === item;
+}
+
+function isValidStoreRelationship(actor, item, container) {
+  return isValidOwnedActorItem(actor, item)
+    && isValidOwnedActorItem(actor, container)
+    && item.id !== container.id;
+}
+
 function warnInaccessibleState(key) {
   ui.notifications.warn(game.i18n.localize(key));
 }
 
 function findVisibleStack(actor, item) {
   if (item.type !== "equipment") return null;
+  const restoredState = item.getFlag?.(FLAG_SCOPE, "preStoredState") || "equipped";
   return actorItems(actor).find((candidate) => {
     return candidate.id !== item.id
       && candidate.type === item.type
       && candidate.name === item.name
       && !ContainerService.isStored(candidate)
-      && !ContainerService.isContainer(candidate);
+      && !ContainerService.isContainer(candidate)
+      && areStackCompatible(candidate, item, {
+        leftState: candidate.system?.state,
+        rightState: restoredState
+      });
   });
 }
 
 function findStoredStack(actor, item, container) {
   if (item.type !== "equipment") return null;
   return actorItems(actor).find((candidate) => {
+    const candidateState = candidate.getFlag?.(FLAG_SCOPE, "preStoredState") || "equipped";
     return candidate.id !== item.id
       && candidate.type === item.type
       && candidate.name === item.name
       && ContainerService.getStoredIn(candidate) === container.id
-      && !ContainerService.isContainer(candidate);
+      && !ContainerService.isContainer(candidate)
+      && areStackCompatible(candidate, item, {
+        leftState: candidateState,
+        rightState: item.system?.state
+      });
   });
+}
+
+function areStackCompatible(left, right, { leftState, rightState } = {}) {
+  return stableStringify(stackComparableSource(left, leftState))
+    === stableStringify(stackComparableSource(right, rightState));
+}
+
+function stackComparableSource(item, stateOverride) {
+  const source = foundry.utils.deepClone(item?.toObject?.() ?? {});
+  for (const key of ["_id", "sort", "folder", "ownership", "_stats"]) delete source[key];
+  if (source.system) {
+    delete source.system.number;
+    if (stateOverride !== undefined) source.system.state = stateOverride;
+  }
+  const moduleFlags = source.flags?.[FLAG_SCOPE];
+  if (moduleFlags) {
+    delete moduleFlags.storedIn;
+    delete moduleFlags.storedInName;
+    delete moduleFlags.preStoredState;
+    if (!Object.keys(moduleFlags).length) delete source.flags[FLAG_SCOPE];
+  }
+  if (source.flags && !Object.keys(source.flags).length) delete source.flags;
+  return source;
+}
+
+async function createSplitStack(actor, sourceItem, itemData, remainingQuantity) {
+  const created = await actor.createEmbeddedDocuments("Item", [itemData], { render: false });
+  try {
+    await sourceItem.update({ "system.number": remainingQuantity }, { render: true });
+  } catch (error) {
+    const createdIds = created.map((item) => item.id).filter(Boolean);
+    if (createdIds.length) {
+      try {
+        await actor.deleteEmbeddedDocuments("Item", createdIds, { render: true });
+      } catch (rollbackError) {
+        console.error("Tenebre Resources | Failed to roll back a container stack split.", rollbackError);
+      }
+    }
+    throw error;
+  }
+}
+
+async function mergeAndDeleteStack(actor, sourceItem, targetItem, amount) {
+  const targetQuantity = itemQuantity(targetItem);
+  await targetItem.update({ "system.number": targetQuantity + amount }, { render: false });
+  try {
+    await actor.deleteEmbeddedDocuments("Item", [sourceItem.id], { render: true });
+  } catch (error) {
+    try {
+      await targetItem.update({ "system.number": targetQuantity }, { render: true });
+    } catch (rollbackError) {
+      console.error("Tenebre Resources | Failed to roll back a container stack merge.", rollbackError);
+    }
+    throw error;
+  }
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function createStoredItemData(item, container, quantity, preStoredState) {
@@ -511,6 +662,7 @@ function createStoredItemData(item, container, quantity, preStoredState) {
   delete itemData._id;
   itemData.system = foundry.utils.deepClone(itemData.system ?? {});
   itemData.system.number = quantity;
+  itemData.system.state = STORED_ITEM_STATE;
   itemData.flags = foundry.utils.deepClone(itemData.flags ?? {});
   itemData.flags[FLAG_SCOPE] = {
     ...(itemData.flags[FLAG_SCOPE] ?? {}),
@@ -539,7 +691,10 @@ async function restoreStoredItems(actor, items) {
 async function seedContainerContents(actor, container) {
   if (!isCampingEquipment(container)) return;
   if (container.getFlag?.(FLAG_SCOPE, CAMPING_CONTENTS_SEEDED_FLAG)) return;
-  if (ContainerService.getStoredItems(actor, container).length > 0) return;
+  if (ContainerService.getStoredItems(actor, container).length > 0) {
+    await container.setFlag(FLAG_SCOPE, CAMPING_CONTENTS_SEEDED_FLAG, true);
+    return;
+  }
 
   const contentRefs = extractCampingContentRefs(container);
   if (!contentRefs.length) return;
@@ -614,12 +769,14 @@ function createSeededStoredItemData(document, ref, container) {
   delete itemData._id;
   itemData.system = foundry.utils.deepClone(itemData.system ?? {});
   itemData.system.number = 1;
+  const preStoredState = itemData.system.state ?? "equipped";
+  itemData.system.state = STORED_ITEM_STATE;
   itemData.flags = foundry.utils.deepClone(itemData.flags ?? {});
   itemData.flags[FLAG_SCOPE] = {
     ...(itemData.flags[FLAG_SCOPE] ?? {}),
     storedIn: container.id,
     storedInName: container.name,
-    preStoredState: itemData.system.state ?? "equipped"
+    preStoredState
   };
   return itemData;
 }
@@ -642,6 +799,53 @@ function hasAlias(normalizedName, aliases) {
 
 function toSearchableText(value) {
   return ` ${normalize(value).replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ")} `;
+}
+
+function containerExpansionKey(actor, container) {
+  return `${actor.uuid ?? actor.id}:${container.id}`;
+}
+
+function getContainerExpansionState() {
+  const expanded = new Set();
+  try {
+    const stored = game.settings.get(MODULE_ID, CONTAINER_EXPANSION_SETTING);
+    for (const [key, value] of Object.entries(stored ?? {})) {
+      if (value === true) expanded.add(key);
+    }
+  } catch {
+    // Client storage is optional; the session override below remains functional.
+  }
+
+  for (const [key, value] of sessionExpansionState) {
+    if (value) expanded.add(key);
+    else expanded.delete(key);
+  }
+  return expanded;
+}
+
+async function setContainerExpanded(actor, container, expanded) {
+  if (!actor || !container) return false;
+  const key = containerExpansionKey(actor, container);
+  sessionExpansionState.set(key, Boolean(expanded));
+
+  try {
+    const current = game.settings.get(MODULE_ID, CONTAINER_EXPANSION_SETTING) ?? {};
+    const next = { ...current };
+    if (expanded) next[key] = true;
+    else delete next[key];
+    await game.settings.set(MODULE_ID, CONTAINER_EXPANSION_SETTING, next);
+  } catch {
+    // Session state remains functional if client settings are unavailable.
+  }
+  return true;
+}
+
+function mergeItemUpdates(updates) {
+  const merged = new Map();
+  for (const update of updates) {
+    merged.set(update._id, { ...(merged.get(update._id) ?? {}), ...update });
+  }
+  return [...merged.values()];
 }
 
 function rerenderActorSheets(actor) {

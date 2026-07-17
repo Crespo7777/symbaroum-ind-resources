@@ -159,7 +159,44 @@ test("public combat rendering omits NPC protection and final applied damage", ()
     modernChatSource.indexOf("function buildCombatCard"),
     modernChatSource.indexOf("function buildAbilityRollCard")
   );
-  assert.match(combatBuilder, /!publicCombat && appliedDamage/);
-  assert.match(combatBuilder, /!publicCombat && damage \? protectionValue/);
+  assert.match(combatBuilder, /gmCombat && appliedDamage/);
+  assert.match(combatBuilder, /gmCombat && damage \? protectionValue/);
   assert.doesNotMatch(privacySource, /protectionValue|appliedDamage|DamageTaken/);
+});
+
+/*
+test("GM attack cards include hidden-test values and objective while public cards do not", () => {
+  const combatBuilder = modernChatSource.slice(
+    modernChatSource.indexOf("function buildCombatCard"),
+    modernChatSource.indexOf("function buildAbilityRollCard")
+  );
+  assert.match(combatBuilder, /attackTestAttributeValues\(findAttributeLine\(text\), actor, targetActor\)/);
+  assert.match(modernChatSource, /data\.attackTestValues[\s\S]{0,80}illustratedAttackTestHtml/);
+  assert.match(modernChatSource, /illustratedAttackObjectiveHtml\(data\.attackTestValues\)/);
+  assert.match(modernChatSource, /hideAttackFlavor: gmCombat/);
+  assert.match(modernChatSource, /parsedOrActorAttributeValue\(parts\[0\], actor\)/);
+  assert.match(modernChatSource, /parsedOrActorAttributeValue\(parts\[1\], targetActor\)/);
+  assert.match(modernChatSource, /match\(\/\^\(\.\+\?\)\\s\*:\?\\s\*\\\(\\s\*\(-\\?\\d\+\)/);
+  assert.match(modernChatSource, /gmOnly: Boolean\(data\.gmCombat\)/);
+  assert.match(combatBuilder, /protection !== ""/);
+});
+*/
+
+test("GM attack cards preserve test values and GM-only details", () => {
+  const combatBuilder = modernChatSource.slice(
+    modernChatSource.indexOf("function buildCombatCard"),
+    modernChatSource.indexOf("function buildAbilityRollCard")
+  );
+  assert.match(combatBuilder, /attackTestAttributeValues\(findAttributeLine\(text\), actor, targetActor\)/);
+  assert.match(modernChatSource, /data\.attackTestValues[\s\S]{0,80}illustratedAttackTestHtml/);
+  assert.match(modernChatSource, /illustratedAttackObjectiveHtml\(data\.attackTestValues\)/);
+  assert.match(modernChatSource, /hideAttackFlavor: gmCombat/);
+  assert.match(modernChatSource, /parsedOrActorAttributeValue\(parts\[0\], actor\)/);
+  assert.match(modernChatSource, /parsedOrActorAttributeValue\(parts\[1\], targetActor\)/);
+  assert.match(modernChatSource, /cleanName\(part\)\.match\(/);
+  assert.match(modernChatSource, /operator: right < 0 \? "-" : "\+"/);
+  assert.match(modernChatSource, /right: Math\.abs\(right\)/);
+  assert.match(modernChatSource, /result: left \+ right/);
+  assert.match(modernChatSource, /gmOnly: Boolean\(data\.gmCombat\)/);
+  assert.match(combatBuilder, /protection !== ""/);
 });

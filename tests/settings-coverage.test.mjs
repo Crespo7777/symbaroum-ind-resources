@@ -21,7 +21,8 @@ const internalSettings = new Set([
   "compatibilityNoticeAcknowledged",
   "encumbranceDiscoveredWeights",
   "weaponReadinessButtonPosition",
-  "gmLogWindowPosition"
+  "gmLogWindowPosition",
+  "containerExpansionState"
 ]);
 
 test("every settings form field has a registered setting", () => {

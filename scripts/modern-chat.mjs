@@ -284,6 +284,7 @@ export class ModernChatService {
         ?? buildAmmoReloadCard(message, source, text)
         ?? buildAmmoUseCard(message, source, text)
         ?? buildRationUseCard(message, source, text)
+        ?? buildEquipmentUseCard(message)
         ?? buildRestCard(message, source, text)
         ?? buildHungerCard(message, source, text)
         ?? buildItemUseCard(message, source, text)
@@ -358,13 +359,15 @@ function buildCombatCard(message, source, text) {
   const targetActor = findActorByName(targetName);
   const damage = lineValue(text, "Dano") || lineValue(text, "Damage");
   const publicCombat = message?.flags?.[MODULE_ID]?.publicCombat;
+  const gmCombat = Boolean(game.user?.isGM && !publicCombat);
   const damageDisplay = publicCombat?.damageFormula
     ? publicCombatDamageValue(publicCombat, actor)
     : damage ? causedDamageValue(damage, message, actor) : null;
   const resisted = text.match(/(.+?)\s+(?:suporta dano|endures damage)\s*:\s*([^\n]+)/i);
   const protectedByArmor = /\b(est[aá] protegido pela armadura|is protected by armor)\b/i.test(text);
   const appliedDamage = resisted ? cleanName(resisted[2]) : protectedByArmor ? "0" : "";
-  const protection = !publicCombat && damage ? protectionValue(damage, message, appliedDamage) : "";
+  const protection = gmCombat && damage ? protectionValue(damage, message, appliedDamage) : "";
+  const attackTestValues = gmCombat ? attackTestAttributeValues(findAttributeLine(text), actor, targetActor) : null;
   const hit = /\b(acerta|hits?)\b/i.test(text);
   const miss = /\b(erra|miss(?:es)?)\b/i.test(text);
   const critical = criticalState(text, damage);
@@ -400,6 +403,9 @@ function buildCombatCard(message, source, text) {
       targetName,
       targetImg: resistanceContext?.targetImg || targetImageFromSource(source) || targetActor?.img,
       test: cleanName(publicCombat?.testFormula || findAttributeLine(text)),
+      attackTestValues,
+      gmCombat,
+      hideAttackFlavor: gmCombat,
       rollValue: firstRollValue(roll)
     },
     actors: [
@@ -410,8 +416,8 @@ function buildCombatCard(message, source, text) {
     rows: [
       [localize("TENEBRE.ModernChat.Result"), compactResult({ roll, result: localize(resultKey), positive: hit, negative: miss })],
       damageDisplay ? [localize("TENEBRE.ModernChat.Damage"), damageDisplay] : null,
-      protection ? [localize("TENEBRE.ModernChat.Protection"), protection] : null,
-      !publicCombat && appliedDamage !== "" ? [localize("TENEBRE.ModernChat.DamageTaken"), appliedDamage] : null
+      protection !== "" ? [localize("TENEBRE.ModernChat.Protection"), protection] : null,
+      gmCombat && appliedDamage !== "" ? [localize("TENEBRE.ModernChat.DamageTaken"), appliedDamage] : null
     ],
     outcome: hit ? "success" : miss ? "failure" : ""
   });
@@ -1037,15 +1043,43 @@ function buildRationUseCard(message, source, text) {
     ? localize("TENEBRE.Rations.TravelBread")
     : rationItem?.name || rationName;
   const days = cleanName(text.match(/(?:Dias restantes|Days remaining)\s*:?\s*(\d+\s*\/\s*\d+)/i)?.[1] ?? "").replace(/\s+/g, "");
+  const itemUuid = cleanName(
+    message?.flags?.[MODULE_ID]?.gmLogAction?.subjectUuid
+      || rationItem?.uuid
+      || ""
+  );
+  const flavor = localizeFormat("TENEBRE.ModernChat.RationFlavor", {
+    actor: actorName,
+    item: displayName,
+    days
+  });
 
   return simpleIllustratedTextCard({
     title: localize("TENEBRE.ModernChat.Equipment"),
-    flavor: localizeFormat("TENEBRE.ModernChat.RationFlavor", {
-      actor: actorName,
-      item: displayName,
-      days
-    }),
+    flavorHtml: linkedItemFlavorHtml(flavor, { itemName: displayName, itemUuid }),
     className: "tenebre-modern-chat-simple-ration"
+  });
+}
+
+function buildEquipmentUseCard(message) {
+  const flags = message?.flags?.[MODULE_ID];
+  if (flags?.chatItemUse !== true || flags?.isEquipment !== true) return null;
+
+  const actor = speakerActor(message);
+  const actorName = cleanName(actor?.name || message.speaker?.alias);
+  const itemName = cleanName(flags.itemName);
+  const itemUuid = cleanName(flags.itemUuid);
+  if (!actorName || !itemName) return null;
+
+  const flavor = localizeFormat("TENEBRE.ModernChat.EquipmentFlavor", {
+    actor: actorName,
+    item: itemName
+  });
+
+  return simpleIllustratedTextCard({
+    title: localize("TENEBRE.ModernChat.Equipment"),
+    flavorHtml: linkedItemFlavorHtml(flavor, { itemName, itemUuid }),
+    className: "tenebre-modern-chat-simple-equipment"
   });
 }
 
@@ -1271,11 +1305,15 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
   const detailRows = rows
     .filter(([label]) => shouldShowIllustratedDetail(label))
     .filter(([label]) => !(inlineProtection && normalizeComparable(label) === normalizeComparable(localize("TENEBRE.ModernChat.Protection"))));
-  const testHtml = illustratedTestHtml(test, { formulaOnly: isAttack, hideOpposed: data.hideOpposedTest });
-  const flavorText = illustratedFlavorText({ kind, title, outcome, data, typeRow, isAttack, isManeuver, isRitual });
+  const testHtml = isAttack && data.attackTestValues
+    ? illustratedAttackTestHtml(test, data.attackTestValues)
+    : illustratedTestHtml(test, { formulaOnly: isAttack, hideOpposed: data.hideOpposedTest });
+  const flavorText = data.hideAttackFlavor
+    ? ""
+    : illustratedFlavorText({ kind, title, outcome, data, typeRow, isAttack, isManeuver, isRitual });
   const flavorHtml = illustratedFlavorHtml(flavorText, data);
   const detailRowsHtml = isAttack
-    ? illustratedAttackDetailsHtml(detailRows)
+    ? illustratedAttackDetailsHtml(detailRows, { gmOnly: Boolean(data.gmCombat) })
     : detailRows.length
       ? `<dl>${detailRows.map(([label, value]) => illustratedRowHtml(label, value)).join("")}</dl>`
       : "";
@@ -1304,6 +1342,7 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
     ${flavorHtml || testHtml || detailRows.length || notes.length ? `
       <div class="tenebre-illustrated-details">
         ${testHtml}
+        ${isAttack && data.attackTestValues ? illustratedAttackObjectiveHtml(data.attackTestValues) : ""}
         ${inlineProtection ? illustratedInlineProtectionHtml(inlineProtection) : ""}
         ${detailRowsHtml}
         ${notes.length ? `<ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>` : ""}
@@ -1315,10 +1354,10 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
   return article;
 }
 
-function illustratedAttackDetailsHtml(rows = []) {
+function illustratedAttackDetailsHtml(rows = [], { gmOnly = false } = {}) {
   const lines = rows.map(([label, value]) => {
     const text = rowPlainText(value);
-    const line = illustratedAttackDetailLine(label, text);
+    const line = illustratedAttackDetailLine(label, text, { gmOnly });
     return line ? `<p>${escapeHtml(line)}</p>` : "";
   }).filter(Boolean);
   if (!lines.length) return "";
@@ -1345,19 +1384,92 @@ function linkedItemFlavorHtml(flavorText = "", { itemName = "", itemUuid = "" } 
   return `${escapedFlavor.slice(0, ammoIndex)}${link}${escapedFlavor.slice(ammoIndex + escapedName.length)}`;
 }
 
-function illustratedAttackDetailLine(label, value) {
+function illustratedAttackDetailLine(label, value, { gmOnly = false } = {}) {
   const normalized = normalizeComparable(label);
   if (normalized === normalizeComparable(localize("TENEBRE.ModernChat.Damage"))) {
-    return localizeFormat("TENEBRE.ModernChat.AttackDamageLine", { value });
+    return gmOnly
+      ? localizeFormat("TENEBRE.ModernChat.AttackDamageGmLine", { value: gmDamageLineValue(value) })
+      : localizeFormat("TENEBRE.ModernChat.AttackDamageLine", { value });
   }
   if (normalized === normalizeComparable(localize("TENEBRE.ModernChat.Protection"))) {
-    return localizeFormat("TENEBRE.ModernChat.AttackProtectionLine", { value });
+    return gmOnly
+      ? localizeFormat("TENEBRE.ModernChat.AttackProtectionGmLine", { value })
+      : localizeFormat("TENEBRE.ModernChat.AttackProtectionLine", { value });
   }
   if (normalized === normalizeComparable(localize("TENEBRE.ModernChat.DamageTaken"))) {
-    return localizeFormat("TENEBRE.ModernChat.AttackFinalDamageLine", { value });
+    return gmOnly
+      ? localizeFormat("TENEBRE.ModernChat.AttackTotalDamageGmLine", { value })
+      : localizeFormat("TENEBRE.ModernChat.AttackFinalDamageLine", { value });
   }
   if (!value) return "";
   return `${cleanName(label)} ${value}`;
+}
+
+function gmDamageLineValue(value) {
+  return cleanName(value).replace(/\s*=\s*/, ": ");
+}
+
+function attackTestAttributeValues(test, actor, targetActor) {
+  const parts = parseIllustratedTestParts(test);
+  if (parts.length < 2) return null;
+  const left = parsedOrActorAttributeValue(parts[0], actor);
+  const right = parsedOrActorAttributeValue(parts[1], targetActor);
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
+  return {
+    left: String(left),
+    right: String(right),
+    objective: localizeFormat("TENEBRE.ModernChat.AttackObjectiveLine", {
+      left,
+      operator: right < 0 ? "-" : "+",
+      right: Math.abs(right),
+      result: left + right
+    })
+  };
+}
+
+function parsedOrActorAttributeValue(part, actor) {
+  const parsed = Number(part?.value);
+  if (part?.value !== "" && Number.isFinite(parsed)) return parsed;
+  return actorAttributeValue(actor, part?.name);
+}
+
+function actorAttributeValue(actor, label) {
+  if (!actor) return NaN;
+  const normalized = normalizeComparable(label);
+  if (["defesa", "defense"].includes(normalized)) {
+    const value = Number(actor.system?.combat?.defense);
+    return Number.isFinite(value) ? value : NaN;
+  }
+  const keyByName = {
+    preciso: "accurate", accurate: "accurate",
+    astuto: "cunning", cunning: "cunning",
+    discreto: "discreet", discreet: "discreet",
+    persuasivo: "persuasive", persuasive: "persuasive",
+    rapido: "quick", quick: "quick",
+    resoluto: "resolute", resolute: "resolute",
+    vigoroso: "strong", strong: "strong",
+    vigilante: "vigilant", vigilant: "vigilant"
+  };
+  const key = keyByName[normalized];
+  const value = key ? Number(actor.system?.attributes?.[key]?.total) : NaN;
+  return Number.isFinite(value) ? value : NaN;
+}
+
+function illustratedAttackTestHtml(test, values) {
+  const parts = parseIllustratedTestParts(test);
+  if (parts.length < 2) return illustratedTestHtml(test, { formulaOnly: true });
+  return `
+    <div class="tenebre-illustrated-test tenebre-illustrated-test-values">
+      <span class="tenebre-illustrated-test-part"><strong>${escapeHtml(parts[0].name)}</strong><small>(${escapeHtml(values.left)})</small></span>
+      <span class="tenebre-illustrated-test-separator">←</span>
+      <span class="tenebre-illustrated-test-part"><strong>${escapeHtml(parts[1].name)}</strong><small>(${escapeHtml(values.right)})</small></span>
+    </div>
+  `;
+}
+
+function illustratedAttackObjectiveHtml({ objective = "" } = {}) {
+  if (!objective) return "";
+  return `<p class="tenebre-illustrated-attack-objective">${escapeHtml(objective)}</p>`;
 }
 
 function illustratedPortrait(name, img, fallbackIcon = "", extraClass = "", uuid = "") {
@@ -1520,12 +1632,16 @@ function illustratedInlineProtectionHtml(value) {
 function parseIllustratedTestParts(test) {
   const cleaned = cleanName(test);
   if (!cleaned) return [];
-  const formula = cleaned.match(/^(.+?)\s*←\s*(.+)$/);
+  const formula = cleaned.match(/^(.+?)\s*(?:←|⬅|<-)\s*(.+)$/);
   if (formula) {
-    return [
-      { name: cleanName(formula[1]), value: "" },
-      { name: cleanName(formula[2]), value: "" }
-    ].filter((part) => part.name);
+    return [formula[1], formula[2]]
+      .map((part) => {
+        const match = cleanName(part).match(/^(.+?)\s*:?\s*\(\s*(-?\d+)\s*\)$/);
+        return match
+          ? { name: cleanName(match[1]), value: cleanName(match[2]) }
+          : { name: cleanName(part), value: "" };
+      })
+      .filter((part) => part.name);
   }
   const matches = [...cleaned.matchAll(/([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s-]*?)\s*:?\s*\(\s*(-?\d+)\s*\)/g)]
     .map((match) => ({ name: cleanName(match[1]).replace(/\s+$/, ""), value: cleanName(match[2]) }))
@@ -2595,14 +2711,26 @@ function introImageFromSource(source) {
 
 function speakerActor(message) {
   const actorId = message?.speaker?.actor;
-  return actorId ? game.actors?.get(actorId) ?? null : null;
+  if (actorId) {
+    const actor = game.actors?.get(actorId);
+    if (actor) return actor;
+  }
+  const tokenId = message?.speaker?.token;
+  return [...(globalThis.canvas?.tokens?.placeables ?? [])]
+    .find((token) => token.id === tokenId)?.actor ?? null;
 }
 
 function findActorByName(name) {
   if (!name) return null;
   const wanted = normalizeComparable(name);
-  return game.actors?.find((actor) => actor.name === name)
+  const actor = game.actors?.find((candidate) => candidate.name === name)
     ?? game.actors?.find((actor) => normalizeComparable(actor.name) === wanted)
+    ?? null;
+  if (actor) return actor;
+  return [...(globalThis.canvas?.tokens?.placeables ?? [])]
+    .map((token) => token.actor)
+    .filter(Boolean)
+    .find((candidate) => candidate.name === name || normalizeComparable(candidate.name) === wanted)
     ?? null;
 }
 

@@ -1537,6 +1537,33 @@
   color: #17120e;
 }
 
+.tenebre-illustrated-test-values {
+  align-items: flex-start;
+  gap: 0 10px;
+}
+
+.tenebre-illustrated-test-values .tenebre-illustrated-test-part {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 4em;
+}
+
+.tenebre-illustrated-test-values .tenebre-illustrated-test-part small {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.tenebre-illustrated-attack-objective {
+  margin: 4px 0 0;
+  color: #17120e;
+  font-family: var(--font-text), Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.24;
+  text-align: center;
+}
+
 .tenebre-illustrated-inline-protection {
   margin: 2px 0 0;
   color: #17120e;
@@ -1581,7 +1608,7 @@
   color: #17120e;
   font-family: var(--font-text), Arial, sans-serif;
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.24;
   text-align: center;
 }
@@ -1684,6 +1711,15 @@
 
 .symbaroum.sheet.actor .activate-ability.tenebre-chat-use-available {
   cursor: pointer;
+}
+
+.symbaroum.sheet.actor .gear .tenebre-item-icon-use {
+  cursor: pointer;
+}
+
+.symbaroum.sheet.actor .gear .tenebre-item-icon-use:focus-visible {
+  outline: 2px solid #c9a227;
+  outline-offset: 1px;
 }
 
 /* ── Encumbrance indicator (actor gear tab) ─────────────────────────── */
