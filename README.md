@@ -157,7 +157,6 @@ sempre que a API do Foundry permite.
 | Capacidade da aljava | Define quantas flechas/virotes cada aljava comporta. |
 | Ativar rastreamento de acertos | Registra projeteis que acertaram para recuperacao posterior. |
 | Ativar recuperacao | Habilita os testes de recuperacao de projeteis registrados. |
-| Um teste por clique | Alterna entre recuperar um projetil ou resolver todos os pendentes por clique. |
 | Recuperacao por tipo/qualidade | Usa alvos diferentes para munição comum, de qualidade e mistica. |
 | Recuperacao unica | Define o alvo comum quando a separacao por qualidade estiver desligada. |
 | Recuperacao comum | Define o alvo para munição comum. |
@@ -324,13 +323,13 @@ Teste atacou Etterherd com Arco Longo usando Flecha Certeira e acertou.
 ## Recuperacao de Municao
 
 A recuperacao usa um teste por projetil, mantendo o suspense de cada flecha ou
-virote.
+virote, mas um unico clique processa toda a sessao pendente.
 
 Quando ha projeteis recuperaveis:
 
 - O botao aparece na HUD apenas se houver pelo menos 1 projetil pendente.
 - Tambem existe opcao no menu de contexto da arma.
-- Cada clique rola um teste individual.
+- Cada clique inicia uma sessao que rola todos os testes individuais pendentes.
 - O modulo aguarda Dice So Nice quando o dado 3D esta ativo.
 
 ### Dificuldade do teste

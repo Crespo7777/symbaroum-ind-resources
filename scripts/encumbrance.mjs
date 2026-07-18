@@ -322,7 +322,20 @@ export class EncumbranceService {
       };
     }
 
-    if (!stored && hasGearState(item) && !isEquippedGearState(item) && !isProjectileBundleRule(bundleRule)) {
+    // Armas em active estao nas maos e nao ocupam carga. Equipado permanece
+    // com o personagem e deve contar; other representa equipamento fora dele.
+    const normalizedState = String(state ?? "").toLowerCase();
+    if (!stored && item.type === "weapon" && normalizedState === "active") {
+      return {
+        slotsPerUnit,
+        quantity: 1,
+        totalSlots: 0,
+        state,
+        counted: false
+      };
+    }
+
+    if (!stored && hasGearState(item) && !isEquippedGearState(item)) {
       return {
         slotsPerUnit,
         quantity: 0,

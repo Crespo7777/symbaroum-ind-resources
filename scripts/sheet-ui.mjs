@@ -57,6 +57,7 @@ export function registerSheetHooks() {
   Hooks.on("createActiveEffect", onActiveEffectChanged);
   Hooks.on("updateActiveEffect", onActiveEffectChanged);
   Hooks.on("deleteActiveEffect", onActiveEffectChanged);
+  Hooks.on("updateItem", onEncumbranceItemUpdated);
   Hooks.on("preDeleteItem", onOwnedRitualWillDelete);
   Hooks.on("createItem", (item) => onOwnedRitualCollectionChanged(item, true));
   Hooks.on("deleteItem", (item) => onOwnedRitualCollectionChanged(item, false));
@@ -1555,9 +1556,29 @@ function refreshActorEncumbrance(actor) {
   for (const app of Object.values(ui.windows)) {
     const sheetActor = app.actor ?? app.document;
     if (sheetActor?.id === actor.id && typeof app.render === "function") {
-      app.render(false);
+      const root = getRoot(app.element);
+      if (root) injectEncumbrancePanel(app, root, actor);
+      else app.render(false);
     }
   }
+}
+
+function onEncumbranceItemUpdated(item, changes) {
+  if (!TenebreSettings.get("enableEncumbrance") || !item?.parent) return;
+
+  const changedKeys = Object.keys(changes ?? {});
+  const moduleFlags = `flags.${MODULE_ID}.`;
+  const affectsLoad = changedKeys.some((key) => key === "system.state"
+    || key === "system.number"
+    || key.startsWith(`${moduleFlags}storedIn`)
+    || key.startsWith(`${moduleFlags}preStoredState`)
+    || key.startsWith(`${moduleFlags}encumbranceSlots`)
+    || key.startsWith(`${moduleFlags}encumbranceManual`)
+    || key.startsWith(`${moduleFlags}-=storedIn`)
+    || key.startsWith(`${moduleFlags}-=preStoredState`));
+  if (!affectsLoad) return;
+
+  refreshActorEncumbrance(item.parent);
 }
 
 // Indicador de carga ao lado do título "Equipamento" na aba Gear

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   buildWeaponReadinessChatContent,
@@ -11,7 +14,8 @@ import {
   isEligibleWeapon,
   resolveWeaponItem,
   WEAPON_READINESS_ICON,
-  WEAPON_READINESS_FLAG
+  WEAPON_READINESS_FLAG,
+  WEAPON_SHEATHED_STATE
 } from "../scripts/weapon-readiness.mjs";
 import {
   isWeaponReadinessIndicatorEffect,
@@ -21,6 +25,11 @@ import { buildVisualActiveEffectData } from "../scripts/compatibility.mjs";
 
 const scope = "symbaroum-ind-resources";
 globalThis.game = { symbaroum: {} };
+
+function requireModernChatSource() {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  return fs.readFileSync(path.join(root, "scripts", "modern-chat.mjs"), "utf8");
+}
 
 test("sheet and HUD readiness indicators share the Symbaroum weapon icon", () => {
   assert.equal(WEAPON_READINESS_ICON, "/systems/symbaroum/asset/image/weapon.png");
@@ -35,9 +44,22 @@ test("weapon readiness messages use the compact illustrated card when requested"
 
   assert.match(html, /tenebre-modern-chat-illustrated/);
   assert.match(html, /tenebre-modern-chat-simple-weapon-readiness/);
-  assert.match(html, /illustrated-separator\.png/);
+  assert.match(html, /Separador\.png/);
   assert.match(html, /Crespo sacou Arco\./);
   assert.doesNotMatch(html, /tenebre-weapon-readiness-chat/);
+});
+
+test("modern chat migrates stored weapon cards from the removed separator asset", () => {
+  const modernChat = requireModernChatSource();
+  assert.match(modernChat, /normalizeLegacyIllustratedSeparators\(content\)/);
+  assert.match(modernChat, /illustrated-separator\.png/);
+  assert.match(modernChat, /assets\/icons\/Separador\.png/);
+});
+
+test("weapon readiness cards use the shared illustrated separator styling", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const css = fs.readFileSync(path.join(root, "styles", "symbaroum-ind-resources.css"), "utf8");
+  assert.doesNotMatch(css, /\.tenebre-modern-chat-simple-weapon-readiness \.tenebre-illustrated-separator/);
 });
 
 test("weapon readiness messages preserve legacy layout and escape content", () => {
@@ -54,38 +76,74 @@ test("weapon readiness messages preserve legacy layout and escape content", () =
   assert.doesNotMatch(html, /tenebre-modern-chat-illustrated/);
 });
 
-function weapon(id, { state = "active", reference = "1handed", readiness, qualities = {} } = {}) {
+function weapon(id, { state = "active", reference = "1handed", readiness, qualities = {}, storedIn = "" } = {}) {
   return {
     id,
     type: "weapon",
     system: { state, reference, qualities },
-    flags: readiness ? { [scope]: { [WEAPON_READINESS_FLAG]: readiness } } : {},
+    flags: readiness || storedIn
+      ? { [scope]: {
+        ...(readiness ? { [WEAPON_READINESS_FLAG]: readiness } : {}),
+        ...(storedIn ? { storedIn } : {})
+      } }
+      : {},
     getFlag(flagScope, key) {
       return this.flags?.[flagScope]?.[key];
     }
   };
 }
 
-test("only active, non-natural weapons participate in readiness", () => {
+test("all accessible non-natural weapons participate in readiness", () => {
   assert.equal(isEligibleWeapon(weapon("active")), true);
-  assert.equal(isEligibleWeapon(weapon("equipped", { state: "equipped" })), false);
+  assert.equal(isEligibleWeapon(weapon("stored", { state: WEAPON_SHEATHED_STATE })), true);
+  assert.equal(isEligibleWeapon(weapon("in-backpack", {
+    state: WEAPON_SHEATHED_STATE,
+    storedIn: "backpack"
+  })), false);
   assert.equal(isEligibleWeapon(weapon("natural", { reference: "unarmed" })), false);
   assert.equal(isEligibleWeapon({ id: "armor", type: "armor", system: { state: "active" } }), false);
 });
 
-test("drawn state is independent from the native Symbaroum state", () => {
-  const drawn = weapon("sword", { readiness: "drawn" });
+test("drawn state follows the native Symbaroum weapon state", () => {
+  const drawn = weapon("sword", { state: "active", readiness: "drawn" });
+  const sheathed = weapon("stored", { state: WEAPON_SHEATHED_STATE, readiness: "drawn" });
   assert.equal(isEligibleWeapon(drawn), true);
   assert.equal(isDrawn(drawn), true);
   assert.equal(drawn.system.state, "active");
+  assert.equal(isDrawn(sheathed), false);
+});
+
+test("readiness patches move weapons between native active and equipment states", () => {
+  const bow = weapon("bow", { state: WEAPON_SHEATHED_STATE });
+  assert.deepEqual(buildWeaponReadinessPatches([bow], ["bow"]), [{
+    _id: "bow",
+    "system.state": "active",
+    [`flags.${scope}.${WEAPON_READINESS_FLAG}`]: "drawn"
+  }]);
+
+  bow.system.state = "active";
+  bow.flags[scope] = { [WEAPON_READINESS_FLAG]: "drawn" };
+  assert.deepEqual(buildWeaponReadinessPatches([bow], []), [{
+    _id: "bow",
+    "system.state": WEAPON_SHEATHED_STATE,
+    [`flags.${scope}.${WEAPON_READINESS_FLAG}`]: "sheathed"
+  }]);
 });
 
 test("swapping weapons produces one atomic embedded-document patch set", () => {
   const bow = weapon("bow", { readiness: "drawn" });
-  const dagger = weapon("dagger");
+  const dagger = weapon("dagger", { state: WEAPON_SHEATHED_STATE });
   assert.deepEqual(buildWeaponReadinessPatches([bow, dagger], ["dagger"]), [
-    { _id: "bow", [`flags.${scope}.${WEAPON_READINESS_FLAG}`]: "sheathed" },
-    { _id: "dagger", [`flags.${scope}.${WEAPON_READINESS_FLAG}`]: "drawn" }
+    {
+      _id: "bow",
+      "system.state": WEAPON_SHEATHED_STATE,
+      [`flags.${scope}.${WEAPON_READINESS_FLAG}`]: "sheathed"
+    },
+    {
+      _id: "dagger",
+      "system.state": "active",
+      [`flags.${scope}.${WEAPON_READINESS_FLAG}`]: "drawn"
+    }
   ]);
 });
 
@@ -97,6 +155,8 @@ test("multiple drawn weapons and sheathe-all are supported", () => {
   sword.flags[scope] = { [WEAPON_READINESS_FLAG]: "drawn" };
   dagger.flags[scope] = { [WEAPON_READINESS_FLAG]: "drawn" };
   assert.equal(buildWeaponReadinessPatches([sword, dagger], []).every((patch) => (
+    patch["system.state"] === WEAPON_SHEATHED_STATE
+    &&
     patch[`flags.${scope}.${WEAPON_READINESS_FLAG}`] === "sheathed"
   )), true);
 });
@@ -116,9 +176,9 @@ test("weapon hand costs follow the physical Symbaroum limits represented by the 
 });
 
 test("sheathed eligible weapons cannot attack while drawn and natural weapons remain usable", () => {
-  assert.equal(canAttackWithWeapon(weapon("sheathed")), false);
-  assert.equal(canAttackWithWeapon(weapon("drawn", { readiness: "drawn" })), true);
-  assert.equal(canAttackWithWeapon(weapon("inactive", { state: "other" })), false);
+  assert.equal(canAttackWithWeapon(weapon("sheathed", { state: WEAPON_SHEATHED_STATE })), false);
+  assert.equal(canAttackWithWeapon(weapon("drawn", { state: "active", readiness: "drawn" })), true);
+  assert.equal(canAttackWithWeapon(weapon("inactive", { state: "equipped" })), false);
   assert.equal(canAttackWithWeapon(weapon("natural", { reference: "unarmed" })), true);
 });
 

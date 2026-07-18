@@ -126,7 +126,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableHitTracking",
       "enableAmmoRecovery",
       "enableAmmoRecoveryByQuality",
-      "rollAmmoRecoveryPerProjectile",
       "showAmmoRecoveryHud",
       "showQuiverHud",
       "showSpecialAmmoInChat",
@@ -284,7 +283,6 @@ export class TenebreSettings {
     register("quiverCapacity", Number, 12, "TENEBRE.Settings.QuiverCapacity", "TENEBRE.Settings.QuiverCapacityHint");
     register("enableHitTracking", Boolean, true, "TENEBRE.Settings.EnableHitTracking", "TENEBRE.Settings.EnableHitTrackingHint");
     register("enableAmmoRecovery", Boolean, true, "TENEBRE.Settings.EnableAmmoRecovery", "TENEBRE.Settings.EnableAmmoRecoveryHint");
-    register("rollAmmoRecoveryPerProjectile", Boolean, true, "TENEBRE.Settings.RollAmmoRecoveryPerProjectile", "TENEBRE.Settings.RollAmmoRecoveryPerProjectileHint");
     register("enableAmmoRecoveryByQuality", Boolean, true, "TENEBRE.Settings.EnableAmmoRecoveryByQuality", "TENEBRE.Settings.EnableAmmoRecoveryByQualityHint");
     register("ammoRecoveryFlatTarget", Number, 10, "TENEBRE.Settings.AmmoRecoveryFlatTarget", "TENEBRE.Settings.AmmoRecoveryFlatTargetHint");
     register("ammoRecoveryCommonTarget", Number, 10, "TENEBRE.Settings.AmmoRecoveryCommonTarget", "TENEBRE.Settings.AmmoRecoveryCommonTargetHint");

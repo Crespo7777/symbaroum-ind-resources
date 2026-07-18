@@ -3,6 +3,7 @@ import { escapeHtml, promptDialog } from "./utils.mjs";
 
 export const WEAPON_READINESS_FLAG = "weaponReadiness";
 export const WEAPON_READY_STATE = "drawn";
+export const WEAPON_SHEATHED_STATE = "equipped";
 export const WEAPON_HAND_LIMIT = 2;
 export const WEAPON_READINESS_ICON = "/systems/symbaroum/asset/image/weapon.png";
 
@@ -101,14 +102,14 @@ export const WeaponReadinessService = {
 
 export function isEligibleWeapon(item) {
   if (item?.type !== "weapon") return false;
-  const active = item.system?.state === "active" || item.system?.isActive === true;
-  if (!active) return false;
+  const storedIn = item?.getFlag?.(FLAG_SCOPE, "storedIn")
+    ?? item?.flags?.[FLAG_SCOPE]?.storedIn;
+  if (String(storedIn ?? "").trim()) return false;
   return String(item.system?.reference ?? "").toLowerCase() !== "unarmed";
 }
 
 export function isDrawn(item) {
-  return item?.getFlag?.(FLAG_SCOPE, WEAPON_READINESS_FLAG) === WEAPON_READY_STATE
-    || item?.flags?.[FLAG_SCOPE]?.[WEAPON_READINESS_FLAG] === WEAPON_READY_STATE;
+  return String(item?.system?.state ?? "").toLowerCase() === "active";
 }
 
 export function canAttackWithWeapon(item) {
@@ -153,12 +154,17 @@ export function resolveWeaponItem(actor, weapon) {
 export function buildWeaponReadinessPatches(weapons, desiredIds = []) {
   const desired = new Set(desiredIds);
   return weapons.flatMap((weapon) => {
-    const nextState = desired.has(weapon.id) ? WEAPON_READY_STATE : "sheathed";
-    const currentState = isDrawn(weapon) ? WEAPON_READY_STATE : "sheathed";
-    if (nextState === currentState) return [];
+    const shouldBeDrawn = desired.has(weapon.id);
+    const nextState = shouldBeDrawn ? "active" : WEAPON_SHEATHED_STATE;
+    const nextReadinessState = shouldBeDrawn ? WEAPON_READY_STATE : "sheathed";
+    const currentState = String(weapon.system?.state ?? "").toLowerCase();
+    const currentReadinessState = weapon.getFlag?.(FLAG_SCOPE, WEAPON_READINESS_FLAG)
+      ?? weapon.flags?.[FLAG_SCOPE]?.[WEAPON_READINESS_FLAG];
+    if (currentState === nextState && currentReadinessState === nextReadinessState) return [];
     return [{
       _id: weapon.id,
-      [`flags.${FLAG_SCOPE}.${WEAPON_READINESS_FLAG}`]: nextState
+      "system.state": nextState,
+      [`flags.${FLAG_SCOPE}.${WEAPON_READINESS_FLAG}`]: nextReadinessState
     }];
   });
 }
@@ -230,7 +236,7 @@ export function buildWeaponReadinessChatContent({ title = "", text = "", image =
 
   const separator = `
     <div class="tenebre-illustrated-separator">
-      <img src="modules/${MODULE_ID}/assets/icons/illustrated-separator.png" alt="">
+      <img src="modules/${MODULE_ID}/assets/icons/Separador.png" alt="">
     </div>
   `;
   return `

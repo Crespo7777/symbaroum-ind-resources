@@ -249,7 +249,9 @@ export class ModernChatService {
       if (modernChatStyle() === "legacy") return;
 
       const content = root?.querySelector?.(".message-content") ?? root;
-      if (!content || content.classList?.contains("tenebre-modern-chat") || content.querySelector(".tenebre-modern-chat")) return;
+      if (!content) return;
+      normalizeLegacyIllustratedSeparators(content);
+      if (content.classList?.contains("tenebre-modern-chat") || content.querySelector(".tenebre-modern-chat")) return;
 
       const privateRollCard = buildPrivateRollCard(message);
       if (privateRollCard) {
@@ -937,6 +939,9 @@ function buildItemUseCard(message, source, text) {
 }
 
 function buildAmmoRecoveryCard(message, source, text) {
+  const session = message?.flags?.[MODULE_ID]?.ammoRecoverySession;
+  if (session?.version === 1) return buildAmmoRecoverySessionCard(message, session);
+
   const recoveryCard = source.classList?.contains("tenebre-recovery-card")
     ? source
     : source.querySelector?.(".tenebre-recovery-card");
@@ -968,6 +973,27 @@ function buildAmmoRecoveryCard(message, source, text) {
       linkedItemFlavorHtml(flavorText, { itemName: ammoName, itemUuid: ammoUuid })
     ].filter(Boolean).join("<br>"),
     className: "tenebre-modern-chat-simple-recovery"
+  });
+}
+
+function buildAmmoRecoverySessionCard(message, session) {
+  const actorName = cleanName(session.actorName || speakerActor(message)?.name || message.speaker?.alias);
+  const attempts = Array.isArray(session.attempts) ? session.attempts : [];
+  const summaryKey = session.status === "complete"
+    ? "TENEBRE.ModernChat.AmmoRecoverySessionSummary"
+    : "TENEBRE.ModernChat.AmmoRecoverySessionInProgress";
+  const summary = localizeFormat(summaryKey, {
+    actor: actorName,
+    total: session.total ?? 0,
+    processed: session.processed ?? attempts.length,
+    successes: session.successes ?? 0,
+    failures: session.failures ?? 0
+  });
+
+  return simpleIllustratedTextCard({
+    title: localize("TENEBRE.ModernChat.AmmoRecovery"),
+    flavorHtml: `<div class="tenebre-modern-chat-recovery-summary">${escapeHtml(summary)}</div>`,
+    className: "tenebre-modern-chat-simple-recovery-session"
   });
 }
 
@@ -1240,6 +1266,7 @@ function buildManeuverCard(message, source, text) {
       targetAction: targetName ? localize("TENEBRE.ModernChat.NarrativeActionAgainst") : "",
       targetName,
       targetImg: targetActor?.img,
+      test: normalizeManeuverTest(test),
       rollValue: firstRollValue(roll),
       showEmptyResultImage: !hasManeuverResult
     },
@@ -1251,6 +1278,12 @@ function buildManeuverCard(message, source, text) {
     rows: compactRows,
     outcome: success ? "success" : failure ? "failure" : ""
   });
+}
+
+function normalizeManeuverTest(value) {
+  return cleanName(value)
+    .replace(/\s*<=\s*/g, " ← ")
+    .replace(/\s*<\s*(?=[A-Za-zÀ-ÿ])/g, " ← ");
 }
 
 function cardShell({ kind, title, icon, narrative = "", narrativeData = null, actors = [], actorsFirst = false, image = "", rows = [], notes = [], outcome = "" }) {
@@ -1297,6 +1330,7 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
   const actorImg = data.actorImg;
   const itemImg = data.itemImg || image;
   const targetImg = data.targetImg;
+  const isTargetedSequence = (isAttack || isManeuver) && Boolean(targetName || targetImg);
   const itemUuid = data.itemUuid;
   const test = cleanName(data.test);
   const action = cleanName(data.illustratedAction) || illustratedAction({ isAttack, isAttributeRoll, isManeuver, isRitual, hasResult: Boolean(result) });
@@ -1318,19 +1352,19 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
       ? `<dl>${detailRows.map(([label, value]) => illustratedRowHtml(label, value)).join("")}</dl>`
       : "";
   const article = document.createElement("article");
-  article.className = `tenebre-modern-chat tenebre-modern-chat-illustrated ${isAttack ? "tenebre-modern-chat-illustrated-attack" : ""} tenebre-modern-chat-${outcome || "neutral"}`;
+  article.className = `tenebre-modern-chat tenebre-modern-chat-illustrated ${isAttack ? "tenebre-modern-chat-illustrated-attack" : ""} ${isManeuver ? "tenebre-modern-chat-illustrated-maneuver" : ""} tenebre-modern-chat-${outcome || "neutral"}`;
   article.innerHTML = `
     <h3 class="tenebre-illustrated-title">${escapeHtml(kind || title)}</h3>
     ${illustratedSeparator()}
     <div class="tenebre-illustrated-stage ${targetName || targetImg ? "tenebre-illustrated-stage-targeted" : ""}">
       ${illustratedPortrait(actorName, actorImg, "fa-user", "tenebre-illustrated-actor")}
-      ${isAttack && (targetName || targetImg) ? `<i class="fas fa-arrow-right tenebre-illustrated-attack-arrow tenebre-illustrated-attack-arrow-left"></i>` : ""}
-      <div class="tenebre-illustrated-action">
+      ${isTargetedSequence && (targetName || targetImg) ? `<i class="fas fa-arrow-right tenebre-illustrated-attack-arrow tenebre-illustrated-attack-arrow-left"></i>` : ""}
+      ${!isTargetedSequence ? `<div class="tenebre-illustrated-action">
         <span>${escapeHtml(action)}</span>
         <i class="fas fa-arrow-right"></i>
-      </div>
+      </div>` : ""}
       ${illustratedPortrait(itemName, itemImg, icon, "tenebre-illustrated-item", itemUuid)}
-      ${isAttack && (targetName || targetImg) ? `<i class="fas fa-arrow-right tenebre-illustrated-attack-arrow tenebre-illustrated-attack-arrow-right"></i>` : ""}
+      ${isTargetedSequence && (targetName || targetImg) ? `<i class="fas fa-arrow-right tenebre-illustrated-attack-arrow tenebre-illustrated-attack-arrow-right"></i>` : ""}
       ${targetName || targetImg ? illustratedPortrait(targetName, targetImg, "fa-user", "tenebre-illustrated-target") : ""}
     </div>
     ${showResultImage || resultLabel ? `
@@ -1490,9 +1524,22 @@ function illustratedPortrait(name, img, fallbackIcon = "", extraClass = "", uuid
 function illustratedSeparator() {
   return `
     <div class="tenebre-illustrated-separator">
-      <img src="modules/${MODULE_ID}/assets/icons/illustrated-separator.png" alt="">
+      <img src="modules/${MODULE_ID}/assets/icons/Separador.png" alt="">
     </div>
   `;
+}
+
+function normalizeLegacyIllustratedSeparators(content) {
+  if (!content?.querySelectorAll) return;
+
+  const currentPath = `modules/${MODULE_ID}/assets/icons/Separador.png`;
+  const legacyPath = `modules/${MODULE_ID}/assets/icons/illustrated-separator.png`;
+  for (const image of content.querySelectorAll("img[src]")) {
+    const source = image.getAttribute("src") ?? "";
+    if (source === legacyPath || source.endsWith("/assets/icons/illustrated-separator.png")) {
+      image.setAttribute("src", currentPath);
+    }
+  }
 }
 
 function illustratedD20Html(roll) {

@@ -440,9 +440,7 @@ async function rollOpposedManeuver(actor, maneuver, modifier) {
   const roll = await evaluateRoll("1d20");
   const result = rollTotal(roll);
   const success = result <= diceTarget;
-  const effectMessages = await applyOpposedManeuverEffects(actor, targetActor, maneuver, success);
-
-  const content = buildChatCard({
+  const buildContent = (effectMessages = []) => buildChatCard({
     actor,
     targetActor,
     maneuver,
@@ -461,11 +459,12 @@ async function rollOpposedManeuver(actor, maneuver, modifier) {
     notes: maneuver.noteKeys.map(localize)
   });
 
-  await createChatMessageAfterDice({
+  await createManeuverMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content,
+    content: buildContent(),
     rolls: [roll],
-    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel(maneuver.targetAttribute)}` })
+    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel(maneuver.targetAttribute)}` }),
+    finalize: async () => buildContent(await applyOpposedManeuverEffects(actor, targetActor, maneuver, success))
   });
 
   return { success, result, diceTarget };
@@ -481,21 +480,7 @@ async function rollAttackManeuver(actor, maneuver, modifier) {
   const roll = await evaluateRoll("1d20");
   const result = rollTotal(roll);
   const success = result <= diceTarget;
-  const effectMessages = await applyAttackManeuverEffects(actor, targetActor, maneuver, success);
-  const extraRows = [];
-
-  if (maneuver.id === "shove" && success) {
-    const damageResult = await resolveShoveDamage(targetActor, maneuver);
-    if (damageResult) {
-      extraRows.push(
-        [game.i18n.localize("TENEBRE.Maneuvers.NormalDamageValue"), String(damageResult.normalDamage)],
-        [game.i18n.localize("TENEBRE.Maneuvers.HalfDamageValue"), String(damageResult.appliedDamage)]
-      );
-      effectMessages.push(damageResult.message);
-    }
-  }
-
-  const content = buildChatCard({
+  const buildContent = (effectMessages = [], extraRows = []) => buildChatCard({
     actor,
     targetActor,
     maneuver,
@@ -513,11 +498,26 @@ async function rollAttackManeuver(actor, maneuver, modifier) {
     notes: maneuver.noteKeys.map(localize)
   });
 
-  await createChatMessageAfterDice({
+  await createManeuverMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content,
+    content: buildContent(),
     rolls: [roll],
-    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel("defense")}` })
+    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel("defense")}` }),
+    finalize: async () => {
+      const effectMessages = await applyAttackManeuverEffects(actor, targetActor, maneuver, success);
+      const extraRows = [];
+      if (maneuver.id === "shove" && success) {
+        const damageResult = await resolveShoveDamage(targetActor, maneuver);
+        if (damageResult) {
+          extraRows.push(
+            [game.i18n.localize("TENEBRE.Maneuvers.NormalDamageValue"), String(damageResult.normalDamage)],
+            [game.i18n.localize("TENEBRE.Maneuvers.HalfDamageValue"), String(damageResult.appliedDamage)]
+          );
+          effectMessages.push(damageResult.message);
+        }
+      }
+      return buildContent(effectMessages, extraRows);
+    }
   });
 
   return { success, result, diceTarget };
@@ -540,9 +540,7 @@ async function rollKnockdownManeuver(actor, maneuver, modifier) {
   const quickRoll = await evaluateRoll("1d20");
   const quickResult = rollTotal(quickRoll);
   const staysStanding = quickResult <= quickTarget;
-  const effectMessages = await applyKnockdownManeuverEffects(actor, targetActor, success, staysStanding);
-
-  const content = buildChatCard({
+  const buildContent = (effectMessages = []) => buildChatCard({
     actor,
     targetActor,
     maneuver,
@@ -564,11 +562,12 @@ async function rollKnockdownManeuver(actor, maneuver, modifier) {
     notes: maneuver.noteKeys.map(localize)
   });
 
-  await createChatMessageAfterDice({
+  await createManeuverMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content,
+    content: buildContent(),
     rolls: [attackRoll, quickRoll],
-    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result: attackResult, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel(maneuver.targetAttribute)}` })
+    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result: attackResult, formula: `${attributeLabel(maneuver.actingAttribute)} ← ${attributeLabel(maneuver.targetAttribute)}` }),
+    finalize: async () => buildContent(await applyKnockdownManeuverEffects(actor, targetActor, success, staysStanding))
   });
 
   return { success, result: attackResult, diceTarget, staysStanding };
@@ -581,9 +580,7 @@ async function rollAttributeManeuver(actor, maneuver, modifier) {
   const result = rollTotal(roll);
   const criticalFailure = maneuver.id === "poisonWeapon" && result === 20;
   const success = !criticalFailure && result <= diceTarget;
-  const effectMessages = await applyAttributeManeuverEffects(actor, maneuver, success, result);
-
-  const content = buildChatCard({
+  const buildContent = (effectMessages = []) => buildChatCard({
     actor,
     maneuver,
     rows: [
@@ -599,11 +596,12 @@ async function rollAttributeManeuver(actor, maneuver, modifier) {
     notes: maneuver.noteKeys.map(localize)
   });
 
-  await createChatMessageAfterDice({
+  await createManeuverMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content,
+    content: buildContent(),
     rolls: [roll],
-    flags: maneuverLogFlags({ actor, maneuver, success, result, formula: attributeLabel(maneuver.actingAttribute) })
+    flags: maneuverLogFlags({ actor, maneuver, success, result, formula: attributeLabel(maneuver.actingAttribute) }),
+    finalize: async () => buildContent(await applyAttributeManeuverEffects(actor, maneuver, success, result))
   });
 
   return { success, result, diceTarget };
@@ -621,8 +619,7 @@ async function rollDamageCheck(actor, maneuver, damageValue) {
   const roll = await evaluateRoll(maneuver.formula);
   const result = rollTotal(roll);
   const success = result < damageValue;
-  const effectMessages = await applyDamageCheckEffects(actor, targetActor, maneuver, success);
-  const content = buildChatCard({
+  const buildContent = (effectMessages = []) => buildChatCard({
     actor,
     targetActor,
     maneuver,
@@ -638,11 +635,12 @@ async function rollDamageCheck(actor, maneuver, damageValue) {
     notes: maneuver.noteKeys.map(localize)
   });
 
-  await createChatMessageAfterDice({
+  await createManeuverMessageAfterDice({
     speaker: ChatMessage.getSpeaker({ actor }),
-    content,
+    content: buildContent(),
     rolls: [roll],
-    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: maneuver.formula })
+    flags: maneuverLogFlags({ actor, targetActor, maneuver, success, result, formula: maneuver.formula }),
+    finalize: async () => buildContent(await applyDamageCheckEffects(actor, targetActor, maneuver, success))
   });
 
   return { success, result, damageValue };
@@ -726,6 +724,26 @@ async function postStatement(actor, maneuver) {
   return { success: true };
 }
 
+async function createManeuverMessageAfterDice({ speaker, content, rolls = [], flags = {}, finalize = null }) {
+  const message = await createChatMessageAfterDice({ speaker, content, rolls, flags });
+  if (typeof finalize !== "function") return message;
+
+  await yieldToManeuverChat();
+  const finalContent = await finalize();
+  if (message && typeof finalContent === "string" && finalContent !== content) {
+    await message.update({ content: finalContent });
+  }
+  return message;
+}
+
+async function yieldToManeuverChat() {
+  if (typeof globalThis.requestAnimationFrame === "function") {
+    await new Promise((resolve) => globalThis.requestAnimationFrame(resolve));
+    return;
+  }
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function maneuverLogFlags({ actor, targetActor = null, maneuver, success = null, result = "", formula = "" }) {
   const outcome = success === true ? "success" : success === false ? "failure" : "info";
   return {
@@ -736,7 +754,7 @@ function maneuverLogFlags({ actor, targetActor = null, maneuver, success = null,
         actorUuid: actor?.uuid ?? "",
         targetUuid: targetActor?.uuid ?? "",
         targetName: targetActor?.name ?? "",
-        subjectName: localize(maneuver?.nameKey),
+        subjectName: localize(maneuver?.labelKey),
         values: { formula, roll: result }
       }
     }

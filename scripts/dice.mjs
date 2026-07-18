@@ -45,6 +45,10 @@ export async function createChatMessageAfterDice({ speaker, content, rolls = [],
   return ChatMessage.create(chatData);
 }
 
+export async function showDice3dRoll(roll, { privateRoll = false } = {}) {
+  return showDice3d([roll].filter(Boolean), { privateRoll });
+}
+
 function isFoundryRoll(roll) {
   return Boolean(globalThis.Roll && roll instanceof Roll);
 }

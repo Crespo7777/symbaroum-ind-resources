@@ -92,6 +92,7 @@ export class GmLogService {
     this.#registered = true;
 
     Hooks.on("createChatMessage", (message) => this.#ingest(message));
+    Hooks.on("updateChatMessage", (message) => this.#ingest(message));
     Hooks.on("deleteChatMessage", (message) => this.#remove(message));
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key, value) => {
       if (key === ENABLE_SETTING) this.syncEnabledState(Boolean(value));

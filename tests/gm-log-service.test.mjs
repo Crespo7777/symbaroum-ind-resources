@@ -88,6 +88,7 @@ test("registers capture only for the GM client and keeps updates local", () => {
     GmLogService.register();
     assert.deepEqual([...listeners.keys()], [
       "createChatMessage",
+      "updateChatMessage",
       "deleteChatMessage",
       `${MODULE_ID}.settingsChanged`
     ]);

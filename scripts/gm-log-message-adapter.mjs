@@ -42,7 +42,12 @@ const STRUCTURED_VALUE_KEYS = new Set([
   "amount",
   "maximum",
   "days",
-  "damage"
+  "damage",
+  "attempts",
+  "total",
+  "successes",
+  "failures",
+  "skipped"
 ]);
 
 function structuredModuleEvent(message, flags) {

@@ -12,7 +12,9 @@ import {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const bundles = JSON.parse(fs.readFileSync(path.join(root, "data/encumbrance-weights.json"), "utf8")).bundles;
 const modernChatSource = fs.readFileSync(path.join(root, "scripts/modern-chat.mjs"), "utf8");
+const modernChatStyles = fs.readFileSync(path.join(root, "styles/symbaroum-ind-resources.css"), "utf8");
 const ammoSource = fs.readFileSync(path.join(root, "scripts/ammo.mjs"), "utf8");
+const gmLogServiceSource = fs.readFileSync(path.join(root, "scripts/gm-log-service.mjs"), "utf8");
 
 const officialProjectiles = [
   ["Flechas/Virotes - Regulares", "Arrows/Bolts - Regular", "common", 10, false],
@@ -70,6 +72,24 @@ assert.match(
 );
 assert.match(modernChatSource, /tenebre-modern-chat-simple-reload/, "reload messages must use the compact text-only card");
 assert.match(modernChatSource, /tenebre-modern-chat-simple-recovery/, "recovery messages must use the compact text-only card");
+assert.match(ammoSource, /createRecoverySessionMessage\(session, actor\)/, "recovery must create one session message per recovery action");
+assert.match(ammoSource, /updateRecoverySessionMessage\(session\)/, "recovery attempts must update the existing session message");
+assert.match(ammoSource, /showDice3dRoll\(result\.roll\)/, "each recovery attempt must retain its dice animation");
+const recoverySource = ammoSource.slice(ammoSource.indexOf("static async recover(actor)"), ammoSource.indexOf("  static async #recoverOne"));
+assert.match(recoverySource, /await appendRecoveryAttempt\(session, result, actor\);\s+while \(result\?\.remaining > 0\)/, "one recovery click must process all pending projectiles");
+assert.doesNotMatch(recoverySource, /session\.message = await createRecoverySessionMessage\(session, actor\);\s+\s*let result/, "the first recovery message must not be created before the first roll");
+assert.doesNotMatch(recoverySource, /rollAmmoRecoveryPerProjectile/, "recovery must not stop after one projectile because of the removed per-click setting");
+const recoveryAttemptSource = ammoSource.slice(ammoSource.indexOf("async function appendRecoveryAttempt"), ammoSource.indexOf("async function finishRecoverySession"));
+assert.match(recoveryAttemptSource, /if \(result\.roll\) await showDice3dRoll\(result\.roll\);\s+\s*session\.attempts\.push[\s\S]*?if \(session\.message\)[\s\S]*?else if \(actor\)[\s\S]*?session\.message = await createRecoverySessionMessage\(session, actor\);/, "the recovery message must wait for the dice animation before creating or updating the card");
+assert.match(modernChatSource, /buildAmmoRecoverySessionCard/, "the modern chat must render the recovery session card");
+assert.match(
+  modernChatStyles,
+  /\.tenebre-modern-chat-simple-recovery-session \.tenebre-modern-chat-recovery-summary\s*\{[\s\S]*font-weight:\s*700;/,
+  "the recovery session summary must use emphasized text"
+);
+assert.doesNotMatch(modernChatSource, /AmmoRecoverySessionAttempt(?:Success|Failure|Skipped)/, "the recovery card must not render a per-projectile attempt list");
+assert.doesNotMatch(ammoSource, /Recovery\.SessionAttempt(?:Success|Failure|Skipped)/, "the legacy recovery card must not render a per-projectile attempt list");
+assert.match(gmLogServiceSource, /Hooks\.on\("updateChatMessage"/, "the GM log must follow recovery message updates");
 assert.match(
   modernChatSource.slice(
     modernChatSource.indexOf("function buildAmmoRecoveryCard"),

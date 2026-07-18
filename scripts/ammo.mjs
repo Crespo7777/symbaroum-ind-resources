@@ -3,7 +3,7 @@ import { TenebreSettings } from "./settings.mjs";
 import { actorItems, changeItemQuantity, findAmmoItems, getAmmoType, itemQuantity, localizeAmmoType, isQuiver, isAmmo, getQuiverCapacity, getQuiverLoadedAmmo, getQuiverLoadedTotal } from "./item-flags.mjs";
 import { getAmmoDescription, getSpecialAmmo, getAmmoRecoveryClass, getAmmoRecoveryThreshold } from "./special-ammo.mjs";
 import { documentSourceUuid, escapeHtml, promptDialog } from "./utils.mjs";
-import { createChatMessageAfterDice, evaluateRoll, rollTotal } from "./dice.mjs";
+import { evaluateRoll, rollTotal, showDice3dRoll } from "./dice.mjs";
 
 export class AmmoService {
   static #recoveringActors = new Set();
@@ -420,16 +420,29 @@ export class AmmoService {
 
     if (actorKey) this.#recoveringActors.add(actorKey);
     try {
-      let result = await this.#recoverOne(actor);
-      if (!TenebreSettings.get("rollAmmoRecoveryPerProjectile")) {
-        while (result?.remaining > 0) {
-          result = await this.#recoverOne(actor);
-          if (!result || result.status === "empty") break;
-        }
-      }
-      if (result.status === "empty") {
+      const initialHits = this.getTrackedHits(actor).ammoHit;
+      if (initialHits <= 0) {
         ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
+        return;
       }
+
+      const session = createRecoverySession(actor, initialHits);
+
+      let result = await this.#recoverOne(actor);
+      if (result?.status === "empty") {
+        await finishRecoverySession(session, { deleteEmpty: true });
+        ui.notifications.warn(game.i18n.localize("TENEBRE.Recovery.NoHits"));
+        return;
+      }
+
+      await appendRecoveryAttempt(session, result, actor);
+      while (result?.remaining > 0) {
+        result = await this.#recoverOne(actor);
+        if (!result || result.status === "empty") break;
+        await appendRecoveryAttempt(session, result, actor);
+      }
+
+      await finishRecoverySession(session);
     } finally {
       if (actorKey) this.#recoveringActors.delete(actorKey);
     }
@@ -472,7 +485,15 @@ export class AmmoService {
         ammoHit: Math.max(0, totalHits - 1),
         ammoHits
       });
-      return { status: "skipped", remaining: Math.max(0, totalHits - 1) };
+      return {
+        status: "skipped",
+        remaining: Math.max(0, totalHits - 1),
+        attempt: {
+          ammoName: entry.name,
+          ammoUuid: entry.sourceUuid ?? "",
+          outcome: "skipped"
+        }
+      };
     }
 
     const recoveryTarget = getRecoveryTarget(recoveryEntry);
@@ -509,60 +530,161 @@ export class AmmoService {
       ammoHits
     });
 
-    const typeLabel = recoveryTarget.typeLabel;
+    return {
+      status: "rolled",
+      remaining: remainingTotal,
+      roll,
+      attempt: {
+        ammoName: recoveryEntry.name,
+        ammoUuid: recoveryEntry.sourceUuid ?? "",
+        outcome: success ? "success" : "failure",
+        roll: rollValue,
+        threshold,
+        typeLabel: recoveryTarget.typeLabel
+      }
+    };
+  }
+}
 
-    const color = success ? "#2e7d32" : "#c62828";
-    const status = success
-      ? game.i18n.localize("TENEBRE.Recovery.ProjectileRecovered")
-      : game.i18n.localize("TENEBRE.Recovery.ProjectileBroken");
-    const resultText = game.i18n.format(success ? "TENEBRE.Recovery.SingleRecovered" : "TENEBRE.Recovery.SingleBroken", {
-      ammo: escapeHtml(recoveryEntry.name),
-      remaining: remainingTotal
-    });
+function createRecoverySession(actor, total) {
+  return {
+    actorUuid: actor.uuid,
+    actorName: actor.name,
+    total: Math.max(0, Number(total) || 0),
+    status: "running",
+    attempts: [],
+    successes: 0,
+    failures: 0,
+    skipped: 0,
+    message: null
+  };
+}
 
-    const chatContent = `
-      <div class="tenebre-chat-card tenebre-recovery-card" data-ammo-uuid="${escapeHtml(recoveryEntry.sourceUuid ?? "")}">
-        <h3 style="margin-bottom: 5px; border-bottom: 1px solid #7a7973; font-weight: bold;">
-          ${game.i18n.localize("TENEBRE.Recovery.ChatTitle")}
-        </h3>
-        <p style="margin: 0 0 5px 0;">
-          ${game.i18n.format("TENEBRE.Recovery.SingleChatRoll", {
-            actor: escapeHtml(actor.name),
-            ammo: escapeHtml(recoveryEntry.name),
-            type: typeLabel,
-            threshold
-          })}
-        </p>
-        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
-          <span style="display: inline-block; padding: 3px 8px; border: 1px solid ${color}; background: rgba(0,0,0,0.05); border-radius: 3px; font-weight: bold; color: ${color};">
-            ${rollValue}
-          </span>
-          <strong style="color: ${color};">${status}</strong>
-        </div>
-        <p style="margin: 6px 0 0 0; font-size: 0.9em; color: #555;">${resultText}</p>
-      </div>
-    `;
-
-    await createChatMessageAfterDice({
+async function createRecoverySessionMessage(session, actor) {
+  try {
+    return await ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor }),
-      content: chatContent,
-      rolls: [roll],
-      flags: {
-        [FLAG_SCOPE]: {
-          gmLogAction: {
-            type: "ammo.recovery",
-            outcome: success ? "success" : "failure",
-            actorUuid: actor.uuid,
-            subjectUuid: recoveryEntry.sourceUuid,
-            subjectName: recoveryEntry.name,
-            values: { formula: "1d20", roll: rollValue, maximum: threshold }
-          }
+      content: recoverySessionContent(session),
+      flags: recoverySessionFlags(session)
+    });
+  } catch (error) {
+    console.warn("symbaroum-ind-resources | Failed to create ammunition recovery session message.", error);
+    return null;
+  }
+}
+
+async function appendRecoveryAttempt(session, result, actor = null) {
+  const attempt = result?.attempt;
+  if (!attempt) return;
+
+  if (result.roll) await showDice3dRoll(result.roll);
+
+  session.attempts.push({ ...attempt, index: session.attempts.length + 1 });
+  if (attempt.outcome === "success") session.successes += 1;
+  else if (attempt.outcome === "failure") session.failures += 1;
+  else session.skipped += 1;
+
+  if (session.message) {
+    await updateRecoverySessionMessage(session);
+  } else if (actor) {
+    session.message = await createRecoverySessionMessage(session, actor);
+  }
+}
+
+async function finishRecoverySession(session, { deleteEmpty = false } = {}) {
+  if (!session.message) return;
+  if (deleteEmpty && !session.attempts.length) {
+    try {
+      await session.message.delete();
+    } catch (error) {
+      console.warn("symbaroum-ind-resources | Failed to remove empty ammunition recovery session message.", error);
+    }
+    return;
+  }
+
+  session.status = "complete";
+  await updateRecoverySessionMessage(session);
+}
+
+async function updateRecoverySessionMessage(session) {
+  if (!session.message) return;
+  try {
+    const flags = foundry.utils.deepClone(session.message.flags ?? {});
+    flags[FLAG_SCOPE] = {
+      ...(flags[FLAG_SCOPE] ?? {}),
+      ...recoverySessionFlags(session)[FLAG_SCOPE]
+    };
+    await session.message.update({
+      content: recoverySessionContent(session),
+      flags
+    });
+  } catch (error) {
+    console.warn("symbaroum-ind-resources | Failed to update ammunition recovery session message.", error);
+  }
+}
+
+function recoverySessionFlags(session) {
+  const lastAttempt = session.attempts.at(-1) ?? {};
+  const outcome = session.status !== "complete"
+    ? "pending"
+    : session.successes > 0 && session.failures === 0
+      ? "success"
+      : session.failures > 0 && session.successes === 0
+        ? "failure"
+        : "info";
+
+  return {
+    [FLAG_SCOPE]: {
+      ammoRecoverySession: {
+        version: 1,
+        status: session.status,
+        actorUuid: session.actorUuid,
+        actorName: session.actorName,
+        total: session.total,
+        processed: session.attempts.length,
+        successes: session.successes,
+        failures: session.failures,
+        skipped: session.skipped,
+        attempts: session.attempts
+      },
+      gmLogAction: {
+        type: "ammo.recovery",
+        outcome,
+        actorUuid: session.actorUuid,
+        subjectUuid: lastAttempt.ammoUuid ?? "",
+        subjectName: lastAttempt.ammoName ?? "",
+        values: {
+          formula: "1d20",
+          roll: lastAttempt.roll ?? "",
+          maximum: lastAttempt.threshold ?? "",
+          attempts: session.attempts.length,
+          total: session.total,
+          successes: session.successes,
+          failures: session.failures,
+          skipped: session.skipped
         }
       }
-    });
+    }
+  };
+}
 
-    return { status: "rolled", remaining: remainingTotal };
-  }
+function recoverySessionContent(session) {
+  const summaryKey = session.status === "complete"
+    ? "TENEBRE.Recovery.SessionSummary"
+    : "TENEBRE.Recovery.SessionInProgress";
+
+  return `
+    <div class="tenebre-chat-card tenebre-recovery-session-card">
+      <h3>${escapeHtml(game.i18n.localize("TENEBRE.Recovery.ChatTitle"))}</h3>
+      <p>${escapeHtml(game.i18n.format(summaryKey, {
+        actor: session.actorName,
+        total: session.total,
+        processed: session.attempts.length,
+        successes: session.successes,
+        failures: session.failures
+      }))}</p>
+    </div>
+  `;
 }
 
 function isPlayerActor(actor) {

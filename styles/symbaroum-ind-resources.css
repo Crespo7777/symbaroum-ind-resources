@@ -1211,7 +1211,7 @@
 }
 
 .tenebre-modern-chat-private-roll .tenebre-illustrated-separator img {
-  height: 20px;
+  height: auto;
 }
 
 .tenebre-modern-chat-private-roll .tenebre-illustrated-details {
@@ -1246,7 +1246,8 @@
   display: block;
   width: 100%;
   max-width: 190px;
-  height: 28px;
+  height: auto;
+  aspect-ratio: 512 / 93;
   border: 0;
   object-fit: contain;
 }
@@ -1269,7 +1270,8 @@
     ". item .";
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted {
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted,
+.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-stage-targeted {
   grid-template-columns: 58px 22px 58px 22px 58px;
   grid-template-areas: "actor arrow-left item arrow-right target";
   align-items: start;
@@ -1277,15 +1279,18 @@
   column-gap: 5px;
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted .tenebre-illustrated-portrait {
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted .tenebre-illustrated-portrait,
+.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-stage-targeted .tenebre-illustrated-portrait {
   align-self: start;
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted .tenebre-illustrated-action {
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted .tenebre-illustrated-action,
+.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-stage-targeted .tenebre-illustrated-action {
   display: none;
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow {
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow,
+.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-attack-arrow {
   align-self: start;
   justify-self: center;
   margin-top: 17px;
@@ -1294,11 +1299,13 @@
   line-height: 1;
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow-left {
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow-left,
+.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-attack-arrow-left {
   grid-area: arrow-left;
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow-right {
+.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow-right,
+.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-attack-arrow-right {
   grid-area: arrow-right;
 }
 
@@ -3292,22 +3299,13 @@ div .bithirmod .inspirationdie > img {
   padding: 5px 7px;
 }
 
+.tenebre-modern-chat-simple-recovery-session .tenebre-modern-chat-recovery-summary {
+  font-weight: 700;
+}
+
 .tenebre-modern-chat-simple-weapon-readiness .tenebre-illustrated-title {
   font-size: 18px;
   line-height: 1;
-}
-
-.tenebre-modern-chat-simple-weapon-readiness .tenebre-illustrated-separator {
-  width: 62%;
-}
-
-.tenebre-modern-chat-simple-weapon-readiness .tenebre-illustrated-separator img {
-  width: 112px;
-  max-width: none;
-  height: auto;
-  object-fit: contain;
-  filter: saturate(1.65) contrast(1.85);
-  image-rendering: -webkit-optimize-contrast;
 }
 
 .tenebre-modern-chat-simple-weapon-readiness .tenebre-illustrated-details {
