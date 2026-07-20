@@ -3,6 +3,7 @@ import { COMPAT_MODULES, CompatibilityService } from "./compatibility.mjs";
 import { isDrawn, isEligibleWeapon } from "./weapon-readiness.mjs";
 
 export const WEAPON_READINESS_INDICATOR_FLAG = "weaponReadinessIndicator";
+export const WEAPON_READINESS_INDICATOR_WEAPON_FLAG = "weaponReadinessIndicatorWeaponId";
 export const WEAPON_READINESS_STATUS_ID = `${MODULE_ID}.weapon-readiness`;
 
 const DRAW_ANIMATION = "jb2a.impact.006.yellow";
@@ -18,6 +19,7 @@ export const WeaponReadinessVisualService = {
       if (item?.type === "weapon") queueIndicatorSync(item.parent);
     });
     Hooks.on(`${MODULE_ID}.weaponReadinessChanged`, ({ actor, drawn, sheathed }) => {
+      queueIndicatorSync(actor);
       void playReadinessAnimation(actor, drawn, sheathed);
     });
     Hooks.on(`${MODULE_ID}.settingsChanged`, (key) => {
@@ -35,14 +37,28 @@ export const WeaponReadinessVisualService = {
   async syncActorIndicator(actor) {
     if (!isIndicatorExecutor(actor)) return false;
     const actorKey = actor.uuid ?? actor.id;
-    if (indicatorSyncs.has(actorKey)) return indicatorSyncs.get(actorKey);
+    const current = indicatorSyncs.get(actorKey);
+    if (current) {
+      current.pending = true;
+      return current.promise;
+    }
 
-    const operation = syncActorIndicator(actor)
+    const state = { pending: false, promise: null };
+    indicatorSyncs.set(actorKey, state);
+    state.promise = runQueuedIndicatorSync(actor, state)
       .finally(() => indicatorSyncs.delete(actorKey));
-    indicatorSyncs.set(actorKey, operation);
-    return operation;
+    return state.promise;
   }
 };
+
+async function runQueuedIndicatorSync(actor, state) {
+  let changed = false;
+  do {
+    state.pending = false;
+    changed = await syncActorIndicator(actor) || changed;
+  } while (state.pending);
+  return changed;
+}
 
 export function isWeaponReadinessIndicatorEffect(effect) {
   return effect?.getFlag?.(FLAG_SCOPE, WEAPON_READINESS_INDICATOR_FLAG) === true
@@ -62,42 +78,81 @@ async function syncActorIndicator(actor) {
     return existing.length > 0;
   }
 
-  const names = formatWeaponNames(drawn);
-  const effectData = CompatibilityService.buildVisualActiveEffectData({
-    name: game.i18n.format("TENEBRE.WeaponReadiness.IndicatorName", { weapons: names }),
-    img: drawn[0].img,
-    statuses: [WEAPON_READINESS_STATUS_ID],
+  const drawnById = new Map(drawn.map((weapon) => [weapon.id, weapon]));
+  const effectsByWeaponId = new Map();
+  const removeIds = [];
+
+  for (const effect of existing) {
+    const weaponId = getIndicatorWeaponId(effect);
+    if (!weaponId || !drawnById.has(weaponId) || effectsByWeaponId.has(weaponId)) {
+      removeIds.push(effect.id);
+      continue;
+    }
+    effectsByWeaponId.set(weaponId, effect);
+  }
+
+  const createData = [];
+  const updateData = [];
+  for (const weapon of drawn) {
+    const effectData = buildIndicatorData(weapon);
+    const current = effectsByWeaponId.get(weapon.id);
+    if (!current) {
+      createData.push(effectData);
+    } else if (!indicatorMatches(current, effectData)) {
+      updateData.push({ _id: current.id, ...effectData });
+    }
+  }
+
+  if (removeIds.length > 0) await actor.deleteEmbeddedDocuments("ActiveEffect", removeIds);
+  if (updateData.length > 0) await actor.updateEmbeddedDocuments("ActiveEffect", updateData);
+  if (createData.length > 0) await actor.createEmbeddedDocuments("ActiveEffect", createData);
+  return removeIds.length > 0 || updateData.length > 0 || createData.length > 0;
+}
+
+function buildIndicatorData(weapon) {
+  return CompatibilityService.buildVisualActiveEffectData({
+    name: game.i18n.format("TENEBRE.WeaponReadiness.IndicatorName", { weapons: weapon.name }),
+    img: weapon.img,
+    statuses: [getWeaponReadinessStatusId(weapon.id)],
     flags: {
       [FLAG_SCOPE]: {
         [WEAPON_READINESS_INDICATOR_FLAG]: true,
-        weaponIds: drawn.map((weapon) => weapon.id)
+        [WEAPON_READINESS_INDICATOR_WEAPON_FLAG]: weapon.id,
+        weaponIds: [weapon.id]
       }
     }
   });
-
-  const [primary, ...duplicates] = existing;
-  if (duplicates.length > 0) {
-    await actor.deleteEmbeddedDocuments("ActiveEffect", duplicates.map((effect) => effect.id));
-  }
-  if (!primary) {
-    await actor.createEmbeddedDocuments("ActiveEffect", [effectData]);
-    return true;
-  }
-
-  const patch = { _id: primary.id, ...effectData };
-  if (indicatorMatches(primary, effectData)) return duplicates.length > 0;
-  await actor.updateEmbeddedDocuments("ActiveEffect", [patch]);
-  return true;
 }
 
 function indicatorMatches(effect, data) {
+  const currentWeaponId = getIndicatorWeaponId(effect);
+  const nextWeaponId = data.flags?.[FLAG_SCOPE]?.[WEAPON_READINESS_INDICATOR_WEAPON_FLAG];
   const currentIds = effect.flags?.[FLAG_SCOPE]?.weaponIds ?? [];
   const nextIds = data.flags?.[FLAG_SCOPE]?.weaponIds ?? [];
+  const currentStatuses = Array.from(effect.statuses ?? []);
+  const nextStatuses = Array.from(data.statuses ?? []);
   const currentImage = effect.img ?? effect.icon;
   return effect.name === data.name
     && currentImage === data.img
+    && currentWeaponId === nextWeaponId
     && currentIds.length === nextIds.length
-    && currentIds.every((id, index) => id === nextIds[index]);
+    && currentIds.every((id, index) => id === nextIds[index])
+    && currentStatuses.length === nextStatuses.length
+    && currentStatuses.every((id, index) => id === nextStatuses[index])
+    && (!("showIcon" in data) || effect.showIcon === data.showIcon);
+}
+
+function getIndicatorWeaponId(effect) {
+  const flags = effect?.flags?.[FLAG_SCOPE] ?? {};
+  const directId = flags[WEAPON_READINESS_INDICATOR_WEAPON_FLAG];
+  if (directId) return directId;
+
+  const legacyIds = flags.weaponIds;
+  return Array.isArray(legacyIds) && legacyIds.length === 1 ? legacyIds[0] : null;
+}
+
+export function getWeaponReadinessStatusId(weaponId) {
+  return `${WEAPON_READINESS_STATUS_ID}.${String(weaponId)}`;
 }
 
 function queueIndicatorSync(actor) {
@@ -159,10 +214,4 @@ async function playReadinessAnimation(actor, drawn, sheathed) {
 function getActorToken(actor) {
   const tokens = actor?.getActiveTokens?.(true, true) ?? [];
   return tokens.find((token) => token.document?.parent?.id === canvas.scene?.id) ?? tokens[0] ?? null;
-}
-
-function formatWeaponNames(weapons) {
-  const names = weapons.map((weapon) => weapon.name);
-  if (names.length <= 1) return names[0] ?? "";
-  return new Intl.ListFormat(game.i18n.lang, { style: "long", type: "conjunction" }).format(names);
 }

@@ -1,5 +1,5 @@
 import { AmmoService } from "./ammo.mjs";
-import { actorItems, getQuiverCapacity, getQuiverLoadedTotal, isActiveOrEquipped, isQuiver, itemQuantity } from "./item-flags.mjs";
+import { actorItems, getQuiverCapacity, getQuiverLoadedTotal, getWeaponAmmoType, isActiveOrEquipped, isQuiver, itemQuantity } from "./item-flags.mjs";
 import { TenebreSettings } from "./settings.mjs";
 
 const BREAD_BTN_ID = "tenebre-bread-btn";
@@ -108,6 +108,7 @@ function renderQuiverHud(panel, actor) {
     return;
   }
 
+  const hasRangedWeapon = actorItems(actor).some((item) => item?.type === "weapon" && Boolean(getWeaponAmmoType(item)));
   const quivers = actorItems(actor).filter((item) => {
     return isQuiver(item)
       && itemQuantity(item) > 0
@@ -118,16 +119,11 @@ function renderQuiverHud(panel, actor) {
     img: item.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp"
   }));
 
-  panel.dataset.empty = quivers.length > 0 ? "false" : "true";
+  const visible = hasRangedWeapon && quivers.length > 0;
+  panel.dataset.empty = visible ? "false" : "true";
+  panel.hidden = !visible;
 
-  if (!quivers.length) {
-    const empty = document.createElement("div");
-    empty.className = "tenebre-ammo-hud-item";
-    empty.title = game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver");
-    empty.innerHTML = `<i class="fas fa-box-archive"></i><span class="tenebre-ammo-hud-label">${game.i18n.localize("TENEBRE.Hud.Quivers")}</span><strong>0</strong>`;
-    panel.appendChild(empty);
-    return;
-  }
+  if (!visible) return;
 
   for (const quiver of quivers) {
     const loaded = quiver.loaded;

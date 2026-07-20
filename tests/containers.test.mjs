@@ -335,3 +335,73 @@ test("camping equipment with existing contents is marked seeded without duplicat
   assert.equal(container.getFlag(scope, "campingContentsSeeded"), true);
   assert.deepEqual(actor.created, []);
 });
+
+test("container capacity defaults use slots while unknown containers remain unlimited", () => {
+  const actor = createActor();
+  const backpack = createItem(actor, { id: "backpack", name: "Mochila" });
+  const pouch = createItem(actor, { id: "pouch", name: "Bolsa de moedas" });
+  const chest = createItem(actor, { id: "chest", name: "Baú" });
+
+  assert.deepEqual(ContainerService.getContainerCapacity(backpack), { mode: "slots", value: 10 });
+  assert.deepEqual(ContainerService.getContainerCapacity(pouch), { mode: "slots", value: 2 });
+  assert.deepEqual(ContainerService.getContainerCapacity(chest), { mode: "unlimited" });
+  assert.equal(ContainerService.getContainerCapacityLabel(actor, backpack), "0/10");
+});
+
+test("capacity can be configured per container and invalid values are rejected", async () => {
+  const actor = createActor();
+  const backpack = createItem(actor, { id: "backpack-config", name: "Mochila" });
+
+  assert.equal(await ContainerService.setContainerCapacity(actor, backpack, { mode: "slots", value: 4 }), true);
+  assert.deepEqual(ContainerService.getContainerCapacity(backpack), { mode: "slots", value: 4 });
+  assert.equal(await ContainerService.setContainerCapacity(actor, backpack, { mode: "slots", value: 0 }), false);
+  assert.equal(await ContainerService.setContainerCapacity(actor, backpack, { mode: "unknown", value: 4 }), false);
+  assert.equal(await ContainerService.setContainerCapacity(actor, backpack, { mode: "unlimited" }), true);
+  assert.deepEqual(ContainerService.getContainerCapacity(backpack), { mode: "unlimited" });
+});
+
+test("finite capacity blocks a new slot but allows a compatible equipment merge", async () => {
+  const actor = createActor();
+  const backpack = createItem(actor, { id: "limited", name: "Mochila" });
+  createItem(actor, {
+    id: "stored-rope",
+    name: "Corda",
+    system: { number: 2, state: "other" },
+    flags: containerFlags(backpack.id, backpack.name, "equipped")
+  });
+  for (let index = 1; index < 10; index += 1) {
+    createItem(actor, {
+      id: `stored-${index}`,
+      name: `Item ${index}`,
+      system: { state: "other" },
+      flags: containerFlags(backpack.id, backpack.name)
+    });
+  }
+
+  const newItem = createItem(actor, { id: "new-item", name: "Corda", system: { state: "equipped", number: 1 } });
+  assert.equal(ContainerService.getContainerCapacityLabel(actor, backpack), "10/10");
+  assert.equal(ContainerService.canStoreInContainer(actor, newItem, backpack), true);
+  assert.equal(await ContainerService.storeItem(actor, newItem, backpack), true);
+  assert.equal(actor.items.has(newItem.id), false);
+
+  const blocked = createItem(actor, { id: "blocked-item", name: "Cantil", system: { state: "equipped" } });
+  assert.equal(ContainerService.canStoreInContainer(actor, blocked, backpack), false);
+  assert.equal(await ContainerService.storeItem(actor, blocked, backpack), false);
+});
+
+test("explicit container deletion can preserve contents while ordinary deletion stays blocked", () => {
+  const actor = createActor();
+  const backpack = createItem(actor, { id: "preserve", name: "Mochila" });
+  createItem(actor, {
+    id: "stored-preserve",
+    name: "Corda",
+    system: { state: "other" },
+    flags: containerFlags(backpack.id, backpack.name)
+  });
+
+  ContainerService.registerHooks();
+  const handler = hookHandlers.get("preDeleteItem");
+  assert.equal(handler(backpack, {}, game.user.id), false);
+  assert.equal(handler(backpack, { [scope]: { preserveContents: true } }, game.user.id), true);
+  assert.equal(ContainerService.canPreserveContentsOnDelete(backpack, { [scope]: { preserveContents: true } }), true);
+});

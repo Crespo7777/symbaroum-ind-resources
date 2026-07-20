@@ -1270,27 +1270,31 @@
     ". item .";
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted,
-.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-stage-targeted {
-  grid-template-columns: 58px 22px 58px 22px 58px;
+.tenebre-modern-chat-illustrated-targeted .tenebre-illustrated-stage-targeted {
+  grid-template-columns: minmax(42px, 58px) minmax(14px, 22px) minmax(42px, 58px) minmax(14px, 22px) minmax(42px, 58px);
   grid-template-areas: "actor arrow-left item arrow-right target";
   align-items: start;
   justify-content: center;
-  column-gap: 5px;
+  width: 100%;
+  column-gap: clamp(2px, 1.5%, 5px);
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted .tenebre-illustrated-portrait,
-.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-stage-targeted .tenebre-illustrated-portrait {
+.tenebre-modern-chat-illustrated-targeted .tenebre-illustrated-stage-targeted .tenebre-illustrated-portrait {
   align-self: start;
+  width: 100%;
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-stage-targeted .tenebre-illustrated-action,
-.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-stage-targeted .tenebre-illustrated-action {
+.tenebre-modern-chat-illustrated-targeted .tenebre-illustrated-stage-targeted .tenebre-illustrated-portrait > div {
+  width: min(52px, 100%);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.tenebre-modern-chat-illustrated-targeted .tenebre-illustrated-stage-targeted .tenebre-illustrated-action {
   display: none;
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow,
-.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-attack-arrow {
+.tenebre-modern-chat-illustrated-targeted .tenebre-illustrated-attack-arrow {
   align-self: start;
   justify-self: center;
   margin-top: 17px;
@@ -1299,13 +1303,11 @@
   line-height: 1;
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow-left,
-.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-attack-arrow-left {
+.tenebre-modern-chat-illustrated-targeted .tenebre-illustrated-attack-arrow-left {
   grid-area: arrow-left;
 }
 
-.tenebre-modern-chat-illustrated-attack .tenebre-illustrated-attack-arrow-right,
-.tenebre-modern-chat-illustrated-maneuver .tenebre-illustrated-attack-arrow-right {
+.tenebre-modern-chat-illustrated-targeted .tenebre-illustrated-attack-arrow-right {
   grid-area: arrow-right;
 }
 
@@ -1505,6 +1507,43 @@
 
 .tenebre-modern-chat-failure .tenebre-illustrated-result strong {
   color: #9a2e26;
+}
+
+.tenebre-illustrated-roll-details {
+  display: inline-block;
+  margin-top: 2px;
+  color: #17120e;
+  font-family: var(--font-text), Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.tenebre-illustrated-roll-details summary {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  place-items: center;
+  border: 1px solid #9a4a3a;
+  border-radius: 50%;
+  background: rgba(229, 214, 184, 0.78);
+  color: #9a4a3a;
+  list-style: none;
+}
+
+.tenebre-illustrated-roll-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.tenebre-illustrated-roll-details-body {
+  max-width: 280px;
+  margin-top: 4px;
+  padding: 5px 7px;
+  border: 1px solid #9a4a3a;
+  background: rgba(229, 214, 184, 0.95);
+  line-height: 1.2;
 }
 
 .tenebre-illustrated-details {
@@ -2258,6 +2297,27 @@
 .tenebre-container-qty {
   text-align: center;
   font-weight: bold;
+}
+
+.tenebre-container-capacity {
+  display: inline-block;
+  margin-left: 0.25rem;
+  color: inherit;
+  font-size: 0.9em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tenebre-container-capacity-form .tenebre-container-capacity-modes {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.tenebre-container-capacity-form .tenebre-container-capacity-modes label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .tenebre-container-item button {

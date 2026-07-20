@@ -5,9 +5,11 @@ const STORABLE_TYPES = new Set(["equipment", "weapon", "armor", "artifact"]);
 const ACCESSIBLE_STATES = new Set(["equipped", "active"]);
 const CAMPING_CONTENTS_SEEDED_FLAG = "campingContentsSeeded";
 const CONTAINER_EXPANSION_SETTING = "containerExpansionState";
+const CONTAINER_CAPACITY_FLAG = "containerCapacity";
 const STORED_ITEM_STATE = "other";
 let hooksRegistered = false;
 const sessionExpansionState = new Map();
+const transferDeleteAllowlist = new Set();
 
 function actorItems(actor) {
   return Array.from(actor?.items?.values?.() ?? []);
@@ -93,6 +95,17 @@ const CAMPING_EQUIPMENT_ALIASES = [
   "camping equipment"
 ];
 
+const SMALL_CONTAINER_ALIASES = [
+  "bolsa",
+  "bag",
+  "pouch",
+  "purse",
+  "bolsa de moedas",
+  "coin purse",
+  "algibeira",
+  "belt pouch"
+];
+
 const DEFAULT_CAMPING_CONTENTS = [
   "Saco de dormir",
   "Frigideira",
@@ -109,6 +122,7 @@ export class ContainerService {
 
     Hooks.on("preDeleteItem", (item, options, userId) => {
       if (userId !== game.user?.id) return true;
+      if (this.canPreserveContentsOnDelete(item, options)) return true;
       return this.canDeleteItem(item);
     });
 
@@ -126,6 +140,8 @@ export class ContainerService {
     Hooks.on("deleteItem", (item, options, userId) => {
       if (userId !== game.user?.id) return;
       if (item.parent && this.isContainer(item)) void setContainerExpanded(item.parent, item, false);
+      if (this.consumeAllowedTransferredDelete(item)) return;
+      if (this.canPreserveContentsOnDelete(item, options)) return;
       this.recoverStoredItemsFromDeletedContainer(item).catch((error) => {
         console.warn("Tenebre Resources | Failed to recover stored items after container deletion.", error);
       });
@@ -184,8 +200,91 @@ export class ContainerService {
 
   static getAvailableContainers(actor, item = null) {
     return this.getContainers(actor, item).filter((candidate) => {
-      return isAccessibleState(candidate);
+      return isAccessibleState(candidate) && this.canStoreInContainer(actor, item, candidate);
     });
+  }
+
+  static getContainerCapacity(container) {
+    const configured = normalizeCapacityConfig(container?.getFlag?.(FLAG_SCOPE, CONTAINER_CAPACITY_FLAG));
+    if (configured) return configured;
+
+    const defaultCapacity = getDefaultContainerCapacity(container);
+    return defaultCapacity === null
+      ? { mode: "unlimited" }
+      : { mode: "slots", value: defaultCapacity };
+  }
+
+  static getContainerUsedSlots(actor, container) {
+    return this.getStoredItems(actor, container).length;
+  }
+
+  static getContainerCapacityLabel(actor, container) {
+    const capacity = this.getContainerCapacity(container);
+    const used = this.getContainerUsedSlots(actor, container);
+    return `${used}/${capacity.mode === "unlimited" ? "∞" : capacity.value}`;
+  }
+
+  static canStoreInContainer(actor, item, container) {
+    if (!isValidStoreRelationship(actor, item, container)) return false;
+    if (!this.isContainer(container) || this.isStored(container)) return false;
+    if (!isAccessibleState(item) || !isAccessibleState(container)) return false;
+
+    const compatibleStack = item?.type === "equipment" && findStoredStack(actor, item, container);
+    if (compatibleStack) return true;
+
+    const capacity = this.getContainerCapacity(container);
+    return capacity.mode === "unlimited"
+      || this.getContainerUsedSlots(actor, container) < capacity.value;
+  }
+
+  static async setContainerCapacity(actor, container, config) {
+    if (!canMutateActor(actor) || !isValidOwnedActorItem(actor, container) || !this.isContainer(container)) {
+      return false;
+    }
+    const normalized = normalizeCapacityConfig(config);
+    if (!normalized) return false;
+
+    await container.setFlag(FLAG_SCOPE, CONTAINER_CAPACITY_FLAG, normalized);
+    rerenderActorSheets(actor);
+    return true;
+  }
+
+  static async configureContainerPrompt(actor, container) {
+    if (!game.user?.isGM || !isValidOwnedActorItem(actor, container) || !this.isContainer(container)) return false;
+
+    const current = this.getContainerCapacity(container);
+    const slotsSelected = current.mode !== "unlimited";
+    const content = `
+      <form class="tenebre-container-capacity-form">
+        <p>${escapeHtml(game.i18n.format("TENEBRE.Containers.ConfigurePrompt", { container: container.name }))}</p>
+        <div class="form-group">
+          <label>${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacityMode"))}</label>
+          <div class="tenebre-container-capacity-modes">
+            <label><input type="radio" name="capacityMode" value="slots" ${slotsSelected ? "checked" : ""}> ${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacitySlots"))}</label>
+            <label><input type="radio" name="capacityMode" value="unlimited" ${slotsSelected ? "" : "checked"}> ${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacityUnlimited"))}</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>${escapeHtml(game.i18n.localize("TENEBRE.Containers.CapacityValue"))}</label>
+          <input type="number" name="capacityValue" value="${slotsSelected ? current.value : 1}" min="1" max="999">
+        </div>
+      </form>
+    `;
+
+    const result = await promptDialog({
+      title: game.i18n.localize("TENEBRE.Containers.ConfigureTitle"),
+      content,
+      okIcon: "fas fa-save",
+      width: 360,
+      contentClass: "tenebre-container-capacity-dialog",
+      callback: (element) => ({
+        mode: element.querySelector('[name="capacityMode"]:checked')?.value,
+        value: Number(element.querySelector('[name="capacityValue"]')?.value)
+      })
+    });
+
+    if (!result) return false;
+    return this.setContainerCapacity(actor, container, result);
   }
 
   static getStoredItems(actor, container) {
@@ -205,6 +304,40 @@ export class ContainerService {
     return false;
   }
 
+  static canPreserveContentsOnDelete(item, options = {}) {
+    const transferKey = itemTransferDeleteKey(item);
+    if (transferKey && transferDeleteAllowlist.has(transferKey)) return true;
+    return Boolean(
+      options?.[MODULE_ID]?.preserveContents === true
+      && item
+      && this.isContainer(item)
+      && canMutateActor(item.parent)
+    );
+  }
+
+  static allowDeleteWithTransferredContents(item) {
+    const key = itemTransferDeleteKey(item);
+    if (!key) return false;
+    transferDeleteAllowlist.add(key);
+    setTimeout(() => transferDeleteAllowlist.delete(key), 30000);
+    return true;
+  }
+
+  static consumeAllowedTransferredDelete(item) {
+    const key = itemTransferDeleteKey(item);
+    if (!key) return false;
+    return transferDeleteAllowlist.delete(key);
+  }
+
+  static async deleteContainerPreservingContents(actor, container) {
+    if (!canMutateActor(actor) || !isValidOwnedActorItem(actor, container) || !this.isContainer(container)) {
+      return false;
+    }
+
+    await container.delete({ [MODULE_ID]: { preserveContents: true } });
+    return true;
+  }
+
   static async storeItemPrompt(actor, item) {
     if (!this.isEnabled() || !isValidOwnedActorItem(actor, item)) return false;
     if (!isAccessibleState(item)) {
@@ -215,7 +348,19 @@ export class ContainerService {
 
     const containers = this.getAvailableContainers(actor, item);
     if (!containers.length) {
-      if (this.getContainers(actor, item).length > 0) {
+      const allContainers = this.getContainers(actor, item);
+      const accessibleContainers = allContainers.filter((candidate) => isAccessibleState(candidate));
+      if (accessibleContainers.length > 0) {
+        const fullContainer = accessibleContainers.find((candidate) => !this.canStoreInContainer(actor, item, candidate));
+        if (fullContainer) {
+          ui.notifications.warn(game.i18n.format("TENEBRE.Containers.ContainerFull", {
+            container: fullContainer.name,
+            capacity: this.getContainerCapacityLabel(actor, fullContainer)
+          }));
+        }
+        return false;
+      }
+      if (allContainers.length > 0) {
         warnInaccessibleState("TENEBRE.Containers.CannotStoreInOther");
         return false;
       }
@@ -287,6 +432,13 @@ export class ContainerService {
     }
     if (!isAccessibleState(container)) {
       warnInaccessibleState("TENEBRE.Containers.CannotStoreInOther");
+      return false;
+    }
+    if (!this.canStoreInContainer(actor, item, container)) {
+      ui.notifications.warn(game.i18n.format("TENEBRE.Containers.ContainerFull", {
+        container: container.name,
+        capacity: this.getContainerCapacityLabel(actor, container)
+      }));
       return false;
     }
 
@@ -527,8 +679,8 @@ function buildStoreDialogContent({ actor, item, containers, quantity, fixedConta
 
 function buildContainerSelect(actor, containers) {
   const options = containers.map((container) => {
-    const storedCount = ContainerService.getStoredItems(actor, container).length;
-    return `<option value="${escapeHtml(container.id)}">${escapeHtml(container.name)} (${storedCount})</option>`;
+    const capacityLabel = ContainerService.getContainerCapacityLabel(actor, container);
+    return `<option value="${escapeHtml(container.id)}">${escapeHtml(container.name)} (${capacityLabel})</option>`;
   }).join("");
 
   return `
@@ -537,6 +689,24 @@ function buildContainerSelect(actor, containers) {
       <select name="containerId">${options}</select>
     </div>
   `;
+}
+
+function normalizeCapacityConfig(config) {
+  if (config?.mode === "unlimited") return { mode: "unlimited" };
+  if (config?.mode !== "slots") return null;
+
+  const value = Math.floor(Number(config.value));
+  if (!Number.isFinite(value) || value < 1 || value > 999) return null;
+  return { mode: "slots", value };
+}
+
+function getDefaultContainerCapacity(container) {
+  const name = normalize(container?.name);
+  if (hasAlias(name, SMALL_CONTAINER_ALIASES)) return 2;
+  if (hasAlias(name, ["mochila", "backpack", "rucksack"]) || hasAlias(name, CAMPING_EQUIPMENT_ALIASES)) {
+    return 10;
+  }
+  return null;
 }
 
 function isAccessibleState(item) {
@@ -655,6 +825,11 @@ function stableStringify(value) {
     return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+function itemTransferDeleteKey(item) {
+  if (!item?.id || !item?.parent?.uuid) return "";
+  return `${item.parent.uuid}:${item.id}`;
 }
 
 function createStoredItemData(item, container, quantity, preStoredState) {

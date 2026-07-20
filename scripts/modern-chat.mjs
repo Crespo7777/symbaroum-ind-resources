@@ -250,7 +250,6 @@ export class ModernChatService {
 
       const content = root?.querySelector?.(".message-content") ?? root;
       if (!content) return;
-      normalizeLegacyIllustratedSeparators(content);
       if (content.classList?.contains("tenebre-modern-chat") || content.querySelector(".tenebre-modern-chat")) return;
 
       const privateRollCard = buildPrivateRollCard(message);
@@ -264,12 +263,12 @@ export class ModernChatService {
       const source = content;
       const text = normalizeText(extractTextWithNewlines(source));
       if (!text) return;
-      if (shouldHideAutomaticAmmoUseMessage(message, source, text)) {
+      if (shouldHideApplyResultsMessage(message)) {
         const chatMessage = root.closest?.(".chat-message") ?? root;
         chatMessage.style.display = "none";
         return;
       }
-      if (shouldHideApplyResultsMessage(message)) {
+      if (shouldHideStaleResistButtonMessage(message, source, text)) {
         const chatMessage = root.closest?.(".chat-message") ?? root;
         chatMessage.style.display = "none";
         return;
@@ -292,7 +291,15 @@ export class ModernChatService {
         ?? buildItemUseCard(message, source, text)
         ?? buildManeuverCard(message, source, text);
 
-      if (!card) return;
+      if (!card) {
+        // Automatic native ammo notices are safe to suppress only after every
+        // illustrated builder had a chance to recognize the message.
+        if (shouldHideAutomaticAmmoUseMessage(message, source, text)) {
+          const chatMessage = root.closest?.(".chat-message") ?? root;
+          chatMessage.style.display = "none";
+        }
+        return;
+      }
 
       content.replaceChildren(card);
       bindModernChatInteractions(card);
@@ -345,8 +352,155 @@ function compactModernChatHeader(root) {
   if (whisper) whisper.style.display = "none";
 }
 
+function finalNativeD20Element(source) {
+  const rolls = [...(source?.querySelectorAll?.(".symba-rolls.roll.d20") ?? [])];
+  return source?.querySelector?.(".dice-roll .dice-total .symba-rolls.roll.d20")
+    ?? rolls.at(0)
+    ?? null;
+}
+
+function nativeRollResultText(source) {
+  const root = source?.querySelector?.(".foreground") ?? source;
+  if (!root?.querySelectorAll) return "";
+
+  return [...root.querySelectorAll(".finalTxt p, h4")]
+    .map((element) => cleanName(element.innerText ?? element.textContent ?? ""))
+    .filter((value) => value && /resultado|result|rolagem|roll|cr[ií]tico|critical/i.test(value))
+    .join("\n");
+}
+
+function nativeRollTooltipText(source) {
+  const root = source?.querySelector?.(".foreground") ?? source;
+  if (!root?.querySelectorAll) return "";
+
+  return [...root.querySelectorAll(".dice-tooltip, .tooltip")]
+    .map((element) => cleanName(element.innerText ?? element.textContent ?? ""))
+    .filter(Boolean)
+    .join("\n");
+}
+
+function nativeRollDetailsText(source) {
+  return [...new Set([nativeRollResultText(source), nativeRollTooltipText(source)].filter(Boolean))].join("\n");
+}
+
+function nativeFinalRollState(source, text, fallback = "") {
+  const element = finalNativeD20Element(source);
+  const elementText = cleanName(element?.innerText ?? element?.textContent ?? "");
+  const resultText = nativeRollResultText(source);
+  const tooltipText = nativeRollTooltipText(source);
+  const detailsText = [resultText, tooltipText].filter(Boolean).join("\n");
+  const rollText = `${text}\n${detailsText}\n${fallback}`;
+  const classList = element?.classList;
+  const status = classList?.contains("success")
+    ? "success"
+    : classList?.contains("failure")
+      ? "failure"
+      : "";
+  const critical = classList?.contains("critical")
+    ? "success"
+    : classList?.contains("fumble")
+      ? "failure"
+      : criticalState(rollText);
+  // A rare-critical roll confirms the critical state; it does not replace the
+  // original d20 used by Symbaroum to resolve success or failure.
+  const effectiveResult = effectiveRollValue(elementText || resultText || rollLineValue(`${text}\n${fallback}`));
+
+  return {
+    roll: effectiveResult,
+    status,
+    critical,
+    details: nativeRollDetailsText(source)
+  };
+}
+
+function nativeCombatEffectRows(source, { includeDamageConsequences = false } = {}) {
+  const root = source?.querySelector?.(".foreground");
+  if (!root) return [];
+
+  const nativeRuleLabels = [
+    "CHAT.CRITICAL_FAILURE_FREEATTACK",
+    "CHAT.CRITICAL_FREEATTACK",
+    "CHAT.CRITICAL_PLUS3DAMAGE"
+  ]
+    .map((key) => localize(key))
+    .filter((label, index, labels) => label && !label.startsWith("CHAT.") && labels.indexOf(label) === index)
+    .sort((left, right) => right.length - left.length);
+  const nativeDamageConsequenceLabels = [
+    "COMBAT.CHAT_DAMAGE_NUL",
+    "COMBAT.CHAT_DAMAGE_DYING",
+    "COMBAT.CHAT_DAMAGE_PAIN"
+  ]
+    .map((key) => localize(key))
+    .filter((label, index, labels) => label && !label.startsWith("COMBAT.") && labels.indexOf(label) === index);
+  const nativeDamageModifierLabels = ["COMBAT.CHAT_DMG_PARAMS"]
+    .map((key) => localize(key))
+    .filter((label) => label && !label.startsWith("COMBAT."));
+  const effectPattern = /ataque\s+livre|free\s+attack|\+3\s+(?:de\s+)?(?:dano|damage)|corrup(?:c|ç)[aã]o|corruption|venen|poison|sangr|bleed|flamej|flaming|queim|burn/i;
+  const seen = new Set();
+  return [...root.children]
+    .map((element) => cleanName(element.innerText ?? element.textContent ?? ""))
+    .filter((value) => value && (
+      effectPattern.test(value)
+      || nativeDamageModifierLabels.some((label) => normalizeComparable(value).includes(normalizeComparable(label)))
+      || (includeDamageConsequences && nativeDamageConsequenceLabels.some((label) => normalizeComparable(value).includes(normalizeComparable(label))))
+    ))
+    .map((value) => nativeRuleLabels.find((label) => normalizeComparable(value).includes(normalizeComparable(label)))
+      ?? value.match(/ataque\s+livre(?:\s+do\s+oponente)?|(?:opponent\s+)?free\s+attack|\+3\s+(?:de\s+)?(?:dano|damage)/i)?.[0]
+      ?? value)
+    .filter((value) => {
+      const key = value.toLocaleLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((value) => ["", { fullRow: true, text: value }]);
+}
+
+function nativeAbilityDetailRows(source) {
+  const root = source?.querySelector?.(".foreground");
+  if (!root) return [];
+
+  const containers = [...root.children].filter((element) => element.classList?.contains("finalTxt"));
+  const details = containers.at(-1);
+  if (!details) return [];
+
+  const values = [];
+  for (const child of details.children) {
+    if (child.tagName === "P") {
+      const value = cleanName(child.innerText ?? child.textContent ?? "");
+      if (value) values.push(value);
+      continue;
+    }
+
+    if (!child.classList?.contains("finalTxt")) continue;
+    const paragraphs = [...child.querySelectorAll("p")]
+      .map((element) => cleanName(element.innerText ?? element.textContent ?? ""))
+      .filter(Boolean);
+    values.push(...(paragraphs.length ? paragraphs : [cleanName(child.innerText ?? child.textContent ?? "")]));
+  }
+
+  const seen = new Set();
+  return values
+    .filter(Boolean)
+    .filter((value) => {
+      const key = value.toLocaleLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((value) => ["", { fullRow: true, text: value }]);
+}
+
+function nativeAttributeMargin(source) {
+  const marginLine = [...(source?.querySelectorAll?.(".dice-total h4") ?? [])]
+    .map((element) => cleanName(element.innerText ?? element.textContent ?? ""))
+    .find((value) => /margem|margin/i.test(value));
+  return marginLine?.match(/(?:margem|margin)\s*:?\s*(-?\d+)/i)?.[1] ?? "";
+}
+
 function buildCombatCard(message, source, text) {
-  const roll = rollLineValue(text);
+  const nativeRoll = nativeFinalRollState(source, text);
+  const roll = nativeRoll.roll || rollLineValue(text);
   if (!/\b(ataca com|attacks? with)\b/i.test(text) || !roll) return null;
 
   const attackMatch = text.match(/^(.+?)\s+(?:ataca com|attacks? with)\s+(.+?)(?:\n|$)/im);
@@ -359,28 +513,51 @@ function buildCombatCard(message, source, text) {
   const ammoName = ammoData.name;
   const targetName = cleanName(resistanceContext?.targetName || lineValue(text, "Vítima") || lineValue(text, "Victim") || lineValue(source.querySelector(".targetText")?.innerText ?? "", "Vítima") || lineValue(source.querySelector(".targetText")?.innerText ?? "", "Victim") || hitTargetName(text) || "");
   const targetActor = findActorByName(targetName);
-  const damage = lineValue(text, "Dano") || lineValue(text, "Damage");
+  const damage = lineValueAny(text, [
+    "Dano causado em",
+    "Dano causado",
+    "Dano",
+    "Damage caused at",
+    "Damage caused",
+    "Damage"
+  ]);
   const publicCombat = message?.flags?.[MODULE_ID]?.publicCombat;
   const gmCombat = Boolean(game.user?.isGM && !publicCombat);
   const damageDisplay = publicCombat?.damageFormula
     ? publicCombatDamageValue(publicCombat, actor)
     : damage ? causedDamageValue(damage, message, actor) : null;
+  const explicitProtection = lineValueAny(text, ["Proteção em", "Proteção", "Protection"]);
+  const explicitAppliedDamage = lineValueAny(text, [
+    "Dano final aplicado em",
+    "Dano final aplicado",
+    "Dano aplicado em",
+    "Dano aplicado",
+    "Dano total",
+    "Final damage applied",
+    "Applied damage",
+    "Total damage"
+  ]);
   const resisted = text.match(/(.+?)\s+(?:suporta dano|endures damage)\s*:\s*([^\n]+)/i);
   const protectedByArmor = /\b(est[aá] protegido pela armadura|is protected by armor)\b/i.test(text);
-  const appliedDamage = resisted ? cleanName(resisted[2]) : protectedByArmor ? "0" : "";
-  const protection = gmCombat && damage ? protectionValue(damage, message, appliedDamage) : "";
+  const appliedDamage = explicitAppliedDamage || (resisted ? cleanName(resisted[2]) : protectedByArmor ? "0" : "");
+  const protection = gmCombat
+    ? explicitProtection || (damage ? protectionValue(damage, message, appliedDamage) : "")
+    : "";
   const attackTestValues = gmCombat ? attackTestAttributeValues(findAttributeLine(text), actor, targetActor) : null;
-  const hit = /\b(acerta|hits?)\b/i.test(text);
-  const miss = /\b(erra|miss(?:es)?)\b/i.test(text);
-  const critical = criticalState(text, damage);
-  const resultKey = critical === "success"
-    ? "TENEBRE.ModernChat.CriticalHit"
-    : critical === "failure"
-      ? "TENEBRE.ModernChat.CriticalFailure"
+  const textHit = /\b(acerta|hits?)\b/i.test(text);
+  const textMiss = /\b(erra|miss(?:es)?)\b/i.test(text);
+  const hit = textHit || (!textMiss && nativeRoll.status === "success");
+  const miss = textMiss || (!textHit && nativeRoll.status === "failure");
+  const critical = nativeRoll.critical || criticalState(text, damage);
+  const nativeEffects = nativeCombatEffectRows(source, { includeDamageConsequences: gmCombat });
+  const resultKey = miss
+    ? "TENEBRE.ModernChat.Miss"
+    : hit && critical === "success"
+      ? "TENEBRE.ModernChat.CriticalHit"
       : hit
         ? "TENEBRE.ModernChat.Hit"
-        : miss
-          ? "TENEBRE.ModernChat.Miss"
+        : critical === "failure"
+          ? "TENEBRE.ModernChat.CriticalFailure"
           : "TENEBRE.ModernChat.Result";
 
   return cardShell({
@@ -408,7 +585,8 @@ function buildCombatCard(message, source, text) {
       attackTestValues,
       gmCombat,
       hideAttackFlavor: gmCombat,
-      rollValue: firstRollValue(roll)
+      rollValue: effectiveRollValue(roll),
+      rollDetails: gmCombat ? nativeRoll.details : ""
     },
     actors: [
       actorBlock(attackerName, resistanceContext?.attackerImg || introImageFromSource(source) || actor?.img, localize("TENEBRE.ModernChat.Attacker")),
@@ -419,29 +597,49 @@ function buildCombatCard(message, source, text) {
       [localize("TENEBRE.ModernChat.Result"), compactResult({ roll, result: localize(resultKey), positive: hit, negative: miss })],
       damageDisplay ? [localize("TENEBRE.ModernChat.Damage"), damageDisplay] : null,
       protection !== "" ? [localize("TENEBRE.ModernChat.Protection"), protection] : null,
-      gmCombat && appliedDamage !== "" ? [localize("TENEBRE.ModernChat.DamageTaken"), appliedDamage] : null
+      gmCombat && appliedDamage !== "" ? [localize("TENEBRE.ModernChat.DamageTaken"), appliedDamage] : null,
+      ...nativeEffects
     ],
     outcome: hit ? "success" : miss ? "failure" : ""
   });
 }
 
 function buildAbilityRollCard(message, source, text) {
+  const nativeAbility = source.classList?.contains("symbaroum")
+    && source.classList?.contains("chat")
+    && source.classList?.contains("ability")
+    ? source
+    : source.querySelector?.(".symbaroum.chat.ability");
   const usesRollPattern = /\b(tenta usar|tries to use)\b/i;
-  if (!usesRollPattern.test(text) || !/(Resultado|Result|Rolagem|Roll)/i.test(text)) return null;
+  const nativeTest = cleanName(nativeAbility?.querySelector?.(".finalTxt p[data-item-id]")?.innerText ?? "");
+  const nativeRoll = nativeFinalRollState(nativeAbility ?? source, text, nativeTest);
+  if (!usesRollPattern.test(text) && (!nativeAbility || (!nativeTest && !nativeRoll.roll))) return null;
+  if ((nativeAbility ?? source).querySelector?.("#applyEffect")) return null;
 
   const textActorName = cleanName(text.match(/^(.+?)\s+(tenta usar|tries to use)/im)?.[1] ?? "");
   const actor = speakerActor(message) ?? findActorByName(textActorName);
   const actorName = cleanName(actor?.name || textActorName || message.speaker?.alias);
   const abilityTitleFromUse = text.match(/(?:tenta usar|tries to use)\s+"?\s*([^"\n]+?)\s*"?\s*\./i)?.[1] ?? "";
-  const abilityTitleFromCard = findAbilityTitle(source, text);
-  const abilityName = stripLevelSuffix(abilityTitleFromUse || abilityTitleFromCard);
-  const abilityItem = findChatItem(source, actor, abilityName);
+  const abilityTitleFromCard = findAbilityTitle(nativeAbility ?? source, text);
+  const provisionalAbilityName = stripLevelSuffix(abilityTitleFromUse || abilityTitleFromCard);
+  const abilityItem = findChatItem(nativeAbility ?? source, actor, provisionalAbilityName);
+  const abilityName = cleanName(abilityItem?.name || provisionalAbilityName);
   const abilityLevel = itemLevelFromText(abilityTitleFromCard) || itemLevelFromText(abilityTitleFromUse) || activeItemLevel(abilityItem);
   const effect = itemEffectValue(effectFromItem(abilityItem, abilityLevel));
-  const roll = rollLineValue(text);
-  const test = findAttributeLine(text);
-  const success = /sucesso|succeeds|success/i.test(text) && !/falha|fails/i.test(text);
-  const failure = /falha|fails/i.test(text);
+  const roll = nativeRoll.roll || rollLineValue(text);
+  const test = nativeTest || findAttributeLine(text);
+  const targetText = cleanName(nativeAbility?.querySelector?.(".targetText")?.innerText ?? "");
+  const targetName = cleanName(
+    lineValueAny(targetText, ["Vítima", "Victim"])
+    || targetText.replace(/^(?:Vítima|Victim)\s*:\s*/i, "")
+  );
+  const targetActor = findActorByName(targetName);
+  const critical = nativeRoll.critical || criticalState(text);
+  const textSuccess = /sucesso|succeeds|success/i.test(text) && !/falha|fails/i.test(text);
+  const textFailure = /falha|fails/i.test(text);
+  const success = textSuccess || (!textFailure && nativeRoll.status === "success");
+  const failure = textFailure || (!textSuccess && nativeRoll.status === "failure");
+  const nativeDetails = nativeAbilityDetailRows(source);
   const result = success
     ? localize("TENEBRE.ModernChat.Success")
     : failure
@@ -454,22 +652,30 @@ function buildAbilityRollCard(message, source, text) {
     icon: "fa-sparkles",
     narrative: localizeFormat("TENEBRE.ModernChat.NarrativeUse", { actor: actorName, item: abilityName || localize("TENEBRE.ModernChat.Ability") }),
     narrativeData: {
+      targetedSequence: Boolean(targetName),
       actorName,
-      actorImg: actor?.img,
+      actorImg: introImageFromSource(nativeAbility ?? source) || actor?.img,
       action: localize("TENEBRE.ModernChat.NarrativeActionUse"),
       itemName: abilityName || localize("TENEBRE.ModernChat.Ability"),
-      itemImg: abilityItem?.img || mainItemImage(source, [actor?.img]),
+      itemImg: abilityItem?.img || mainItemImage(nativeAbility ?? source, [actor?.img, targetActor?.img]),
       itemUuid: abilityItem?.uuid,
+      targetName,
+      targetImg: targetImageFromSource(nativeAbility ?? source) || targetActor?.img,
       test,
-      rollValue: firstRollValue(roll)
+      rollValue: effectiveRollValue(roll),
+      rollDetails: nativeRoll.details
     },
-    actors: [actorBlock(actorName, actor?.img, localize("TENEBRE.ModernChat.Attacker"))],
+    actors: [
+      actorBlock(actorName, introImageFromSource(nativeAbility ?? source) || actor?.img, localize("TENEBRE.ModernChat.Attacker")),
+      targetName ? actorBlock(targetName, targetImageFromSource(nativeAbility ?? source) || targetActor?.img, localize("TENEBRE.ModernChat.Target")) : null
+    ],
     actorsFirst: true,
-    image: mainItemImage(source, [actor?.img]),
+    image: abilityItem?.img || mainItemImage(nativeAbility ?? source, [actor?.img, targetActor?.img]),
     rows: [
       [localize("TENEBRE.ModernChat.Result"), compactResult({ test, roll, result, positive: success, negative: failure })],
       [localize("TENEBRE.ModernChat.Type"), localize("TENEBRE.ModernChat.Ability")],
-      effect ? [localize("TENEBRE.ModernChat.Effect"), effect] : null
+      effect ? [localize("TENEBRE.ModernChat.Effect"), effect] : null,
+      ...nativeDetails
     ],
     outcome: success ? "success" : failure ? "failure" : ""
   });
@@ -488,25 +694,35 @@ function buildAttributeRollCard(message, source, text) {
   const actor = speakerActor(message);
   const actorName = cleanName(actor?.name || message.speaker?.alias || rollCard.querySelector("h3")?.innerText);
   const attributeName = parts[0]?.name || localize("TENEBRE.ModernChat.Test");
-  const roll = cleanName(rollCard.querySelector(".symba-rolls.roll.d20")?.innerText
-    ?? text.match(/\b(?:Sucesso|Falha|Succeed|Failed|Failure)\s*\(\s*(-?\d+)\s*\)/i)?.[1]
-    ?? "");
-  const success = Boolean(rollCard.querySelector(".symba-rolls.success")) || /\b(Sucesso|Succeed|Success)\b/i.test(text) && !/\b(Falha|Failed|Failure)\b/i.test(text);
-  const failure = Boolean(rollCard.querySelector(".symba-rolls.failure")) || /\b(Falha|Failed|Failure)\b/i.test(text);
-  const critical = criticalState(text);
-  const resultKey = critical === "success"
-    ? "TENEBRE.ModernChat.CriticalHit"
-    : critical === "failure"
-      ? "TENEBRE.ModernChat.CriticalFailure"
+  const displayedRolls = [...rollCard.querySelectorAll(".symba-rolls.roll.d20")]
+    .map((element) => cleanName(element.innerText));
+  const nativeRoll = nativeFinalRollState(rollCard, text);
+  const roll = nativeRoll.roll
+    || displayedRolls.at(0)
+    || text.match(/\b(?:Sucesso|Falha|Succeed|Failed|Failure)\s*\(\s*(-?\d+)\s*\)/i)?.[1]
+    || "";
+  const textSuccess = /\b(Sucesso|Succeed|Success)\b/i.test(text) && !/\b(Falha|Failed|Failure)\b/i.test(text);
+  const textFailure = /\b(Falha|Failed|Failure)\b/i.test(text);
+  const success = textSuccess
+    || (!textFailure && (nativeRoll.status === "success" || Boolean(rollCard.querySelector(".symba-rolls.success"))));
+  const failure = textFailure
+    || (!textSuccess && (nativeRoll.status === "failure" || Boolean(rollCard.querySelector(".symba-rolls.failure"))));
+  const critical = nativeRoll.critical || criticalState(text);
+  const resultKey = failure
+    ? "TENEBRE.ModernChat.Failed"
+    : success && critical === "success"
+      ? "TENEBRE.ModernChat.CriticalHit"
       : success
         ? "TENEBRE.ModernChat.Success"
-        : failure
-          ? "TENEBRE.ModernChat.Failed"
+        : critical === "failure"
+          ? "TENEBRE.ModernChat.CriticalFailure"
           : "TENEBRE.ModernChat.Result";
   const linkedItem = attributeRollLinkedItem(rollCard, actor);
+  const margin = nativeAttributeMargin(rollCard);
   const damage = cleanName(text.match(/(?:Dano|Damage)\s*:?\s*([^\n]+)/i)?.[1] ?? "");
   const protection = cleanName(text.match(/(?:Prote[cç][aã]o|Protection)\s*:?\s*([^\n]+)/i)?.[1] ?? "");
   const isDefenseRoll = ["defesa", "defense"].includes(normalizeComparable(attributeName));
+  const nativeEffects = nativeCombatEffectRows(rollCard);
 
   return cardShell({
     kind: localize("TENEBRE.ModernChat.Test"),
@@ -524,6 +740,7 @@ function buildAttributeRollCard(message, source, text) {
       test: titleLine,
       hideOpposedTest: true,
       rollValue: roll,
+      rollDetails: nativeRoll.details,
       type: localize("TENEBRE.ModernChat.Test"),
       inlineProtection: failure && isDefenseRoll ? protection : ""
     },
@@ -532,7 +749,9 @@ function buildAttributeRollCard(message, source, text) {
     image: linkedItem?.img || rollCard.querySelector("img.portrait")?.getAttribute("src") || actor?.img,
     rows: [
       [localize("TENEBRE.ModernChat.Result"), compactResult({ roll, result: localize(resultKey), positive: success, negative: failure })],
+      margin ? [localize("TENEBRE.ModernChat.Margin"), margin] : null,
       damage ? [localize("TENEBRE.ModernChat.Damage"), damage] : null,
+      ...nativeEffects,
       protection ? [localize("TENEBRE.ModernChat.Protection"), protection] : null
     ],
     outcome: success ? "success" : failure ? "failure" : ""
@@ -647,6 +866,7 @@ function buildDeathRollCard(message, source, text) {
       itemName: localize("TENEBRE.ModernChat.Death"),
       itemImg: "icons/svg/skull.svg",
       rollValue: roll,
+      rollDetails: nativeRollDetailsText(rollCard),
       flavorText: deathRollFlavorText({ actorName, success, failure, criticalSuccess, criticalFailure, healing, failureCount })
     },
     actors: [actorBlock(actorName, actor?.img, localize("TENEBRE.ModernChat.Attacker"))],
@@ -894,7 +1114,7 @@ function buildItemUseCard(message, source, text) {
   const symbaroumItemCard = source.querySelector(".symbaroum.chat.item");
   const symbaroumCard = symbaroumAbilityCard ?? symbaroumItemCard;
   const isExplicitUse = source.querySelector(".tenebre-chat-item-use") || /\b(usa|uses)\b/i.test(text);
-  if (!isExplicitUse && !symbaroumCard) return null;
+  if (!isExplicitUse) return null;
   if (lineValue(text, "Rolagem") || /Resultado da rolagem/i.test(text)) return null;
 
   const useMatch = text.match(/^(.+?)\s+(usa|uses)\s+(.+?)(?:\n|$)/im);
@@ -1243,7 +1463,7 @@ function buildManeuverCard(message, source, text) {
   const effects = rowValue(rows, localize("TENEBRE.Maneuvers.Effects"));
   const result = rowValue(rows, localize("TENEBRE.Maneuvers.Result"))
     || (success ? localize("TENEBRE.ModernChat.Passed") : failure ? localize("TENEBRE.ModernChat.Failed") : "");
-  const hasManeuverResult = Boolean(firstRollValue(roll) || result || success || failure);
+  const hasManeuverResult = Boolean(effectiveRollValue(roll) || result || success || failure);
   const compactRows = [
     hasManeuverResult ? [localize("TENEBRE.ModernChat.Result"), compactManeuverResult({ test, roll, result, positive: success, negative: failure })] : null,
     shouldShowModifier(modifier) ? [localize("TENEBRE.ModernChat.Modifier"), signedModifier(modifier)] : null,
@@ -1267,7 +1487,7 @@ function buildManeuverCard(message, source, text) {
       targetName,
       targetImg: targetActor?.img,
       test: normalizeManeuverTest(test),
-      rollValue: firstRollValue(roll),
+      rollValue: effectiveRollValue(roll),
       showEmptyResultImage: !hasManeuverResult
     },
     image: maneuverImage(title),
@@ -1330,11 +1550,12 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
   const actorImg = data.actorImg;
   const itemImg = data.itemImg || image;
   const targetImg = data.targetImg;
-  const isTargetedSequence = (isAttack || isManeuver) && Boolean(targetName || targetImg);
+  const isTargetedSequence = (isAttack || isManeuver || data.targetedSequence) && Boolean(targetName || targetImg);
   const itemUuid = data.itemUuid;
   const test = cleanName(data.test);
   const action = cleanName(data.illustratedAction) || illustratedAction({ isAttack, isAttributeRoll, isManeuver, isRitual, hasResult: Boolean(result) });
   const resultLabel = illustratedResultLabel({ kind, outcome, result });
+  const rollDetailsHtml = illustratedRollDetailsHtml(data.rollDetails);
   const inlineProtection = cleanName(data.inlineProtection);
   const detailRows = rows
     .filter(([label]) => shouldShowIllustratedDetail(label))
@@ -1352,7 +1573,7 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
       ? `<dl>${detailRows.map(([label, value]) => illustratedRowHtml(label, value)).join("")}</dl>`
       : "";
   const article = document.createElement("article");
-  article.className = `tenebre-modern-chat tenebre-modern-chat-illustrated ${isAttack ? "tenebre-modern-chat-illustrated-attack" : ""} ${isManeuver ? "tenebre-modern-chat-illustrated-maneuver" : ""} tenebre-modern-chat-${outcome || "neutral"}`;
+  article.className = `tenebre-modern-chat tenebre-modern-chat-illustrated ${isAttack ? "tenebre-modern-chat-illustrated-attack" : ""} ${isManeuver ? "tenebre-modern-chat-illustrated-maneuver" : ""} ${isTargetedSequence ? "tenebre-modern-chat-illustrated-targeted" : ""} tenebre-modern-chat-${outcome || "neutral"}`;
   article.innerHTML = `
     <h3 class="tenebre-illustrated-title">${escapeHtml(kind || title)}</h3>
     ${illustratedSeparator()}
@@ -1367,10 +1588,11 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
       ${isTargetedSequence && (targetName || targetImg) ? `<i class="fas fa-arrow-right tenebre-illustrated-attack-arrow tenebre-illustrated-attack-arrow-right"></i>` : ""}
       ${targetName || targetImg ? illustratedPortrait(targetName, targetImg, "fa-user", "tenebre-illustrated-target") : ""}
     </div>
-    ${showResultImage || resultLabel ? `
+    ${showResultImage || resultLabel || rollDetailsHtml ? `
       <div class="tenebre-illustrated-result">
         ${showResultImage ? illustratedD20Html(roll) : ""}
         ${resultLabel ? `<strong>${escapeHtml(resultLabel)}</strong>` : ""}
+        ${rollDetailsHtml}
       </div>
     ` : ""}
     ${flavorHtml || testHtml || detailRows.length || notes.length ? `
@@ -1388,8 +1610,24 @@ function illustratedShell({ kind, title, icon, narrativeData = null, image = "",
   return article;
 }
 
+function illustratedRollDetailsHtml(details = "") {
+  const value = cleanName(details);
+  if (!value) return "";
+  const label = localize("TENEBRE.ModernChat.RollDetails");
+  return `
+    <details class="tenebre-illustrated-roll-details">
+      <summary aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"><i class="fas fa-info-circle" aria-hidden="true"></i></summary>
+      <div class="tenebre-illustrated-roll-details-body">${escapeHtml(value).replace(/\n/g, "<br>")}</div>
+    </details>
+  `;
+}
+
 function illustratedAttackDetailsHtml(rows = [], { gmOnly = false } = {}) {
   const lines = rows.map(([label, value]) => {
+    if (value && typeof value === "object" && value.fullRow) {
+      const fullRow = rowPlainText(value);
+      return fullRow ? `<p>${escapeHtml(fullRow)}</p>` : "";
+    }
     const text = rowPlainText(value);
     const line = illustratedAttackDetailLine(label, text, { gmOnly });
     return line ? `<p>${escapeHtml(line)}</p>` : "";
@@ -1446,8 +1684,11 @@ function gmDamageLineValue(value) {
 function attackTestAttributeValues(test, actor, targetActor) {
   const parts = parseIllustratedTestParts(test);
   if (parts.length < 2) return null;
-  const left = parsedOrActorAttributeValue(parts[0], actor);
-  const right = parsedOrActorAttributeValue(parts[1], targetActor);
+  const defenseFirst = ["defesa", "defense"].includes(normalizeComparable(parts[0]?.name));
+  const leftActor = defenseFirst ? targetActor : actor;
+  const rightActor = defenseFirst ? actor : targetActor;
+  const left = parsedOrActorAttributeValue(parts[0], leftActor);
+  const right = opposedTargetAttributeValue(parts[1], rightActor);
   if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
   return {
     left: String(left),
@@ -1465,6 +1706,18 @@ function parsedOrActorAttributeValue(part, actor) {
   const parsed = Number(part?.value);
   if (part?.value !== "" && Number.isFinite(parsed)) return parsed;
   return actorAttributeValue(actor, part?.name);
+}
+
+function opposedTargetAttributeValue(part, actor) {
+  const raw = actorAttributeValue(actor, part?.name);
+  return opposedTargetModifier(part?.value, raw);
+}
+
+export function opposedTargetModifier(displayedValue = "", rawAttribute = NaN) {
+  const parsed = Number(displayedValue);
+  if (displayedValue !== "" && Number.isFinite(parsed)) return parsed;
+  const raw = Number(rawAttribute);
+  return Number.isFinite(raw) ? 10 - raw : NaN;
 }
 
 function actorAttributeValue(actor, label) {
@@ -1527,19 +1780,6 @@ function illustratedSeparator() {
       <img src="modules/${MODULE_ID}/assets/icons/Separador.png" alt="">
     </div>
   `;
-}
-
-function normalizeLegacyIllustratedSeparators(content) {
-  if (!content?.querySelectorAll) return;
-
-  const currentPath = `modules/${MODULE_ID}/assets/icons/Separador.png`;
-  const legacyPath = `modules/${MODULE_ID}/assets/icons/illustrated-separator.png`;
-  for (const image of content.querySelectorAll("img[src]")) {
-    const source = image.getAttribute("src") ?? "";
-    if (source === legacyPath || source.endsWith("/assets/icons/illustrated-separator.png")) {
-      image.setAttribute("src", currentPath);
-    }
-  }
 }
 
 function illustratedD20Html(roll) {
@@ -1859,19 +2099,25 @@ function listRows(source) {
 }
 
 function compactResult({ test = "", roll = "", result = "", positive = false, negative = false } = {}) {
-  const rollValue = firstRollValue(roll);
+  const rollValue = effectiveRollValue(roll);
   const prefix = rollValue ? `${rollValue} - ` : "";
   return `${prefix}${cleanName(result)}`;
 }
 
 function compactManeuverResult({ test = "", roll = "", result = "", positive = false, negative = false } = {}) {
-  const rollValue = firstRollValue(roll);
+  const rollValue = effectiveRollValue(roll);
   const resultText = maneuverResultText(result, positive, negative);
   return `${rollValue || "-"} - ${resultText}`;
 }
 
 function firstRollValue(roll) {
   return cleanName(roll).match(/-?\d+/)?.[0] ?? "";
+}
+
+export function effectiveRollValue(roll) {
+  const text = cleanName(roll);
+  if (!text) return "";
+  return firstRollValue(text);
 }
 
 function maneuverResultText(result, positive, negative) {
@@ -2311,17 +2557,32 @@ function causedDamageTotal(value, message) {
   const formula = causedDamageFormula(value, message);
   if (!formula) return NaN;
   if (/[dD]\d+/.test(formula)) return rawDamageTotal(message, formula);
-  return Number(firstRollValue(formula));
+  return numericResultValue(formula);
 }
 
 function appliedDamageTotal(value) {
-  const total = Number(firstRollValue(value));
+  const total = numericResultValue(value);
   return Number.isFinite(total) ? total : NaN;
+}
+
+function numericResultValue(value) {
+  const text = cleanName(value);
+  const explicit = text.match(/(?:=|:)\s*(-?\d+)\s*$/)?.[1];
+  const valueText = explicit ?? text.match(/-?\d+/)?.[0];
+  const numeric = Number(valueText);
+  return Number.isFinite(numeric) ? numeric : NaN;
 }
 
 function protectionValue(damage, message, appliedDamage) {
   const caused = causedDamageTotal(damage, message);
   const applied = appliedDamageTotal(appliedDamage);
+  return protectionFromTotals(caused, applied);
+}
+
+export function protectionFromTotals(causedDamage, appliedDamage) {
+  if (causedDamage === "" || appliedDamage === "" || causedDamage == null || appliedDamage == null) return "";
+  const caused = Number(causedDamage);
+  const applied = Number(appliedDamage);
   if (!Number.isFinite(caused) || !Number.isFinite(applied)) return "";
   return String(Math.max(0, caused - applied));
 }
@@ -2713,12 +2974,17 @@ function lineValue(text, label) {
   return text.match(new RegExp(`^\\s*${escaped}\\s*:?\\s*(.+)$`, "im"))?.[1]?.trim() ?? "";
 }
 
+function lineValueAny(text, labels = []) {
+  return labels.map((label) => lineValue(text, label)).find(Boolean) ?? "";
+}
+
 function rollLineValue(text) {
-  return lineValue(text, "Resultado da rolagem de dados")
+  const value = lineValue(text, "Resultado da rolagem de dados")
     || lineValue(text, "Rolagem")
     || lineValue(text, "Result")
     || lineValue(text, "Roll")
     || cleanName(text.match(/(?:Resultado da rolagem de dados|Rolagem|Result|Roll)\s*:?\s*(-?\d+)/i)?.[1] ?? "");
+  return effectiveRollValue(value || text);
 }
 
 function firstHeadingText(source) {

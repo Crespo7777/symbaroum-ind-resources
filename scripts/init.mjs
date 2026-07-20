@@ -27,6 +27,8 @@ import { InventoryCleanupService } from "./inventory-cleanup.mjs";
 import { CombatChatPrivacyService } from "./combat-chat-privacy.mjs";
 import { GmLogService } from "./gm-log-service.mjs";
 import { GmLogUiService } from "./gm-log-ui.mjs";
+import { GroundContainerService } from "./ground-containers.mjs";
+import { ContainerTransferService } from "./container-transfer.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -73,6 +75,8 @@ Hooks.once("ready", async () => {
   patchWeaponRolls();
   registerSheetHooks();
   ContainerService.registerHooks();
+  ContainerTransferService.registerHooks();
+  GroundContainerService.registerHooks();
   InventoryCleanupService.registerHooks();
   await InventoryCleanupService.cleanupExisting();
   HotbarService.register();
@@ -118,6 +122,8 @@ Hooks.once("ready", async () => {
     encumbrance: EncumbranceService,
     hunger: HungerService,
     containers: ContainerService,
+    containerTransfer: ContainerTransferService,
+    groundContainers: GroundContainerService,
     maneuvers: ManeuverService,
     movement: MovementService,
     chatItemUse: ChatItemUseService,
@@ -166,6 +172,15 @@ Hooks.once("ready", async () => {
           console.warn(`${MODULE_ID} | Could not synchronize container states for ${actor.name}.`, error);
         }
       }
+    }
+    const groundContainerReconciliation = await GroundContainerService.reconcileGroundContainers();
+    if (!groundContainerReconciliation.skipped && (
+      groundContainerReconciliation.removedTokens
+      || groundContainerReconciliation.restoredItems
+      || groundContainerReconciliation.repairedItems
+      || groundContainerReconciliation.errors
+    )) {
+      console.info(`${MODULE_ID} | Reconciled ground containers.`, groundContainerReconciliation);
     }
   }
 

@@ -40,6 +40,12 @@ test("actor header controls are restricted to registered Symbaroum actor sheets"
   assert.match(sheetSource, /app instanceof SheetClass/);
 });
 
+test("actor header controls use a single DOM injection path", () => {
+  assert.doesNotMatch(sheetSource, /_getHeaderButtons/);
+  assert.doesNotMatch(sheetSource, /patchPlayerSheetHeaderButtons/);
+  assert.equal((sheetSource.match(/RestService\.openRestDialog\(actor\)/g) ?? []).length, 1);
+});
+
 test("encumbrance weight watcher is stoppable and overlap guarded", () => {
   assert.match(encumbranceSource, /dynamicWeightFileWatcherBusy/);
   assert.match(encumbranceSource, /stopDynamicWeightFileWatcher/);

@@ -1,5 +1,5 @@
 import { MODULE_ID } from "./constants.mjs";
-import { combatDamageSummary } from "./modern-chat.mjs";
+import { combatDamageSummary, effectiveRollValue } from "./modern-chat.mjs";
 import { escapeHtml } from "./utils.mjs";
 
 const publishingSplitIds = new Set();
@@ -100,8 +100,9 @@ function parseNativeCombatMessage(content = "") {
   const testFormula = opposedFormula(testText);
   const resultText = [...root.querySelectorAll(".finalTxt .tooltip > p")]
     .map((element) => cleanText(element.textContent))
-    .find((text) => /(?:Rolagem|Roll|Result)\s*:?\s*-?\d+/i.test(text)) ?? "";
-  const rollValue = resultText.match(/-?\d+/)?.[0] ?? "";
+    .filter((text) => /(?:Rolagem|Roll|Result)\s*:?\s*-?\d+/i.test(text))
+    .join(" - ");
+  const rollValue = effectiveRollValue(resultText);
   const outcomeText = cleanText(root.querySelector("h4")?.textContent);
   const damageText = [...root.querySelectorAll(".finalTxt")]
     .map((element) => cleanText(element.textContent))

@@ -6,6 +6,8 @@ export const WEAPON_READY_STATE = "drawn";
 export const WEAPON_SHEATHED_STATE = "equipped";
 export const WEAPON_HAND_LIMIT = 2;
 export const WEAPON_READINESS_ICON = "/systems/symbaroum/asset/image/weapon.png";
+export const WEAPON_READINESS_LONG_MODE_FLAG = "weaponReadinessLongOneHanded";
+export const WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG = "weaponReadinessOriginalLongQuality";
 
 const actorUpdates = new Map();
 
@@ -118,28 +120,39 @@ export function canAttackWithWeapon(item) {
   return isEligibleWeapon(item) && isDrawn(item);
 }
 
-/**
- * Return the number of hands represented by the system weapon mode.
- * A flexible shield represents a buckler strapped to the arm. Heavy and long
- * weapons remain two-handed because the system does not expose a one-handed
- * mode that also applies the required damage or quality reductions.
- */
-export function getWeaponHandCost(item) {
+/** Return the number of hands represented by the system weapon mode. */
+export function getWeaponHandCost(item, { oneHanded = false } = {}) {
   const reference = String(item?.system?.reference ?? "").toLowerCase();
   const qualities = item?.system?.qualities ?? {};
   if (reference === "unarmed") return 0;
   if (reference === "shield" && qualities.flexible) return 0;
   if (reference === "heavy") return 2;
-  if (reference === "long") return 2;
+  if (reference === "long") return oneHanded ? 1 : 2;
   if (reference === "ranged") return 2;
   return 1;
 }
 
 export function getWeaponHandUsage(weapons, desiredIds = []) {
   const desired = new Set(desiredIds ?? []);
+  const oneHandedLongIds = getOneHandedLongWeaponIds(weapons, desired);
   return Array.from(weapons ?? [])
     .filter((weapon) => desired.has(weapon.id))
-    .reduce((total, weapon) => total + getWeaponHandCost(weapon), 0);
+    .reduce((total, weapon) => total + getWeaponHandCost(weapon, {
+      oneHanded: oneHandedLongIds.has(weapon.id)
+    }), 0);
+}
+
+export function getOneHandedLongWeaponIds(weapons, desiredIds = []) {
+  // A weapon in the long class may be drawn one-handed only while a shield is drawn;
+  // the temporary mode is represented by disabling Long on the weapon itself.
+  const desired = new Set(desiredIds ?? []);
+  const shieldSelected = Array.from(weapons ?? []).some((weapon) => (
+    desired.has(weapon.id) && isShieldWeapon(weapon)
+  ));
+  if (!shieldSelected) return new Set();
+  return new Set(Array.from(weapons ?? [])
+    .filter((weapon) => desired.has(weapon.id) && isLongWeapon(weapon))
+    .map((weapon) => weapon.id));
 }
 
 export function resolveWeaponItem(actor, weapon) {
@@ -153,6 +166,7 @@ export function resolveWeaponItem(actor, weapon) {
 
 export function buildWeaponReadinessPatches(weapons, desiredIds = []) {
   const desired = new Set(desiredIds);
+  const oneHandedLongIds = getOneHandedLongWeaponIds(weapons, desired);
   return weapons.flatMap((weapon) => {
     const shouldBeDrawn = desired.has(weapon.id);
     const nextState = shouldBeDrawn ? "active" : WEAPON_SHEATHED_STATE;
@@ -160,12 +174,30 @@ export function buildWeaponReadinessPatches(weapons, desiredIds = []) {
     const currentState = String(weapon.system?.state ?? "").toLowerCase();
     const currentReadinessState = weapon.getFlag?.(FLAG_SCOPE, WEAPON_READINESS_FLAG)
       ?? weapon.flags?.[FLAG_SCOPE]?.[WEAPON_READINESS_FLAG];
-    if (currentState === nextState && currentReadinessState === nextReadinessState) return [];
-    return [{
-      _id: weapon.id,
-      "system.state": nextState,
-      [`flags.${FLAG_SCOPE}.${WEAPON_READINESS_FLAG}`]: nextReadinessState
-    }];
+    const currentLongMode = getReadinessFlag(weapon, WEAPON_READINESS_LONG_MODE_FLAG) === true;
+    const shouldUseLongOneHanded = shouldBeDrawn && oneHandedLongIds.has(weapon.id);
+    const patch = { _id: weapon.id };
+
+    if (currentState !== nextState || currentReadinessState !== nextReadinessState) {
+      patch["system.state"] = nextState;
+      patch[`flags.${FLAG_SCOPE}.${WEAPON_READINESS_FLAG}`] = nextReadinessState;
+    }
+
+    if (shouldUseLongOneHanded && !currentLongMode) {
+      patch["system.qualities.long"] = false;
+      patch[`flags.${FLAG_SCOPE}.${WEAPON_READINESS_LONG_MODE_FLAG}`] = true;
+      patch[`flags.${FLAG_SCOPE}.${WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG}`] = Boolean(
+        weapon.system?.qualities?.long
+      );
+    } else if (!shouldUseLongOneHanded && currentLongMode) {
+      patch["system.qualities.long"] = Boolean(
+        getReadinessFlag(weapon, WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG)
+      );
+      patch[`flags.${FLAG_SCOPE}.-=${WEAPON_READINESS_LONG_MODE_FLAG}`] = null;
+      patch[`flags.${FLAG_SCOPE}.-=${WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG}`] = null;
+    }
+
+    return Object.keys(patch).length > 1 ? [patch] : [];
   });
 }
 
@@ -182,7 +214,9 @@ async function updateWeaponReadiness(actor, desiredIds) {
   const next = weapons.filter((weapon) => desired.has(weapon.id));
   const drawn = next.filter((weapon) => !previous.some((entry) => entry.id === weapon.id));
   const sheathed = previous.filter((weapon) => !desired.has(weapon.id));
-  await createReadinessChatMessage(actor, drawn, sheathed);
+  if (drawn.length > 0 || sheathed.length > 0) {
+    await createReadinessChatMessage(actor, drawn, sheathed);
+  }
   Hooks.callAll(`${MODULE_ID}.weaponReadinessChanged`, { actor, drawn, sheathed, previous, current: next });
   return true;
 }
@@ -265,8 +299,38 @@ function canManageActor(actor) {
 }
 
 function clearReadinessWhenWeaponBecomesInactive(item, changes) {
-  if (item?.type !== "weapon" || !isDrawn(item)) return;
+  if (item?.type !== "weapon") return;
   const nextState = foundry.utils.getProperty(changes, "system.state");
-  if (nextState === undefined || nextState === "active") return;
+  const nextStoredIn = foundry.utils.getProperty(changes, `flags.${FLAG_SCOPE}.storedIn`);
+  const leavingDrawn = nextState !== undefined && nextState !== "active";
+  const storedInChanged = nextStoredIn !== undefined;
+  const inLongOneHandedMode = getReadinessFlag(item, WEAPON_READINESS_LONG_MODE_FLAG) === true;
+
+  if (inLongOneHandedMode && (leavingDrawn || storedInChanged)) {
+    foundry.utils.setProperty(
+      changes,
+      "system.qualities.long",
+      Boolean(getReadinessFlag(item, WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG))
+    );
+    foundry.utils.setProperty(changes, `flags.${FLAG_SCOPE}.${WEAPON_READINESS_FLAG}`, "sheathed");
+    changes[`flags.${FLAG_SCOPE}.-=${WEAPON_READINESS_LONG_MODE_FLAG}`] = null;
+    changes[`flags.${FLAG_SCOPE}.-=${WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG}`] = null;
+    return;
+  }
+
+  if (!isDrawn(item) || !leavingDrawn) return;
   foundry.utils.setProperty(changes, `flags.${FLAG_SCOPE}.${WEAPON_READINESS_FLAG}`, "sheathed");
+}
+
+function isLongWeapon(item) {
+  return String(item?.system?.reference ?? "").toLowerCase() === "long";
+}
+
+function isShieldWeapon(item) {
+  return String(item?.system?.reference ?? "").toLowerCase() === "shield";
+}
+
+function getReadinessFlag(item, key) {
+  return item?.getFlag?.(FLAG_SCOPE, key)
+    ?? item?.flags?.[FLAG_SCOPE]?.[key];
 }

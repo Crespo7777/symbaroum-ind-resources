@@ -14,5 +14,8 @@ assert.match(modernChat, /TENEBRE\.ModernChat\.EquipmentFlavor/, "Equipment card
 assert.match(modernChat, /linkedItemFlavorHtml\(flavor, \{ itemName, itemUuid \}\)/, "Equipment names in compact chat cards must open their Item document");
 assert.match(modernChat, /gmLogAction\?\.subjectUuid\s*\n\s*\|\| rationItem\?\.uuid/, "Ration cards must preserve their equipment UUID link");
 assert.match(modernChat, /linkedItemFlavorHtml\(flavor, \{ itemName: displayName, itemUuid \}\)/, "Ration names must open their Item document");
+assert.match(modernChat, /const isExplicitUse = source\.querySelector\("\.tenebre-chat-item-use"\)/, "Generic item cards must distinguish explicit use from informational sharing");
+assert.match(modernChat, /if \(!isExplicitUse\) return null;/, "Informational native Item cards must remain intact instead of becoming compact use cards");
+assert.doesNotMatch(modernChat, /if \(!isExplicitUse && !symbaroumCard\) return null;/, "Native Item cards alone must not be treated as item use");
 
 console.log("equipment chat use tests passed");

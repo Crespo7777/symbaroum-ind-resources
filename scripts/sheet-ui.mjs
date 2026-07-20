@@ -16,6 +16,8 @@ import { isWeaponReadinessIndicatorEffect } from "./weapon-readiness-visuals.mjs
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { RitualBrowserService, isRitualDocument } from "./ritual-browser.mjs";
 import { WEAPON_READINESS_ICON, WeaponReadinessService } from "./weapon-readiness.mjs";
+import { GroundContainerService } from "./ground-containers.mjs";
+import { ContainerTransferService } from "./container-transfer.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
@@ -62,7 +64,6 @@ export function registerSheetHooks() {
   Hooks.on("createItem", (item) => onOwnedRitualCollectionChanged(item, true));
   Hooks.on("deleteItem", (item) => onOwnedRitualCollectionChanged(item, false));
   patchContextMenu();
-  patchPlayerSheetHeaderButtons();
 }
 
 function patchRitualistDropCreation() {
@@ -77,6 +78,8 @@ function patchRitualistDropCreation() {
       const droppedItem = data?.documentName === "Item"
         ? data
         : await ItemClass.fromDropData(data);
+      const containerTransfer = await ContainerTransferService.handleActorItemDrop(this.actor, droppedItem);
+      if (containerTransfer.handled) return containerTransfer.result;
       if (!isRitualDocument(droppedItem)) return original.call(this, event, data);
       if (!this.actor?.isOwner) return null;
       if (this.actor.uuid === droppedItem.parent?.uuid) return original.call(this, event, data);
@@ -313,6 +316,20 @@ function patchContextMenu() {
         });
 
         this.originalMenuItems.push({
+          name: "TENEBRE.Containers.ConfigureContextMenu",
+          icon: `<i class="fas fa-sliders-h" style="color: currentColor;"></i>`,
+          isVisible: (item) => game.user?.isGM
+            && TenebreSettings.get("enableContainers")
+            && ContainerService.isContainer(item),
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
+            if (actor && item) void ContainerService.configureContainerPrompt(actor, item);
+          }
+        });
+
+        this.originalMenuItems.push({
           name: "TENEBRE.Ammo.RecoverAmmoContextMenu",
           icon: `<i class="fas fa-arrows-rotate" style="color: currentColor;"></i>`,
           isVisible: (item) => {
@@ -472,7 +489,6 @@ function onRenderActorSheet(app, html) {
   if (TenebreSettings.get("enableContainers")) {
     hideStoredItemRows(app, html, actor);
     injectContainerInlineLists(app, html, actor);
-    wireContainerLeftClickOpen(app, html, actor);
     wireContainerDragDrop(app, html, actor);
   }
   injectRitualistInlineList(app, html, actor);
@@ -797,25 +813,20 @@ function wireInventoryItemIconUse(html, actor) {
   const el = getRoot(html);
   if (!el) return;
 
-  const canOpenContainers = TenebreSettings.get("enableContainers");
   const canUseItems = TenebreSettings.get("enableChatItemUse");
-  if (!canOpenContainers && !canUseItems) return;
+  if (!canUseItems) return;
 
-  const controls = el.querySelectorAll([
-    ".gear .item-row.item[data-item-id] .image-container > .image",
-    ".gear .item-row.item[data-item-id] .item-edit"
-  ].join(", "));
+  const controls = el.querySelectorAll(
+    ".gear .item-row.item[data-item-id] .image-container > .image"
+  );
 
   for (const control of controls) {
     if (control.dataset.tenebreItemIconUse === "true") continue;
 
     const row = control.closest(".item-row.item[data-item-id]");
     const item = row ? actor.items.get(row.dataset.itemId) : null;
-    const opensContainer = canOpenContainers
-      && ContainerService.isContainer(item)
-      && !ContainerService.isStored(item);
     const usesItem = canUseItems && ChatItemUseService.canSend(item);
-    if (!opensContainer && !usesItem) continue;
+    if (!usesItem) continue;
 
     control.dataset.tenebreItemIconUse = "true";
     control.classList.add("tenebre-item-icon-use");
@@ -824,9 +835,7 @@ function wireInventoryItemIconUse(html, actor) {
       control.tabIndex = 0;
       control.setAttribute("role", "button");
     }
-    control.title = game.i18n.localize(opensContainer
-      ? "TENEBRE.Containers.OpenContextMenu"
-      : "TENEBRE.ChatItemUse.ContextMenu");
+    control.title = game.i18n.localize("TENEBRE.ChatItemUse.ContextMenu");
 
     const activate = async (event) => {
       if (event.type === "click" && event.button !== 0) return;
@@ -836,34 +845,12 @@ function wireInventoryItemIconUse(html, actor) {
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      if (opensContainer) await ContainerService.openContainer(actor, item);
-      else await ChatItemUseService.send(actor, item);
+      await ChatItemUseService.send(actor, item);
     };
 
     control.addEventListener("click", activate, { capture: true });
     if (!isNativeButton) control.addEventListener("keydown", activate, { capture: true });
   }
-}
-
-function wireContainerLeftClickOpen(app, html, actor) {
-  const el = getRoot(html);
-  if (!el || el.dataset.tenebreContainerLeftClick === "true") return;
-
-  el.dataset.tenebreContainerLeftClick = "true";
-  el.addEventListener("click", async (event) => {
-    if (event.button !== 0) return;
-    const editButton = event.target?.closest?.(".item-edit");
-    if (!editButton || !el.contains(editButton)) return;
-
-    const row = editButton.closest("[data-item-id]");
-    const item = row ? actor.items.get(row.dataset.itemId) : null;
-    if (!ContainerService.isContainer(item) || ContainerService.isStored(item)) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    await ContainerService.openContainer(actor, item);
-  }, { capture: true });
 }
 
 function wireContainerDragDrop(app, html, actor) {
@@ -878,7 +865,10 @@ function wireContainerDragDrop(app, html, actor) {
     if (!dragData) return;
 
     activeContainerDrag = dragData;
-    event.dataTransfer?.setData(CONTAINER_DRAG_DATA_TYPE, JSON.stringify(dragData));
+    const serialized = JSON.stringify(dragData);
+    event.dataTransfer?.setData(CONTAINER_DRAG_DATA_TYPE, serialized);
+    event.dataTransfer?.setData("text/plain", serialized);
+    event.dataTransfer?.setData("application/json", serialized);
     if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
   }, { capture: true });
 
@@ -939,7 +929,10 @@ function wireContainerDragDrop(app, html, actor) {
 function prepareContainerDraggables(el, actor) {
   for (const row of el.querySelectorAll(".item[data-item-id]")) {
     const item = actor.items.get(row.dataset.itemId);
-    if (!ContainerService.canAttemptStoreItem(item)) continue;
+    const canDragContainer = ContainerService.isContainer(item)
+      && !ContainerService.isStored(item)
+      && !GroundContainerService.hasGroundToken(item);
+    if (!canDragContainer && !ContainerService.canAttemptStoreItem(item)) continue;
     row.draggable = true;
     row.classList.add("tenebre-container-draggable");
   }
@@ -956,8 +949,12 @@ function getContainerDragStartData(event, root, actor) {
   const itemRow = event.target?.closest?.(".item[data-item-id]");
   if (!itemRow || !root.contains(itemRow)) return null;
   const item = actor.items.get(itemRow.dataset.itemId);
+  if (ContainerService.isContainer(item) && !ContainerService.isStored(item)
+    && !GroundContainerService.hasGroundToken(item)) {
+    return GroundContainerService.buildDragData(actor, item);
+  }
   if (!ContainerService.canAttemptStoreItem(item)) return null;
-  return { actorId: actor.id, itemId: item.id, source: "inventory" };
+  return { actorId: actor.id, actorUuid: actor.uuid, itemId: item.id, source: "inventory" };
 }
 
 function getContainerDropData(event) {
@@ -1156,6 +1153,8 @@ function injectContainerInlineLists(app, html, actor) {
     const row = el.querySelector(`[data-item-id="${container.id}"]`);
     if (!row || row.classList.contains("tenebre-hidden-stored-item")) continue;
 
+    decorateContainerCapacity(row, actor, container);
+
     const expanded = ContainerService.isContainerExpanded(actor, container);
     row.classList.toggle("tenebre-container-expanded", expanded);
     row.setAttribute("aria-expanded", expanded ? "true" : "false");
@@ -1163,6 +1162,24 @@ function injectContainerInlineLists(app, html, actor) {
 
     row.insertAdjacentElement("afterend", buildContainerInlineRow(actor, container, row));
   }
+}
+
+function decorateContainerCapacity(row, actor, container) {
+  row.querySelectorAll(".tenebre-container-capacity").forEach((badge) => badge.remove());
+
+  const badge = document.createElement("span");
+  badge.className = "tenebre-container-capacity";
+  badge.textContent = `(${ContainerService.getContainerCapacityLabel(actor, container)})`;
+  badge.title = game.i18n.localize("TENEBRE.Containers.CapacityDisplay");
+
+  const quantity = row.querySelector(".quantity");
+  if (quantity) {
+    quantity.append(" ", badge);
+    return;
+  }
+
+  const name = row.querySelector(".item-name, .name");
+  (name ?? row).append(" ", badge);
 }
 
 function buildContainerInlineRow(actor, container, anchorRow) {
@@ -1327,61 +1344,6 @@ function updateRationQuantityDisplay(app, html, actor) {
       }
     }
   }
-}
-
-// Adiciona botão "Descanso" no cabeçalho da ficha do jogador
-function patchPlayerSheetHeaderButtons() {
-  const PlayerSheetClass = CONFIG.Actor.sheetClasses.player["symbaroum.PlayerSheet"]?.cls
-    || Object.values(CONFIG.Actor.sheetClasses.player || {}).find(s => s.cls?.name === "PlayerSheet")?.cls;
-
-  if (!PlayerSheetClass) {
-    console.warn("Tenebre Resources | Could not find symbaroum.PlayerSheet in CONFIG.Actor.sheetClasses.player");
-    return;
-  }
-
-  const handler = function(wrapped) {
-    const buttons = wrapped.call(this);
-    if (isManagedActor(this.actor) && this.actor?.isOwner) {
-      if (isPlayerActor(this.actor) && TenebreSettings.get("enableRestButton")) {
-        buttons.unshift({
-          label: game.i18n.localize("TENEBRE.Rest.DialogTitle") || "Descanso",
-          class: "tenebre-rest",
-          icon: "fas fa-bed",
-          onclick: async (ev) => {
-            ev.preventDefault();
-            await RestService.openRestDialog(this.actor);
-          }
-        });
-      }
-
-      if (TenebreSettings.get("enableClearEffectsButton") && hasActorEffects(this.actor)) {
-        buttons.unshift({
-          label: game.i18n.localize("TENEBRE.Maneuvers.ClearEffects"),
-          class: "tenebre-clear-effects",
-          icon: "fas fa-eraser",
-          onclick: async (ev) => {
-            ev.preventDefault();
-            const count = await clearActorEffects(this.actor);
-            ui.notifications.info(game.i18n.format("TENEBRE.Maneuvers.ClearEffectsDone", { count }));
-            syncActorSheetHeaders(this.actor);
-            window.setTimeout(() => syncActorSheetHeaders(this.actor), 0);
-            window.setTimeout(() => syncActorSheetHeaders(this.actor), 100);
-            this.render(false);
-          }
-        });
-      }
-    }
-    return buttons;
-  };
-
-  if (PlayerSheetClass.prototype._getHeaderButtons?._tenebreWrapped) return;
-
-  const original = PlayerSheetClass.prototype._getHeaderButtons;
-  PlayerSheetClass.prototype._getHeaderButtons = function tenebreGetHeaderButtons() {
-    const wrapped = () => original.call(this);
-    return handler.call(this, wrapped);
-  };
-  PlayerSheetClass.prototype._getHeaderButtons._tenebreWrapped = true;
 }
 
 function hasActorEffects(actor) {

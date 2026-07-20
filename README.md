@@ -34,6 +34,7 @@ sua explicacao detalhada:
 - [Municoes especiais e links no chat](#municoes-especiais)
 - [Sobrecarga e pesos por pacote](#sobrecarga)
 - [Recipientes e itens guardados](#recipientes)
+- [Documentacao tecnica de recipientes](docs/recipientes.md)
 - [Limpeza automatica de itens esgotados](#limpeza-automatica-do-inventario)
 - [Regua e limites de movimento](#movimento)
 - [Sacar, guardar e trocar armas](#sacar-e-guardar-armas)
@@ -586,6 +587,10 @@ Exemplo de conteudo esperado:
 
 Depois de inicializado, esses itens aparecem dentro da sublista do recipiente.
 
+Para a referencia de manutencao, invariantes, flags, estados, peso, seed de
+Equipamento de Acampar e diagnostico, consulte a
+[documentacao tecnica interna de recipientes](docs/recipientes.md).
+
 ---
 
 <a id="limpeza-automatica-do-inventario"></a>
@@ -725,6 +730,22 @@ O estilo **Ilustrado** cobre:
 - Rolagem de morte.
 - Aplicar resultados.
 - Macros e mensagens de sistema.
+
+### Contrato do chat e paridade
+
+O sistema Symbaroum continua sendo a fonte de verdade das regras. O Ilustrado
+e uma camada visual que deve preservar Roll, audiencia, privacidade, criticos,
+resistencia, dano, efeitos, links e integracoes. A documentacao tecnica esta
+separada para facilitar a auditoria:
+
+- [Chat nativo do Symbaroum](docs/chat-symbaroum-nativo.md): ciclo de rolagem,
+  templates, settings, privacidade, resistencia, dano, iniciativa e Dice So
+  Nice.
+- [Chat Ilustrado e paridade](docs/chat-ilustrado-paridade.md): pipeline do
+  modulo, mapeamento de builders, matriz de paridade, riscos e testes.
+
+O estilo **Legacy** e o caminho recomendado quando a prioridade for usar o
+HTML original sem transformacao visual do modulo.
 
 ### Pedidos de resistencia
 

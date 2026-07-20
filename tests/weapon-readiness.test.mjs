@@ -15,11 +15,16 @@ import {
   resolveWeaponItem,
   WEAPON_READINESS_ICON,
   WEAPON_READINESS_FLAG,
+  WEAPON_READINESS_LONG_MODE_FLAG,
+  WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG,
   WEAPON_SHEATHED_STATE
 } from "../scripts/weapon-readiness.mjs";
 import {
+  getWeaponReadinessStatusId,
   isWeaponReadinessIndicatorEffect,
-  WEAPON_READINESS_INDICATOR_FLAG
+  WEAPON_READINESS_INDICATOR_FLAG,
+  WEAPON_READINESS_INDICATOR_WEAPON_FLAG,
+  WeaponReadinessVisualService
 } from "../scripts/weapon-readiness-visuals.mjs";
 import { buildVisualActiveEffectData } from "../scripts/compatibility.mjs";
 
@@ -49,11 +54,10 @@ test("weapon readiness messages use the compact illustrated card when requested"
   assert.doesNotMatch(html, /tenebre-weapon-readiness-chat/);
 });
 
-test("modern chat migrates stored weapon cards from the removed separator asset", () => {
+test("modern chat references only the canonical illustrated separator asset", () => {
   const modernChat = requireModernChatSource();
-  assert.match(modernChat, /normalizeLegacyIllustratedSeparators\(content\)/);
-  assert.match(modernChat, /illustrated-separator\.png/);
   assert.match(modernChat, /assets\/icons\/Separador\.png/);
+  assert.doesNotMatch(modernChat, /illustrated-separator\.png/);
 });
 
 test("weapon readiness cards use the shared illustrated separator styling", () => {
@@ -76,14 +80,29 @@ test("weapon readiness messages preserve legacy layout and escape content", () =
   assert.doesNotMatch(html, /tenebre-modern-chat-illustrated/);
 });
 
-function weapon(id, { state = "active", reference = "1handed", readiness, qualities = {}, storedIn = "" } = {}) {
+function weapon(id, {
+  state = "active",
+  reference = "1handed",
+  readiness,
+  qualities = {},
+  storedIn = "",
+  longMode = false,
+  originalLongQuality
+} = {}) {
+  const readinessFlags = {
+    ...(readiness ? { [WEAPON_READINESS_FLAG]: readiness } : {}),
+    ...(longMode ? { [WEAPON_READINESS_LONG_MODE_FLAG]: true } : {}),
+    ...(originalLongQuality !== undefined
+      ? { [WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG]: originalLongQuality }
+      : {})
+  };
   return {
     id,
     type: "weapon",
     system: { state, reference, qualities },
-    flags: readiness || storedIn
+    flags: Object.keys(readinessFlags).length > 0 || storedIn
       ? { [scope]: {
-        ...(readiness ? { [WEAPON_READINESS_FLAG]: readiness } : {}),
+        ...readinessFlags,
         ...(storedIn ? { storedIn } : {})
       } }
       : {},
@@ -164,6 +183,7 @@ test("multiple drawn weapons and sheathe-all are supported", () => {
 test("weapon hand costs follow the physical Symbaroum limits represented by the system", () => {
   assert.equal(getWeaponHandCost(weapon("sword")), 1);
   assert.equal(getWeaponHandCost(weapon("spear", { reference: "long" })), 2);
+  assert.equal(getWeaponHandCost(weapon("spear", { reference: "long" }), { oneHanded: true }), 1);
   assert.equal(getWeaponHandCost(weapon("greatsword", { reference: "heavy" })), 2);
   assert.equal(getWeaponHandCost(weapon("bastard", { reference: "heavy", qualities: { bastard: true } })), 2);
   assert.equal(getWeaponHandCost(weapon("bow", { reference: "ranged" })), 2);
@@ -173,6 +193,45 @@ test("weapon hand costs follow the physical Symbaroum limits represented by the 
     weapon("sword"),
     weapon("dagger", { reference: "short" })
   ], ["sword", "dagger"]), 2);
+});
+
+test("a long weapon can be used one-handed with a shield and temporarily loses Long", () => {
+  const pike = weapon("pike", {
+    state: WEAPON_SHEATHED_STATE,
+    reference: "long",
+    qualities: { long: true, precise: true }
+  });
+  const shield = weapon("shield", {
+    state: WEAPON_SHEATHED_STATE,
+    reference: "shield"
+  });
+
+  assert.equal(getWeaponHandUsage([pike, shield], ["pike", "shield"]), 2);
+  assert.equal(getWeaponHandUsage([
+    pike,
+    weapon("sword", { reference: "1handed" })
+  ], ["pike", "sword"]), 3);
+
+  const drawPatches = buildWeaponReadinessPatches([pike, shield], ["pike", "shield"]);
+  const pikeDraw = drawPatches.find((patch) => patch._id === "pike");
+  assert.equal(pikeDraw["system.state"], "active");
+  assert.equal(pikeDraw["system.qualities.long"], false);
+  assert.equal(pikeDraw[`flags.${scope}.${WEAPON_READINESS_LONG_MODE_FLAG}`], true);
+  assert.equal(pikeDraw[`flags.${scope}.${WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG}`], true);
+
+  pike.system.state = "active";
+  pike.system.qualities.long = false;
+  pike.flags[scope] = {
+    [WEAPON_READINESS_FLAG]: "drawn",
+    [WEAPON_READINESS_LONG_MODE_FLAG]: true,
+    [WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG]: true
+  };
+  const restorePatches = buildWeaponReadinessPatches([pike, shield], ["shield"]);
+  const pikeRestore = restorePatches.find((patch) => patch._id === "pike");
+  assert.equal(pikeRestore["system.state"], WEAPON_SHEATHED_STATE);
+  assert.equal(pikeRestore["system.qualities.long"], true);
+  assert.equal(pikeRestore[`flags.${scope}.-=${WEAPON_READINESS_LONG_MODE_FLAG}`], null);
+  assert.equal(pikeRestore[`flags.${scope}.-=${WEAPON_READINESS_ORIGINAL_LONG_QUALITY_FLAG}`], null);
 });
 
 test("sheathed eligible weapons cannot attack while drawn and natural weapons remain usable", () => {
@@ -216,4 +275,171 @@ test("Foundry v14 visual effects explicitly request a token icon", () => {
   const data = buildVisualActiveEffectData({ name: "Indicator", img: "weapon.webp" }, 14);
   assert.equal(data.showIcon, 2);
   assert.equal(data.img, "weapon.webp");
+});
+
+test("each drawn armament receives an independent token indicator", async () => {
+  const originalGame = globalThis.game;
+  const gm = { id: "gm", active: true, isGM: true };
+  const created = [];
+  globalThis.game = {
+    release: { generation: 13 },
+    user: gm,
+    users: [gm],
+    settings: { get: () => true },
+    i18n: { format: (_key, { weapons }) => `Drawn weapon: ${weapons}` }
+  };
+
+  try {
+    const sword = Object.assign(weapon("sword", { readiness: "drawn" }), {
+      name: "Sword",
+      img: "sword.webp"
+    });
+    const shield = Object.assign(weapon("shield", { readiness: "drawn" }), {
+      name: "Shield",
+      img: "shield.webp"
+    });
+    const actor = {
+      id: "actor",
+      uuid: "Actor.actor",
+      type: "player",
+      items: [sword, shield],
+      effects: [],
+      async createEmbeddedDocuments(type, data) {
+        assert.equal(type, "ActiveEffect");
+        created.push(...data);
+      },
+      async updateEmbeddedDocuments() {
+        assert.fail("new indicators must not require an update");
+      },
+      async deleteEmbeddedDocuments() {
+        assert.fail("new indicators must not require deletion");
+      }
+    };
+
+    assert.equal(await WeaponReadinessVisualService.syncActorIndicator(actor), true);
+    assert.equal(created.length, 2);
+    assert.deepEqual(created.map((effect) => effect.img), ["sword.webp", "shield.webp"]);
+    assert.deepEqual(created.map((effect) => effect.statuses[0]), [
+      getWeaponReadinessStatusId("sword"),
+      getWeaponReadinessStatusId("shield")
+    ]);
+    assert.deepEqual(created.map((effect) => effect.flags[scope][WEAPON_READINESS_INDICATOR_WEAPON_FLAG]), [
+      "sword",
+      "shield"
+    ]);
+  } finally {
+    globalThis.game = originalGame;
+  }
+});
+
+test("legacy aggregated token indicators migrate to one effect per drawn armament", async () => {
+  const originalGame = globalThis.game;
+  const gm = { id: "gm", active: true, isGM: true };
+  const created = [];
+  const deleted = [];
+  globalThis.game = {
+    release: { generation: 14 },
+    user: gm,
+    users: [gm],
+    settings: { get: () => true },
+    i18n: { format: (_key, { weapons }) => `Drawn weapon: ${weapons}` }
+  };
+
+  try {
+    const sword = Object.assign(weapon("sword", { readiness: "drawn" }), {
+      name: "Sword",
+      img: "sword.webp"
+    });
+    const shield = Object.assign(weapon("shield", { readiness: "drawn" }), {
+      name: "Shield",
+      img: "shield.webp"
+    });
+    const actor = {
+      id: "legacy-actor",
+      uuid: "Actor.legacy-actor",
+      type: "player",
+      items: [sword, shield],
+      effects: [{
+        id: "legacy-effect",
+        flags: {
+          [scope]: {
+            [WEAPON_READINESS_INDICATOR_FLAG]: true,
+            weaponIds: ["sword", "shield"]
+          }
+        }
+      }],
+      async createEmbeddedDocuments(_type, data) {
+        created.push(...data);
+      },
+      async updateEmbeddedDocuments() {
+        assert.fail("the aggregate legacy effect must be replaced, not reused");
+      },
+      async deleteEmbeddedDocuments(_type, ids) {
+        deleted.push(...ids);
+      }
+    };
+
+    assert.equal(await WeaponReadinessVisualService.syncActorIndicator(actor), true);
+    assert.deepEqual(deleted, ["legacy-effect"]);
+    assert.equal(created.length, 2);
+    assert.deepEqual(created.map((effect) => effect.showIcon), [2, 2]);
+  } finally {
+    globalThis.game = originalGame;
+  }
+});
+
+test("indicator synchronization reruns after concurrent weapon state updates", async () => {
+  const originalGame = globalThis.game;
+  const gm = { id: "gm", active: true, isGM: true };
+  globalThis.game = {
+    release: { generation: 13 },
+    user: gm,
+    users: [gm],
+    settings: { get: () => true },
+    i18n: { format: (_key, { weapons }) => `Drawn weapon: ${weapons}` }
+  };
+
+  let releaseFirstCreate;
+  const firstCreate = new Promise((resolve) => { releaseFirstCreate = resolve; });
+
+  try {
+    const sword = Object.assign(weapon("sword", { readiness: "drawn" }), {
+      name: "Sword",
+      img: "sword.webp"
+    });
+    const shield = Object.assign(weapon("shield", { state: WEAPON_SHEATHED_STATE }), {
+      name: "Shield",
+      img: "shield.webp"
+    });
+    let createCalls = 0;
+    const actor = {
+      id: "concurrent-actor",
+      uuid: "Actor.concurrent-actor",
+      type: "player",
+      items: [sword, shield],
+      effects: [],
+      async createEmbeddedDocuments(_type, data) {
+        createCalls += 1;
+        if (createCalls === 1) await firstCreate;
+        for (const effect of data) {
+          this.effects.push({ id: `effect-${this.effects.length + 1}`, ...effect });
+        }
+      },
+      async updateEmbeddedDocuments() {},
+      async deleteEmbeddedDocuments() {}
+    };
+
+    const initialSync = WeaponReadinessVisualService.syncActorIndicator(actor);
+    shield.system.state = "active";
+    shield.flags[scope] = { [WEAPON_READINESS_FLAG]: "drawn" };
+    const queuedSync = WeaponReadinessVisualService.syncActorIndicator(actor);
+    releaseFirstCreate();
+
+    assert.equal(await initialSync, true);
+    assert.equal(await queuedSync, true);
+    assert.equal(createCalls, 2);
+    assert.deepEqual(actor.effects.map((effect) => effect.img), ["sword.webp", "shield.webp"]);
+  } finally {
+    globalThis.game = originalGame;
+  }
 });
