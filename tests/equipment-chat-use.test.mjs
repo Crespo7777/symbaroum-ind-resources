@@ -8,6 +8,7 @@ const itemUse = fs.readFileSync(path.join(root, "scripts", "chat-item-use.mjs"),
 const modernChat = fs.readFileSync(path.join(root, "scripts", "modern-chat.mjs"), "utf8");
 
 assert.match(itemUse, /isEquipment:\s*item\.type === "equipment" \|\| item\.system\?\.isEquipment === true/, "Equipment use messages must carry stable type metadata");
+assert.match(itemUse, /!ContainerService\.isContainer\(item\)/, "Containers must not be sent as used equipment");
 assert.match(modernChat, /buildRationUseCard\(message, source, text\)\s*\n\s*\?\? buildEquipmentUseCard\(message\)/, "Ration cards must remain more specific than generic equipment cards");
 assert.match(modernChat, /flags\?\.chatItemUse !== true \|\| flags\?\.isEquipment !== true/, "Only explicit equipment-use messages may use the compact equipment card");
 assert.match(modernChat, /TENEBRE\.ModernChat\.EquipmentFlavor/, "Equipment cards must use localized compact text");

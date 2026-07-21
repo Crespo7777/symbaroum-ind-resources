@@ -10,6 +10,7 @@ import {
   canAttackWithWeapon,
   getWeaponHandCost,
   getWeaponHandUsage,
+  isWeaponReadinessChatEnabled,
   isDrawn,
   isEligibleWeapon,
   resolveWeaponItem,
@@ -38,6 +39,14 @@ function requireModernChatSource() {
 
 test("sheet and HUD readiness indicators share the Symbaroum weapon icon", () => {
   assert.equal(WEAPON_READINESS_ICON, "/systems/symbaroum/asset/image/weapon.png");
+});
+
+test("weapon readiness chat messages are controlled by an independent setting", () => {
+  const enabled = { get: (_moduleId, key) => key === "showWeaponReadinessChatMessages" };
+  const disabled = { get: () => false };
+  assert.equal(isWeaponReadinessChatEnabled(enabled), true);
+  assert.equal(isWeaponReadinessChatEnabled(disabled), false);
+  assert.equal(isWeaponReadinessChatEnabled({ get: () => { throw new Error("unavailable"); } }), false);
 });
 
 test("weapon readiness messages use the compact illustrated card when requested", () => {

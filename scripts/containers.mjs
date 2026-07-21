@@ -319,7 +319,8 @@ export class ContainerService {
     const key = itemTransferDeleteKey(item);
     if (!key) return false;
     transferDeleteAllowlist.add(key);
-    setTimeout(() => transferDeleteAllowlist.delete(key), 30000);
+    const cleanupTimer = setTimeout(() => transferDeleteAllowlist.delete(key), 30000);
+    cleanupTimer?.unref?.();
     return true;
   }
 

@@ -1759,11 +1759,13 @@
   cursor: pointer;
 }
 
-.symbaroum.sheet.actor .gear .tenebre-item-icon-use {
+.symbaroum.sheet.actor .gear .tenebre-item-icon-use,
+.symbaroum.sheet.actor .gear .tenebre-container-toggle {
   cursor: pointer;
 }
 
-.symbaroum.sheet.actor .gear .tenebre-item-icon-use:focus-visible {
+.symbaroum.sheet.actor .gear .tenebre-item-icon-use:focus-visible,
+.symbaroum.sheet.actor .gear .tenebre-container-toggle:focus-visible {
   outline: 2px solid #c9a227;
   outline-offset: 1px;
 }
@@ -2287,11 +2289,26 @@
   user-select: none;
 }
 
+.tenebre-container-item img.tenebre-container-item-use {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.tenebre-container-item img.tenebre-container-item-use:focus-visible,
+.tenebre-container-name-open:focus-visible {
+  outline: 2px solid rgba(204, 158, 62, 0.95);
+  outline-offset: 1px;
+}
+
 .tenebre-container-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: bold;
+}
+
+.tenebre-container-name-open {
+  cursor: pointer;
 }
 
 .tenebre-container-qty {

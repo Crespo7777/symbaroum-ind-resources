@@ -214,11 +214,19 @@ async function updateWeaponReadiness(actor, desiredIds) {
   const next = weapons.filter((weapon) => desired.has(weapon.id));
   const drawn = next.filter((weapon) => !previous.some((entry) => entry.id === weapon.id));
   const sheathed = previous.filter((weapon) => !desired.has(weapon.id));
-  if (drawn.length > 0 || sheathed.length > 0) {
+  if ((drawn.length > 0 || sheathed.length > 0) && isWeaponReadinessChatEnabled()) {
     await createReadinessChatMessage(actor, drawn, sheathed);
   }
   Hooks.callAll(`${MODULE_ID}.weaponReadinessChanged`, { actor, drawn, sheathed, previous, current: next });
   return true;
+}
+
+export function isWeaponReadinessChatEnabled(settings = game.settings) {
+  try {
+    return Boolean(settings?.get?.(MODULE_ID, "showWeaponReadinessChatMessages"));
+  } catch {
+    return false;
+  }
 }
 
 async function createReadinessChatMessage(actor, drawn, sheathed) {

@@ -489,6 +489,7 @@ function onRenderActorSheet(app, html) {
   if (TenebreSettings.get("enableContainers")) {
     hideStoredItemRows(app, html, actor);
     injectContainerInlineLists(app, html, actor);
+    wireContainerLeftClickToggle(html, actor);
     wireContainerDragDrop(app, html, actor);
   }
   injectRitualistInlineList(app, html, actor);
@@ -825,7 +826,9 @@ function wireInventoryItemIconUse(html, actor) {
 
     const row = control.closest(".item-row.item[data-item-id]");
     const item = row ? actor.items.get(row.dataset.itemId) : null;
-    const usesItem = canUseItems && ChatItemUseService.canSend(item);
+    const usesItem = canUseItems
+      && !ContainerService.isContainer(item)
+      && ChatItemUseService.canSend(item);
     if (!usesItem) continue;
 
     control.dataset.tenebreItemIconUse = "true";
@@ -850,6 +853,45 @@ function wireInventoryItemIconUse(html, actor) {
 
     control.addEventListener("click", activate, { capture: true });
     if (!isNativeButton) control.addEventListener("keydown", activate, { capture: true });
+  }
+}
+
+function wireContainerLeftClickToggle(html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  for (const row of el.querySelectorAll(".gear .item-row.item[data-item-id]")) {
+    const item = actor.items.get(row.dataset.itemId);
+    if (!ContainerService.isContainer(item) || ContainerService.isStored(item)) continue;
+
+    const controls = row.querySelectorAll(".item-edit, .image-container > .image");
+    for (const control of controls) {
+      if (control.dataset.tenebreContainerToggle === "true") continue;
+
+      control.dataset.tenebreContainerToggle = "true";
+      control.classList.remove("tenebre-item-icon-use");
+      control.classList.add("tenebre-container-toggle");
+      control.title = game.i18n.localize("TENEBRE.Containers.OpenContextMenu");
+
+      const isNativeButton = control.matches("button, input, select, textarea, a[href]");
+      if (!isNativeButton) {
+        control.tabIndex = 0;
+        control.setAttribute("role", "button");
+      }
+
+      const activate = async (event) => {
+        if (event.type === "click" && event.button !== 0) return;
+        if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        await ContainerService.toggleContainer(actor, item);
+      };
+
+      control.addEventListener("click", activate, { capture: true });
+      if (!isNativeButton) control.addEventListener("keydown", activate, { capture: true });
+    }
   }
 }
 
@@ -1230,15 +1272,45 @@ function buildContainerInlineItem(actor, item) {
   row.dataset.storedItemId = item.id;
   row.draggable = true;
 
+  const openItem = (event) => {
+    if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    item.sheet?.render(true);
+  };
+
   const img = document.createElement("img");
   img.src = item.img || "icons/svg/item-bag.svg";
   img.alt = "";
   img.draggable = false;
+  if (TenebreSettings.get("enableChatItemUse") && ChatItemUseService.canSend(item)) {
+    img.classList.add("tenebre-container-item-use");
+    img.tabIndex = 0;
+    img.setAttribute("role", "button");
+    img.title = game.i18n.localize("TENEBRE.ChatItemUse.ContextMenu");
+
+    const useItem = async (event) => {
+      if (event.type === "click" && event.button !== 0) return;
+      if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      await ChatItemUseService.send(actor, item);
+    };
+
+    img.addEventListener("click", useItem, { capture: true });
+    img.addEventListener("keydown", useItem, { capture: true });
+  }
   row.appendChild(img);
 
   const name = document.createElement("span");
-  name.className = "tenebre-container-name";
+  name.className = "tenebre-container-name tenebre-container-name-open";
   name.textContent = item.name;
+  name.tabIndex = 0;
+  name.setAttribute("role", "button");
+  name.title = game.i18n.localize("TENEBRE.Containers.Edit");
+  name.addEventListener("click", openItem);
+  name.addEventListener("keydown", openItem);
   row.appendChild(name);
 
   const quantity = document.createElement("span");
@@ -1261,11 +1333,7 @@ function buildContainerInlineItem(actor, item) {
   edit.type = "button";
   edit.draggable = false;
   edit.textContent = game.i18n.localize("TENEBRE.Containers.Edit");
-  edit.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    item.sheet?.render(true);
-  });
+  edit.addEventListener("click", openItem);
   row.appendChild(edit);
 
   return row;

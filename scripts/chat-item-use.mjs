@@ -3,6 +3,7 @@ import { TenebreSettings } from "./settings.mjs";
 import { isRation } from "./item-flags.mjs";
 import { RationService } from "./rations.mjs";
 import { escapeHtml } from "./utils.mjs";
+import { ContainerService } from "./containers.mjs";
 
 const CHAT_ITEM_TYPES = new Set([
   "ability",
@@ -24,7 +25,12 @@ export class ChatItemUseService {
   }
 
   static canSend(item) {
-    return Boolean(item?.isOwned && item?.parent && isSupportedChatItem(item));
+    return Boolean(
+      item?.isOwned
+      && item?.parent
+      && !ContainerService.isContainer(item)
+      && isSupportedChatItem(item)
+    );
   }
 
   static async send(actor, item, { preferAttack = false } = {}) {

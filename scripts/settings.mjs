@@ -146,6 +146,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "showWeaponReadinessButton",
       "showWeaponReadinessTokenIndicator",
       "enableWeaponReadinessAnimation",
+      "showWeaponReadinessChatMessages",
       "enableModernChat",
       "enableChatItemUse",
       "enableAutomatedAnimationsIntegration",
@@ -324,6 +325,7 @@ export class TenebreSettings {
     register("showWeaponReadinessButton", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessButton", "TENEBRE.Settings.ShowWeaponReadinessButtonHint");
     register("showWeaponReadinessTokenIndicator", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator", "TENEBRE.Settings.ShowWeaponReadinessTokenIndicatorHint");
     register("enableWeaponReadinessAnimation", Boolean, true, "TENEBRE.Settings.EnableWeaponReadinessAnimation", "TENEBRE.Settings.EnableWeaponReadinessAnimationHint");
+    register("showWeaponReadinessChatMessages", Boolean, false, "TENEBRE.Settings.ShowWeaponReadinessChatMessages", "TENEBRE.Settings.ShowWeaponReadinessChatMessagesHint");
     register("weaponReadinessButtonPosition", Object, {}, "TENEBRE.Settings.WeaponReadinessButtonPosition", "TENEBRE.Settings.WeaponReadinessButtonPositionHint", { scope: "client" });
     register("gmLogWindowPosition", Object, {}, "TENEBRE.Settings.GmLogWindowPosition", "TENEBRE.Settings.GmLogWindowPositionHint", { scope: "client" });
     register("enableModernChat", Boolean, true, "TENEBRE.Settings.EnableModernChat", "TENEBRE.Settings.EnableModernChatHint");
