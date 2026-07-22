@@ -1,0 +1,468 @@
+{
+  "version": 1,
+  "source": "Symbaroum Core Rules and Advanced Player Guide",
+  "rituals": [
+    {
+      "nameEn": "Twin Servants",
+      "namePt": "Servos Gêmeos",
+      "traditionEn": "Pyromancer only",
+      "traditionPt": "Apenas Piromante",
+      "restricted": true
+    },
+    {
+      "nameEn": "Nature's Lullaby",
+      "namePt": "Cantiga da Natureza",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Witch Circle",
+      "namePt": "Círculo de Bruxa",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Summoning",
+      "namePt": "Convocação",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Quick Growth",
+      "namePt": "Crescimento Rápido",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Borrow Beast",
+      "namePt": "Emprestar Besta",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Familiar",
+      "namePt": "Familiar",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Blood Bond",
+      "namePt": "Laço de Sangue",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Fortune Telling",
+      "namePt": "Leitura da Sorte",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Necromancy",
+      "namePt": "Necromancia",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Traceless",
+      "namePt": "Sem Rastro",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Burdened by Fate",
+      "namePt": "Sobrecarregado pelo Destino",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Turn Weather",
+      "namePt": "Virar o Clima",
+      "traditionEn": "Witchcraft",
+      "traditionPt": "Bruxaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Torment",
+      "namePt": "Tormento",
+      "traditionEn": "Witchcraft, Sorcery",
+      "traditionPt": "Bruxaria, Feitiçaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Black Sympathy",
+      "namePt": "Simpatia Sombria",
+      "traditionEn": "Witchcraft, Sorcery, Theurgy",
+      "traditionPt": "Bruxaria, Feitiçaria, Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Retrieve",
+      "namePt": "Recuperar",
+      "traditionEn": "Troll Singing",
+      "traditionPt": "Canto do Troll",
+      "restricted": false
+    },
+    {
+      "nameEn": "Restore",
+      "namePt": "Restaurar",
+      "traditionEn": "Troll Singing",
+      "traditionPt": "Canto do Troll",
+      "restricted": false
+    },
+    {
+      "nameEn": "Sealing/Opening Rite",
+      "namePt": "Rito de Selar/Abrir",
+      "traditionEn": "Troll Singing",
+      "traditionPt": "Canto do Troll",
+      "restricted": false
+    },
+    {
+      "nameEn": "Beast Companion",
+      "namePt": "Besta Companheira",
+      "traditionEn": "Blood Waders only",
+      "traditionPt": "Disponível apenas para Aves de Sangue",
+      "restricted": true
+    },
+    {
+      "nameEn": "Atonement",
+      "namePt": "Expiação",
+      "traditionEn": "Confessors only",
+      "traditionPt": "Disponível apenas para Confessores",
+      "restricted": true
+    },
+    {
+      "nameEn": "Summon Daemon",
+      "namePt": "Convocar Daemon",
+      "traditionEn": "Demonologists only",
+      "traditionPt": "Disponível apenas para Demonologistas",
+      "restricted": true
+    },
+    {
+      "nameEn": "Servant Daemon",
+      "namePt": "Servo Daemon",
+      "traditionEn": "Demonologists only",
+      "traditionPt": "Disponível apenas para Demonologistas",
+      "restricted": true
+    },
+    {
+      "nameEn": "Death Divination",
+      "namePt": "Adivinhação da Morte",
+      "traditionEn": "Spiritualists only",
+      "traditionPt": "Disponível apenas para Espiritualistas",
+      "restricted": true
+    },
+    {
+      "nameEn": "Fata Morgana",
+      "namePt": "Fata Morgana",
+      "traditionEn": "Illusionists only",
+      "traditionPt": "Disponível apenas para Ilusionistas",
+      "restricted": true
+    },
+    {
+      "nameEn": "Piercing Gaze",
+      "namePt": "Olhar penetrante",
+      "traditionEn": "Inquisitors only",
+      "traditionPt": "Disponível apenas para Inquisidores",
+      "restricted": true
+    },
+    {
+      "nameEn": "Blood Storm",
+      "namePt": "Tempestade de Sangue",
+      "traditionEn": "Staff Mages only",
+      "traditionPt": "Disponível apenas para Magistas do Cajado",
+      "restricted": true
+    },
+    {
+      "nameEn": "Quake",
+      "namePt": "Tremor",
+      "traditionEn": "Staff Mages only",
+      "traditionPt": "Disponível apenas para Magistas do Cajado",
+      "restricted": true
+    },
+    {
+      "nameEn": "Spell Tunnel",
+      "namePt": "Túnel de Magia",
+      "traditionEn": "Mentalists only",
+      "traditionPt": "Disponível apenas para Mentalistas",
+      "restricted": true
+    },
+    {
+      "nameEn": "Death Lord",
+      "namePt": "Lorde da Morte",
+      "traditionEn": "Necromancers only",
+      "traditionPt": "Disponível apenas para Necromantes",
+      "restricted": true
+    },
+    {
+      "nameEn": "Living Fortress",
+      "namePt": "Fortaleza Viva",
+      "traditionEn": "Green Weavers only",
+      "traditionPt": "Disponível apenas para Tecelões Verdes",
+      "restricted": true
+    },
+    {
+      "nameEn": "Soul Trap",
+      "namePt": "Armadilha de Alma",
+      "traditionEn": "Sorcery",
+      "traditionPt": "Feitiçaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Raise Undead",
+      "namePt": "Erguer os Mortos",
+      "traditionEn": "Sorcery",
+      "traditionPt": "Feitiçaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Enslave",
+      "namePt": "Escravizar",
+      "traditionEn": "Sorcery",
+      "traditionPt": "Feitiçaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Phylactery",
+      "namePt": "Filactério",
+      "traditionEn": "Sorcery",
+      "traditionPt": "Feitiçaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Flesh Craft",
+      "namePt": "Moldar Carne",
+      "traditionEn": "Sorcery",
+      "traditionPt": "Feitiçaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Possess",
+      "namePt": "Possessão",
+      "traditionEn": "Sorcery",
+      "traditionPt": "Feitiçaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Desecrating Rite",
+      "namePt": "Rito de Profanação",
+      "traditionEn": "Sorcery",
+      "traditionPt": "Feitiçaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Exchange Shadow",
+      "namePt": "Trocar sombra",
+      "traditionEn": "Sorcery",
+      "traditionPt": "Feitiçaria",
+      "restricted": false
+    },
+    {
+      "nameEn": "Magic Circle",
+      "namePt": "Círculo Mágico",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Clairvoyance",
+      "namePt": "Clarividência",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Tale of Ashes",
+      "namePt": "Conto das Cinzas",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Life Extension",
+      "namePt": "Estender Vida",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "False Shape",
+      "namePt": "Forma Falsa",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Illusion",
+      "namePt": "Ilusão",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Telepathic Interrogation",
+      "namePt": "Interrogatório Telepático",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Bewitching Landscape",
+      "namePt": "Paisagem encantadora",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Seven-League Stride",
+      "namePt": "Passo de sete léguas",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Soul Stone",
+      "namePt": "Pedra da Alma",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Break Link",
+      "namePt": "Quebrar Vínculo",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Sanctum",
+      "namePt": "Sacrário",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Flaming Servant",
+      "namePt": "Servo Flamejante",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "False Terrain",
+      "namePt": "Terreno Falso",
+      "traditionEn": "Wizardry",
+      "traditionPt": "Magismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Spell Trap",
+      "namePt": "Armadilha de Feitiços",
+      "traditionEn": "Symbolism",
+      "traditionPt": "Simbolismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Faraway Writing",
+      "namePt": "Escrita distante",
+      "traditionEn": "Symbolism",
+      "traditionPt": "Simbolismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Carve Rune Tattoo",
+      "namePt": "Esculpir Tatuagem Rúnica",
+      "traditionEn": "Symbolism",
+      "traditionPt": "Simbolismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Rune Guardian",
+      "namePt": "Guardião Rúnico",
+      "traditionEn": "Symbolism",
+      "traditionPt": "Simbolismo",
+      "restricted": false
+    },
+    {
+      "nameEn": "Command Confession",
+      "namePt": "Comandar Confissão",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Judging Bonds",
+      "namePt": "Elos de Julgamento",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Exorcism",
+      "namePt": "Exorcismo",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Purging Fire",
+      "namePt": "Fogo Purgante",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Holy Smoke",
+      "namePt": "Fumaça Sagrada",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Oracle",
+      "namePt": "Oráculo",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Heretic's Trail",
+      "namePt": "Rastro do Herege",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Sanctifying Rite",
+      "namePt": "Rito de Santificação",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Patron Saint",
+      "namePt": "Santo Patrono",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    },
+    {
+      "nameEn": "Anoint",
+      "namePt": "Ungir",
+      "traditionEn": "Theurgy",
+      "traditionPt": "Teurgia",
+      "restricted": false
+    }
+  ]
+}

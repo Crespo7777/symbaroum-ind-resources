@@ -1,3 +1,6 @@
+import { MODULE_ID } from "./constants.mjs";
+import { RollPrivacyService } from "./roll-privacy.mjs";
+
 export async function evaluateRoll(formula) {
   if (globalThis.Roll) {
     const roll = new Roll(formula);
@@ -12,30 +15,52 @@ export function rollTotal(roll) {
   return Number(roll?.total ?? 0) || 0;
 }
 
-export async function createChatMessageAfterDice({ speaker, content, rolls = [] }) {
+export async function createChatMessageAfterDice({ speaker, content, rolls = [], flags = {} }) {
   const foundryRolls = rolls.filter(isFoundryRoll);
-  const showed3d = await showDice3d(foundryRolls);
+  const privateRoll = RollPrivacyService.isPrivateRollActive();
+  const showed3d = await showDice3d(foundryRolls, { privateRoll });
   const chatData = { speaker, content };
+  const moduleFlags = { ...(flags?.[MODULE_ID] ?? {}) };
+  const otherFlags = Object.fromEntries(
+    Object.entries(flags ?? {}).filter(([scope]) => scope !== MODULE_ID)
+  );
 
   if (foundryRolls.length && !showed3d) {
     chatData.rolls = foundryRolls;
     chatData.sound = globalThis.CONFIG?.sounds?.dice;
   }
 
+  if (foundryRolls.length) {
+    moduleFlags.privateRollCandidate = true;
+  }
+
+  if (Object.keys(otherFlags).length || Object.keys(moduleFlags).length) {
+    chatData.flags = { ...otherFlags, [MODULE_ID]: moduleFlags };
+  }
+
+  if (foundryRolls.length) {
+    RollPrivacyService.prepareChatData(chatData, { rollCandidate: true });
+  }
+
   return ChatMessage.create(chatData);
+}
+
+export async function showDice3dRoll(roll, { privateRoll = false } = {}) {
+  return showDice3d([roll].filter(Boolean), { privateRoll });
 }
 
 function isFoundryRoll(roll) {
   return Boolean(globalThis.Roll && roll instanceof Roll);
 }
 
-async function showDice3d(rolls) {
+async function showDice3d(rolls, { privateRoll = false } = {}) {
   const dice3d = globalThis.game?.dice3d;
   if (!rolls.length || typeof dice3d?.showForRoll !== "function") return false;
 
   try {
     for (const roll of rolls) {
-      await Promise.resolve(dice3d.showForRoll(roll, game.user, true));
+      const recipients = privateRoll ? RollPrivacyService.diceRecipients() : null;
+      await Promise.resolve(dice3d.showForRoll(roll, game.user, true, recipients, privateRoll));
     }
     return true;
   } catch (error) {

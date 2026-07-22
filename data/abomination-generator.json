@@ -1,294 +1,976 @@
 {
-    "name":"Gerador de Abominações",
-    "folderName":"Abominações Geradas",
-    "shadow":"Corrompida",
-    "includedItems" : [
+    "name": "Gerador de Abominações",
+    "folderName": "Abominações Geradas",
+    "shadow": "corrupt",
+    "includedItems": [
         "{#corrupt-armor}",
         "{#corrupt-weapon}"
     ],
-    "statBlocks" : [ { 
+    "statBlocks": [
+        {
             "name": "{#corrupt-adjective} Tipo de abominação nascida da mácula",
-            "race":"Abominação",
+            "race": "Abominação",
             "attributes": {
-                "accurate":7,
-                "cunning":10,
-                "discreet":7,
-                "persuasive":5,
-                "quick":13,
-                "resolute":11,
-                "strong":15,
-                "vigilant":9
+                "accurate": 7,
+                "cunning": 10,
+                "discreet": 7,
+                "persuasive": 5,
+                "quick": 13,
+                "resolute": 11,
+                "strong": 15,
+                "vigilant": 9
             },
             "excludedAbilities": [],
-            "includedAbilities": [ 
-                { "reference": "feint", "forcedAbilities": [], "excludedAbilities": ["stafffighting","dominate","ironfist","sixthsense","tactician"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": ["dominate","feint","sixthsense","tactician","backstab"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": ["dominate","feint","sixthsense","tactician","backstab"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": ["dominate","feint","sixthsense","tactician","backstab"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalwarrior", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "robust", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
+            "includedAbilities": [
+                {
+                    "reference": "feint",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "stafffighting",
+                        "dominate",
+                        "ironfist",
+                        "sixthsense",
+                        "tactician"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "dominate",
+                        "feint",
+                        "sixthsense",
+                        "tactician",
+                        "backstab"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "dominate",
+                        "feint",
+                        "sixthsense",
+                        "tactician",
+                        "backstab"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "dominate",
+                        "feint",
+                        "sixthsense",
+                        "tactician",
+                        "backstab"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalwarrior",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "robust",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ]
         },
-        { 
+        {
             "name": "{#corrupt-adjective} Tipo de Besta Primal",
-            "race":"Abominação",
+            "race": "Abominação",
             "attributes": {
-                "accurate":13,
-                "cunning":9,
-                "discreet":5,
-                "persuasive":7,
-                "quick":11,
-                "resolute":10,
-                "strong":15,
-                "vigilant":10
+                "accurate": 13,
+                "cunning": 9,
+                "discreet": 5,
+                "persuasive": 7,
+                "quick": 11,
+                "resolute": 10,
+                "strong": 15,
+                "vigilant": 10
             },
             "excludedAbilities": [],
-            "includedAbilities": [ 
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": ["dominate","feint","sixthsense","tactician","backstab"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": ["dominate","feint","sixthsense","tactician","backstab"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": ["dominate","feint","sixthsense","tactician","backstab"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "robust", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalwarrior", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},                
-                { "reference": "berserker", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "regeneration", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
+            "includedAbilities": [
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "dominate",
+                        "feint",
+                        "sixthsense",
+                        "tactician",
+                        "backstab"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "dominate",
+                        "feint",
+                        "sixthsense",
+                        "tactician",
+                        "backstab"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "dominate",
+                        "feint",
+                        "sixthsense",
+                        "tactician",
+                        "backstab"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "robust",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalwarrior",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "berserker",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "regeneration",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ]
         },
-        { 
+        {
             "name": "{#corrupt-adjective} Tipo de Guerreiro",
-            "race":"Abominação",
+            "race": "Abominação",
             "attributes": {
-                "accurate":15,
-                "cunning":10,
-                "discreet":13,
-                "persuasive":5,
-                "quick":11,
-                "resolute":7,
-                "strong":9,
-                "vigilant":10
+                "accurate": 15,
+                "cunning": 10,
+                "discreet": 13,
+                "persuasive": 5,
+                "quick": 11,
+                "resolute": 7,
+                "strong": 9,
+                "vigilant": 10
             },
             "excludedAbilities": [
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}           
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ],
-            "includedAbilities": [ 
-                { "reference": "feint", "forcedAbilities": [], "excludedAbilities": ["stafffighting","dominate","ironfist","sixthsense","tactician"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "backstab", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalwarrior", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}                           ]
+            "includedAbilities": [
+                {
+                    "reference": "feint",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "stafffighting",
+                        "dominate",
+                        "ironfist",
+                        "sixthsense",
+                        "tactician"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "backstab",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalwarrior",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
+            ]
         },
-        { 
+        {
             "name": "{#corrupt-adjective} Tipo Místico",
-            "race":"Abominação",
+            "race": "Abominação",
             "attributes": {
-                "accurate":10,
-                "cunning":5,
-                "discreet":11,
-                "persuasive":7,
-                "quick":13,
-                "resolute":15,
-                "strong":10,
-                "vigilant":9
+                "accurate": 10,
+                "cunning": 5,
+                "discreet": 11,
+                "persuasive": 7,
+                "quick": 13,
+                "resolute": 15,
+                "strong": 10,
+                "vigilant": 9
             },
             "excludedAbilities": [
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}        
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ],
-            "includedAbilities": [ 
-                { "reference": "swift", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "mysticalresistance", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "corruptionsensitive", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "acrobatics", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "corruptionhoarder", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "enthrall", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "backstab", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalwarrior", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
+            "includedAbilities": [
+                {
+                    "reference": "swift",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "mysticalresistance",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "corruptionsensitive",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "acrobatics",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "corruptionhoarder",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "enthrall",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "backstab",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalwarrior",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ]
         },
-        { 
+        {
             "name": "{#corrupt-adjective} Tipo de inseto enorme",
-            "race":"Abominação",
+            "race": "Abominação",
             "attributes": {
-                "accurate":11,
-                "cunning":10,
-                "discreet":15,
-                "persuasive":5,
-                "quick":9,
-                "resolute":13,
-                "strong":10,
-                "vigilant":7
+                "accurate": 11,
+                "cunning": 10,
+                "discreet": 15,
+                "persuasive": 5,
+                "quick": 9,
+                "resolute": 13,
+                "strong": 10,
+                "vigilant": 7
             },
             "excludedAbilities": [
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}          
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ],
-            "includedAbilities": [ 
-                { "reference": "feint", "forcedAbilities": [], "excludedAbilities": ["stafffighting","dominate","ironfist","sixthsense","tactician"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "armored", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "backstab", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "piercingattack", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "poisonous", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "carapace", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalwarrior", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}            ]
+            "includedAbilities": [
+                {
+                    "reference": "feint",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "stafffighting",
+                        "dominate",
+                        "ironfist",
+                        "sixthsense",
+                        "tactician"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "armored",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "backstab",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "piercingattack",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "poisonous",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "carapace",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalwarrior",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
+            ]
         },
-        { 
+        {
             "name": "{#corrupt-adjective} Tipo Inseto de Enxame",
-            "race":"Abominação",
+            "race": "Abominação",
             "attributes": {
-                "accurate":11,
-                "cunning":10,
-                "discreet":10,
-                "persuasive":7,
-                "quick":13,
-                "resolute":15,
-                "strong":9,
-                "vigilant":5
+                "accurate": 11,
+                "cunning": 10,
+                "discreet": 10,
+                "persuasive": 7,
+                "quick": 13,
+                "resolute": 15,
+                "strong": 9,
+                "vigilant": 5
             },
             "excludedAbilities": [
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}           
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ],
-            "includedAbilities": [ 
-                { "reference": "corruptingattack", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},                { "reference": "swarm", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "poisonous", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "armored", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "carapace", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
-            ]
-        },    
-        { 
-            "name": "{#corrupt-adjective} Tipo de inseto",
-            "race":"Abominação",
-            "attributes": {
-                "accurate":11,
-                "cunning":10,
-                "discreet":10,
-                "persuasive":7,
-                "quick":13,
-                "resolute":15,
-                "strong":9,
-                "vigilant":5
-            },
-            "excludedAbilities": [
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}          
-            ],
-            "includedAbilities": [ 
-                { "reference": "corruptingattack", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},                { "reference": "swarm", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "poisonous", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "armored", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "carapace", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
-            ]
-        }, 
-        { 
-            "name": "{#corrupt-adjective} Tipo de cobra e verme",
-            "race":"Abominação ",
-            "attributes": {
-                "accurate":15,
-                "cunning":10,
-                "discreet":9,
-                "persuasive":5,
-                "quick":11,
-                "resolute":10,
-                "strong":13,
-                "vigilant":7
-            },
-            "excludedAbilities": [
-    
-            ],
-            "includedAbilities": [ 
-                { "reference": "acrobatics", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},            
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": ["dominate","feint","sixthsense","tactician","backstab"], "includedAbilities": [], "includesItems":[]},            
-                { "reference": "exceptionalattribute", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "poisonous", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "crushingembrace", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
+            "includedAbilities": [
+                {
+                    "reference": "corruptingattack",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "swarm",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "poisonous",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "armored",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "carapace",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ]
         },
-        { 
-            "name": "{#corrupt-adjective} Greater hiding abomination type",
-            "race":"Abominação ",
+        {
+            "name": "{#corrupt-adjective} Tipo de inseto",
+            "race": "Abominação",
             "attributes": {
-                "accurate":7,
-                "cunning":9,
-                "discreet":15,
-                "persuasive":5,
-                "quick":10,
-                "resolute":11,
-                "strong":13,
-                "vigilant":10
+                "accurate": 11,
+                "cunning": 10,
+                "discreet": 10,
+                "persuasive": 7,
+                "quick": 13,
+                "resolute": 15,
+                "strong": 9,
+                "vigilant": 5
             },
             "excludedAbilities": [
-    
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ],
-            "includedAbilities": [ 
-                { "reference": "invisibility", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},            
-                { "reference": "feint", "forcedAbilities": [], "excludedAbilities": ["stafffighting","dominate","ironfist","sixthsense","tactician"], "includedAbilities": [], "includesItems":[]},            
-                { "reference": "feint", "forcedAbilities": [], "excludedAbilities": ["stafffighting","dominate","ironfist","sixthsense","tactician"], "includedAbilities": [], "includesItems":[]},            
-                { "reference": "backstab", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},            
-                { "reference": "terrify", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},            
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": ["dominate","feint","sixthsense","tactician","backstab"], "includedAbilities": [], "includesItems":[]},            
-                { "reference": "ironfist", "forcedAbilities": [], "excludedAbilities": ["dominate","feint","sixthsense","tactician","backstab"], "includedAbilities": [], "includesItems":[]},
-                { "reference": "exceptionalattribute", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "poisonous", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "crushingembrace", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
+            "includedAbilities": [
+                {
+                    "reference": "corruptingattack",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "swarm",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "poisonous",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "armored",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "carapace",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ]
-        }    
-    
+        },
+        {
+            "name": "{#corrupt-adjective} Tipo de cobra e verme",
+            "race": "Abominação ",
+            "attributes": {
+                "accurate": 15,
+                "cunning": 10,
+                "discreet": 9,
+                "persuasive": 5,
+                "quick": 11,
+                "resolute": 10,
+                "strong": 13,
+                "vigilant": 7
+            },
+            "excludedAbilities": [],
+            "includedAbilities": [
+                {
+                    "reference": "acrobatics",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "dominate",
+                        "feint",
+                        "sixthsense",
+                        "tactician",
+                        "backstab"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "exceptionalattribute",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "poisonous",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "crushingembrace",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
+            ]
+        },
+        {
+            "name": "{#corrupt-adjective} Tipo de abominação furtiva maior",
+            "race": "Abominação ",
+            "attributes": {
+                "accurate": 7,
+                "cunning": 9,
+                "discreet": 15,
+                "persuasive": 5,
+                "quick": 10,
+                "resolute": 11,
+                "strong": 13,
+                "vigilant": 10
+            },
+            "excludedAbilities": [],
+            "includedAbilities": [
+                {
+                    "reference": "invisibility",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "feint",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "stafffighting",
+                        "dominate",
+                        "ironfist",
+                        "sixthsense",
+                        "tactician"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "feint",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "stafffighting",
+                        "dominate",
+                        "ironfist",
+                        "sixthsense",
+                        "tactician"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "backstab",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "terrify",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "dominate",
+                        "feint",
+                        "sixthsense",
+                        "tactician",
+                        "backstab"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "ironfist",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [
+                        "dominate",
+                        "feint",
+                        "sixthsense",
+                        "tactician",
+                        "backstab"
+                    ],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "exceptionalattribute",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "poisonous",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "crushingembrace",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
+            ]
+        }
     ],
-    
-    "abilities" : {
+    "abilities": {
         "core": {
             "weight": 0,
             "abilityRef": [
-                { "reference": "armored", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "robust", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "naturalweapon", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
+                {
+                    "reference": "armored",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "robust",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "naturalweapon",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ]
         },
         "rare": {
             "weight": 1,
             "abilityRef": [
-                { "reference": "colossal", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "companions", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "corruptionhoarder", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},        
-                { "reference": "deadlybreath", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "deathstruggle", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "devour", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "infestation", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "infectious", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "invisible", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "metamorphosis", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "mysticalresistance", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "rampage", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "summoner", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "tunneler", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-                { "reference": "wrecker", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
+                {
+                    "reference": "colossal",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "companions",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "corruptionhoarder",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "deadlybreath",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "deathstruggle",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "devour",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "infestation",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "infectious",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "invisible",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "metamorphosis",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "mysticalresistance",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "rampage",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "summoner",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "tunneler",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "wrecker",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
             ]
         },
         "unusual": {
             "weight": 10,
             "abilityRef": [
-            { "reference": "carapace", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-            { "reference": "crushingembrace", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-            { "reference": "harmfulaura", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},        
-            { "reference": "manyheaded", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-            { "reference": "prehensileclaws", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-            { "reference": "sturdy", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}
-    
-        ]},
+                {
+                    "reference": "carapace",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "crushingembrace",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "harmfulaura",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "manyheaded",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "prehensileclaws",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "sturdy",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
+            ]
+        },
         "common": {
             "weight": 100,
             "abilityRef": [
-            { "reference": "acidblood", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-            { "reference": "acidattack", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-            { "reference": "berserk", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-            { "reference": "bloodlust", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-            { "reference": "corruptingattack", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]},
-            { "reference": "regeneration", "forcedAbilities": [], "excludedAbilities": [], "includedAbilities": [], "includesItems":[]}        
-        ]}
+                {
+                    "reference": "acidblood",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "acidattack",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "berserk",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "bloodlust",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "corruptingattack",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                },
+                {
+                    "reference": "regeneration",
+                    "forcedAbilities": [],
+                    "excludedAbilities": [],
+                    "includedAbilities": [],
+                    "includesItems": []
+                }
+            ]
+        }
     },
-    
-    "images" : "modules/symbaroum-bithir-mod/assets/midjourney/non-paid"
-    
+    "images": "modules/symbaroum-ind-resources/assets/midjourney/non-paid"
 }

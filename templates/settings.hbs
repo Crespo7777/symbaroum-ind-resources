@@ -1,53 +1,331 @@
 <div class="tenebre-settings">
+  {{#if showRations}}
+    <section class="tenebre-settings-section">
+      <h2>{{localize "TENEBRE.Settings.RationsGroup"}}</h2>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableRations"}}</span>
+        <input type="checkbox" name="enableRations" {{checked settings.enableRations}}>
+      </label>
+      <label class="tenebre-settings-field" data-rations-dependent>
+        <span>{{localize "TENEBRE.Settings.RationUses"}}</span>
+        <input type="number" name="rationUses" value="{{settings.rationUses}}" min="1">
+      </label>
+      <label class="tenebre-settings-field" data-rations-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableOtherRations"}}</span>
+        <input type="checkbox" name="enableOtherRations" {{checked settings.enableOtherRations}}>
+      </label>
+      <div class="tenebre-ration-foods" data-rations-foods>
+        <input type="hidden" name="extraRationFoods.version" value="{{settings.extraRationFoods.version}}">
+        <h3>{{localize "TENEBRE.Settings.OtherRationsList"}}</h3>
+        <label class="tenebre-settings-field">
+          <span>{{localize "TENEBRE.Settings.OtherRationSelect"}}</span>
+          <select class="tenebre-ration-food-select">
+            <option value="">{{localize "TENEBRE.Settings.OtherRationSelectPlaceholder"}}</option>
+            {{#each extraRationFoodGroups}}
+              <optgroup label="{{category}}">
+                {{#each items}}
+                  <option value="{{key}}" data-name="{{name}}" data-uses="{{uses}}" data-category="{{category}}" {{#if enabled}}disabled{{/if}}>{{name}}</option>
+                {{/each}}
+              </optgroup>
+            {{/each}}
+          </select>
+        </label>
+        <div class="tenebre-ration-bulk-actions">
+          <button type="button" data-ration-food-action="add-all">
+            <i class="fas fa-check-double"></i> {{localize "TENEBRE.Settings.OtherRationUseAll"}}
+          </button>
+          <button type="button" data-ration-food-action="remove-all">
+            <i class="fas fa-trash"></i> {{localize "TENEBRE.Settings.OtherRationRemoveAll"}}
+          </button>
+        </div>
+        <div class="tenebre-ration-create" data-ration-create-collapsed="true">
+          <button type="button" class="tenebre-ration-create-toggle">
+            <i class="fas fa-plus"></i> {{localize "TENEBRE.Settings.OtherRationCreateButton"}}
+          </button>
+          <div class="tenebre-ration-create-fields" hidden>
+            <label class="tenebre-settings-field">
+              <span>{{localize "TENEBRE.Settings.OtherRationCreateName"}}</span>
+              <input type="text" class="tenebre-ration-create-name" placeholder="{{localize "TENEBRE.Settings.OtherRationCreateNamePlaceholder"}}">
+            </label>
+            <label class="tenebre-settings-field">
+              <span>{{localize "TENEBRE.Settings.OtherRationCreateUses"}}</span>
+              <input type="number" class="tenebre-ration-create-uses" value="1" min="1">
+            </label>
+            <button type="button" class="tenebre-ration-create-button">
+              <i class="fas fa-check"></i> {{localize "TENEBRE.Settings.OtherRationCreateButton"}}
+            </button>
+          </div>
+        </div>
+        <div class="tenebre-ration-active-foods">
+          {{#each activeExtraRationFoods}}
+            <div class="tenebre-ration-food" data-ration-food-key="{{key}}">
+              <input type="hidden" name="extraRationFoods.foods.{{key}}.enabled" value="true">
+              <input type="hidden" name="extraRationFoods.foods.{{key}}.name" value="{{name}}">
+              <input type="hidden" name="extraRationFoods.foods.{{key}}.category" value="{{category}}">
+              {{#if itemId}}<input type="hidden" name="extraRationFoods.foods.{{key}}.itemId" value="{{itemId}}">{{/if}}
+              {{#if custom}}<input type="hidden" name="extraRationFoods.foods.{{key}}.custom" value="true">{{/if}}
+              <span class="tenebre-ration-food-name">{{name}}</span>
+              <label class="tenebre-ration-food-uses">
+                <span>{{localize "TENEBRE.Settings.OtherRationUses"}}</span>
+                <input type="number" name="extraRationFoods.foods.{{key}}.uses" value="{{uses}}" min="1">
+              </label>
+              <button type="button" class="tenebre-ration-food-remove" data-remove-ration-food="{{key}}">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          {{/each}}
+          <p class="tenebre-ration-empty" {{#if activeExtraRationFoods.length}}hidden{{/if}}>{{localize "TENEBRE.Settings.OtherRationEmpty"}}</p>
+        </div>
+      </div>
+    </section>
+  {{/if}}
 
+  {{#if showRest}}
+    <section class="tenebre-settings-section">
+      <h2>{{localize "TENEBRE.Settings.RestGroup"}}</h2>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableHunger"}}</span>
+        <input type="checkbox" name="enableHunger" {{checked settings.enableHunger}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableRestButton"}}</span>
+        <input type="checkbox" name="enableRestButton" {{checked settings.enableRestButton}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableRestHealing"}}</span>
+        <input type="checkbox" name="enableRestHealing" {{checked settings.enableRestHealing}}>
+      </label>
+      <label class="tenebre-settings-field" data-rest-healing-field>
+        <span>{{localize "TENEBRE.Settings.RestHealing"}}</span>
+        <input type="number" name="restHealing" value="{{settings.restHealing}}" min="0">
+      </label>
+    </section>
+  {{/if}}
 
-  <h2>{{localize "TENEBRE.Settings.RationsGroup"}}</h2>
-  <label>
-    <span>{{localize "TENEBRE.Settings.EnableRations"}}</span>
-    <input type="checkbox" name="enableRations" {{checked settings.enableRations}}>
-  </label>
-  <label>
-    <span>{{localize "TENEBRE.Settings.RationUses"}}</span>
-    <input type="number" name="rationUses" value="{{settings.rationUses}}" min="1">
-  </label>
+  {{#if showAmmo}}
+    <section class="tenebre-settings-section">
+      <h2>{{localize "TENEBRE.Settings.AmmoGroup"}}</h2>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableAmmoConsumption"}}</span>
+        <input type="checkbox" name="enableAmmoConsumption" {{checked settings.enableAmmoConsumption}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableQuiverAmmoContainers"}}</span>
+        <input type="checkbox" name="enableQuiverAmmoContainers" {{checked settings.enableQuiverAmmoContainers}}>
+      </label>
+      <label class="tenebre-settings-field" data-ammo-quiver-field>
+        <span>{{localize "TENEBRE.Settings.QuiverCapacity"}}</span>
+        <input type="number" name="quiverCapacity" value="{{settings.quiverCapacity}}" min="1">
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableHitTracking"}}</span>
+        <input type="checkbox" name="enableHitTracking" {{checked settings.enableHitTracking}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableAmmoRecovery"}}</span>
+        <input type="checkbox" name="enableAmmoRecovery" {{checked settings.enableAmmoRecovery}}>
+      </label>
+      <label class="tenebre-settings-field" data-ammo-recovery-field>
+        <span>{{localize "TENEBRE.Settings.EnableAmmoRecoveryByQuality"}}</span>
+        <input type="checkbox" name="enableAmmoRecoveryByQuality" {{checked settings.enableAmmoRecoveryByQuality}}>
+      </label>
+      <label class="tenebre-settings-field" data-ammo-recovery-field data-ammo-recovery-flat>
+        <span>{{localize "TENEBRE.Settings.AmmoRecoveryFlatTarget"}}</span>
+        <input type="number" name="ammoRecoveryFlatTarget" value="{{settings.ammoRecoveryFlatTarget}}" min="1" max="20">
+      </label>
+      <label class="tenebre-settings-field" data-ammo-recovery-field data-ammo-recovery-quality>
+        <span>{{localize "TENEBRE.Settings.AmmoRecoveryCommonTarget"}}</span>
+        <input type="number" name="ammoRecoveryCommonTarget" value="{{settings.ammoRecoveryCommonTarget}}" min="1" max="20">
+      </label>
+      <label class="tenebre-settings-field" data-ammo-recovery-field data-ammo-recovery-quality>
+        <span>{{localize "TENEBRE.Settings.AmmoRecoveryQualityTarget"}}</span>
+        <input type="number" name="ammoRecoveryQualityTarget" value="{{settings.ammoRecoveryQualityTarget}}" min="1" max="20">
+      </label>
+      <label class="tenebre-settings-field" data-ammo-recovery-field data-ammo-recovery-quality>
+        <span>{{localize "TENEBRE.Settings.AmmoRecoveryMysticalTarget"}}</span>
+        <input type="number" name="ammoRecoveryMysticalTarget" value="{{settings.ammoRecoveryMysticalTarget}}" min="1" max="20">
+      </label>
+      <label class="tenebre-settings-field" data-ammo-recovery-field>
+        <span>{{localize "TENEBRE.Settings.ShowAmmoRecoveryHud"}}</span>
+        <input type="checkbox" name="showAmmoRecoveryHud" {{checked settings.showAmmoRecoveryHud}}>
+      </label>
+      <label class="tenebre-settings-field" data-ammo-quiver-field>
+        <span>{{localize "TENEBRE.Settings.ShowQuiverHud"}}</span>
+        <input type="checkbox" name="showQuiverHud" {{checked settings.showQuiverHud}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.ShowSpecialAmmoInChat"}}</span>
+        <input type="checkbox" name="showSpecialAmmoInChat" {{checked settings.showSpecialAmmoInChat}}>
+      </label>
+    </section>
+  {{/if}}
 
-  <h2>{{localize "TENEBRE.Settings.AmmoGroup"}}</h2>
-  <label>
-    <span>{{localize "TENEBRE.Settings.EnableAmmoConsumption"}}</span>
-    <input type="checkbox" name="enableAmmoConsumption" {{checked settings.enableAmmoConsumption}}>
-  </label>
-  <label>
-    <span>{{localize "TENEBRE.Settings.EnableHitTracking"}}</span>
-    <input type="checkbox" name="enableHitTracking" {{checked settings.enableHitTracking}}>
-  </label>
-  <label>
-    <span>{{localize "TENEBRE.Settings.EnableAmmoRecovery"}}</span>
-    <input type="checkbox" name="enableAmmoRecovery" {{checked settings.enableAmmoRecovery}}>
-  </label>
-  <label>
-    <span>{{localize "TENEBRE.Settings.ShowSpecialAmmoInChat"}}</span>
-    <input type="checkbox" name="showSpecialAmmoInChat" {{checked settings.showSpecialAmmoInChat}}>
-  </label>
+  {{#if showEncumbrance}}
+    <section class="tenebre-settings-section">
+      <h2>{{localize "TENEBRE.Settings.EncumbranceGroup"}}</h2>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableEncumbrance"}}</span>
+        <input type="checkbox" name="enableEncumbrance" {{checked settings.enableEncumbrance}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableContainers"}}</span>
+        <input type="checkbox" name="enableContainers" {{checked settings.enableContainers}}>
+      </label>
+    </section>
+  {{/if}}
 
-  <h2>{{localize "TENEBRE.Settings.RestGroup"}}</h2>
-  <label>
-    <span>{{localize "TENEBRE.Settings.EnableHunger"}}</span>
-    <input type="checkbox" name="enableHunger" {{checked settings.enableHunger}}>
-  </label>
-  <label>
-    <span>{{localize "TENEBRE.Settings.EnableRestHealing"}}</span>
-    <input type="checkbox" name="enableRestHealing" {{checked settings.enableRestHealing}}>
-  </label>
-  <label>
-    <span>{{localize "TENEBRE.Settings.RestHealing"}}</span>
-    <input type="number" name="restHealing" value="{{settings.restHealing}}" min="0">
-  </label>
+  {{#if showMovement}}
+    <section class="tenebre-settings-section">
+      <h2>{{localize "TENEBRE.Settings.MovementGroup"}}</h2>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableMovementRuler"}}</span>
+        <input type="checkbox" name="enableMovementRuler" {{checked settings.enableMovementRuler}}>
+      </label>
+      <label class="tenebre-settings-field" data-movement-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableMovementColors"}}</span>
+        <input type="checkbox" name="enableMovementColors" {{checked settings.enableMovementColors}}>
+      </label>
+      <label class="tenebre-settings-field" data-movement-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableMovementLimitLabels"}}</span>
+        <input type="checkbox" name="enableMovementLimitLabels" {{checked settings.enableMovementLimitLabels}}>
+      </label>
+      <label class="tenebre-settings-field" data-movement-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableMovementBlocking"}}</span>
+        <input type="checkbox" name="enableMovementBlocking" {{checked settings.enableMovementBlocking}}>
+      </label>
+      <label class="tenebre-settings-field" data-movement-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableMovementHungerModifier"}}</span>
+        <input type="checkbox" name="enableMovementHungerModifier" {{checked settings.enableMovementHungerModifier}}>
+      </label>
+      <label class="tenebre-settings-field" data-movement-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableMovementEncumbranceModifier"}}</span>
+        <input type="checkbox" name="enableMovementEncumbranceModifier" {{checked settings.enableMovementEncumbranceModifier}}>
+      </label>
+      <label class="tenebre-settings-field" data-movement-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableMovementEffectModifiers"}}</span>
+        <input type="checkbox" name="enableMovementEffectModifiers" {{checked settings.enableMovementEffectModifiers}}>
+      </label>
+      <label class="tenebre-settings-field" data-movement-dependent>
+        <span>{{localize "TENEBRE.Settings.MovementUnitSystem"}}</span>
+        <select name="movementUnitSystem">
+          <option value="meters" {{#if movementUnitMetersSelected}}selected{{/if}}>{{localize "TENEBRE.Settings.MovementUnitMeters"}}</option>
+          <option value="feet" {{#if movementUnitFeetSelected}}selected{{/if}}>{{localize "TENEBRE.Settings.MovementUnitFeet"}}</option>
+        </select>
+      </label>
+      <label class="tenebre-settings-field" data-movement-dependent>
+        <span>{{localize "TENEBRE.Settings.MovementBaseMeters"}}</span>
+        <input type="number" name="movementBaseMeters" value="{{settings.movementBaseMeters}}" min="0" step="0.5">
+      </label>
+      <label class="tenebre-settings-field" data-movement-dependent>
+        <span>{{localize "TENEBRE.Settings.MovementBaseFeet"}}</span>
+        <input type="number" name="movementBaseFeet" value="{{settings.movementBaseFeet}}" min="0" step="5">
+      </label>
+    </section>
+  {{/if}}
 
-  <h2>{{localize "TENEBRE.Settings.EncumbranceGroup"}}</h2>
-  <label>
-    <span>{{localize "TENEBRE.Settings.EnableEncumbrance"}}</span>
-    <input type="checkbox" name="enableEncumbrance" {{checked settings.enableEncumbrance}}>
-  </label>
+  {{#if showCombat}}
+    <section class="tenebre-settings-section">
+      <h2>{{localize "TENEBRE.Settings.CombatGroup"}}</h2>
+
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableManeuvers"}}</span>
+        <input type="checkbox" name="enableManeuvers" {{checked settings.enableManeuvers}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableRollPrivacy"}}</span>
+        <input type="checkbox" name="enableRollPrivacy" {{checked settings.enableRollPrivacy}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableWeaponReadiness"}}</span>
+        <input type="checkbox" name="enableWeaponReadiness" {{checked settings.enableWeaponReadiness}}>
+      </label>
+      <label class="tenebre-settings-field" data-combat-weapon-readiness-dependent>
+        <span>{{localize "TENEBRE.Settings.ShowWeaponReadinessButton"}}</span>
+        <input type="checkbox" name="showWeaponReadinessButton" {{checked settings.showWeaponReadinessButton}}>
+      </label>
+      <label class="tenebre-settings-field" data-combat-weapon-readiness-dependent>
+        <span>{{localize "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator"}}</span>
+        <input type="checkbox" name="showWeaponReadinessTokenIndicator" {{checked settings.showWeaponReadinessTokenIndicator}}>
+      </label>
+      <label class="tenebre-settings-field" data-combat-weapon-readiness-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableWeaponReadinessAnimation"}}</span>
+        <input type="checkbox" name="enableWeaponReadinessAnimation" {{checked settings.enableWeaponReadinessAnimation}}>
+      </label>
+      <label class="tenebre-settings-field" data-combat-weapon-readiness-dependent>
+        <span>{{localize "TENEBRE.Settings.ShowWeaponReadinessChatMessages"}}</span>
+        <input type="checkbox" name="showWeaponReadinessChatMessages" {{checked settings.showWeaponReadinessChatMessages}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableModernChat"}}</span>
+        <input type="checkbox" name="enableModernChat" {{checked settings.enableModernChat}}>
+      </label>
+      <label class="tenebre-settings-field" data-combat-modern-chat-dependent>
+        <span>{{localize "TENEBRE.Settings.ModernChatStyle"}}</span>
+        <select name="modernChatStyle">
+          <option value="illustrated" {{#if modernChatStyleIllustratedSelected}}selected{{/if}}>{{localize "TENEBRE.Settings.ModernChatStyleIllustrated"}}</option>
+          <option value="legacy" {{#if modernChatStyleLegacySelected}}selected{{/if}}>{{localize "TENEBRE.Settings.ModernChatStyleLegacy"}}</option>
+        </select>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableChatItemUse"}}</span>
+        <input type="checkbox" name="enableChatItemUse" {{checked settings.enableChatItemUse}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableAutomatedAnimationsIntegration"}}</span>
+        <input type="checkbox" name="enableAutomatedAnimationsIntegration" {{checked settings.enableAutomatedAnimationsIntegration}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableClearEffectsButton"}}</span>
+        <input type="checkbox" name="enableClearEffectsButton" {{checked settings.enableClearEffectsButton}}>
+      </label>
+      <label class="tenebre-settings-field" data-combat-maneuvers-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableTokenActionHudIntegration"}}</span>
+        <input type="checkbox" name="enableTokenActionHudIntegration" {{checked settings.enableTokenActionHudIntegration}}>
+      </label>
+    </section>
+  {{/if}}
+
+  {{#if showUtilities}}
+    <section class="tenebre-settings-section">
+      <h2>{{localize "TENEBRE.Settings.UtilitiesGroup"}}</h2>
+      <h3>{{localize "TENEBRE.Settings.RitualistGroup"}}</h3>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableRitualCatalog"}}</span>
+        <input type="checkbox" name="enableRitualCatalog" {{checked settings.enableRitualCatalog}}>
+      </label>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableRitualistGrouping"}}</span>
+        <input type="checkbox" name="enableRitualistGrouping" {{checked settings.enableRitualistGrouping}}>
+      </label>
+      <h3>{{localize "TENEBRE.Settings.GmLogGroup"}}</h3>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableGmLog"}}</span>
+        <input type="checkbox" name="enableGmLog" {{checked settings.enableGmLog}}>
+      </label>
+      <h3>{{localize "TENEBRE.Settings.InventoryUtilitiesGroup"}}</h3>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableInventoryCleanup"}}</span>
+        <input type="checkbox" name="enableInventoryCleanup" {{checked settings.enableInventoryCleanup}}>
+      </label>
+      <h3>{{localize "TENEBRE.Settings.BithirUtilitiesGroup"}}</h3>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.EnableBithirUtilities"}}</span>
+        <input type="checkbox" name="enableBithirUtilities" {{checked settings.enableBithirUtilities}}>
+      </label>
+      <label class="tenebre-settings-field" data-utilities-dependent>
+        <span>{{localize "TENEBRE.Settings.EnableGenerateShadow"}}</span>
+        <input type="checkbox" name="enableGenerateShadow" {{checked settings.enableGenerateShadow}}>
+      </label>
+      <label class="tenebre-settings-field" data-utilities-shadow-dependent>
+        <span>{{localize "BITHIRMOD.SHADOW_hideGeneration"}}</span>
+        <input type="checkbox" name="hideShadowGeneration" {{checked settings.hideShadowGeneration}}>
+      </label>
+      <label class="tenebre-settings-field" data-utilities-shadow-dependent>
+        <span>{{localize "BITHIRMOD.SHADOW_hideLabel"}}</span>
+        <input type="checkbox" name="hideShadowLabel" {{checked settings.hideShadowLabel}}>
+      </label>
+    </section>
+  {{/if}}
 
   <footer class="sheet-footer flexrow">
     <button type="submit"><i class="fas fa-save"></i> {{localize "TENEBRE.Common.Save"}}</button>

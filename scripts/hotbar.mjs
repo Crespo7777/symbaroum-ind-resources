@@ -1,5 +1,5 @@
 import { AmmoService } from "./ammo.mjs";
-import { actorItems, getQuiverLoadedTotal, isActiveOrEquipped, isQuiver, itemQuantity } from "./item-flags.mjs";
+import { actorItems, getQuiverCapacity, getQuiverLoadedTotal, getWeaponAmmoType, isActiveOrEquipped, isQuiver, itemQuantity } from "./item-flags.mjs";
 import { TenebreSettings } from "./settings.mjs";
 
 const BREAD_BTN_ID = "tenebre-bread-btn";
@@ -51,6 +51,13 @@ export class HotbarService {
 }
 
 function renderRecoveryHud(panel, actor) {
+  if (!TenebreSettings.get("enableAmmoRecovery") || !TenebreSettings.get("enableHitTracking") || !TenebreSettings.get("showAmmoRecoveryHud")) {
+    panel.dataset.empty = "true";
+    panel.innerHTML = "";
+    panel.hidden = true;
+    return;
+  }
+
   const count = actor ? Math.max(0, Number(AmmoService.getTrackedHits(actor).ammoHit ?? 0) || 0) : 0;
   const visible = count > 0;
 
@@ -93,7 +100,15 @@ function renderRecoveryHud(panel, actor) {
 
 function renderQuiverHud(panel, actor) {
   panel.innerHTML = "";
+  if (!TenebreSettings.get("enableAmmoConsumption")
+    || !TenebreSettings.get("enableQuiverAmmoContainers")
+    || !TenebreSettings.get("showQuiverHud")) {
+    panel.dataset.empty = "true";
+    panel.hidden = true;
+    return;
+  }
 
+  const hasRangedWeapon = actorItems(actor).some((item) => item?.type === "weapon" && Boolean(getWeaponAmmoType(item)));
   const quivers = actorItems(actor).filter((item) => {
     return isQuiver(item)
       && itemQuantity(item) > 0
@@ -104,24 +119,21 @@ function renderQuiverHud(panel, actor) {
     img: item.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp"
   }));
 
-  panel.dataset.empty = quivers.length > 0 ? "false" : "true";
+  const visible = hasRangedWeapon && quivers.length > 0;
+  panel.dataset.empty = visible ? "false" : "true";
+  panel.hidden = !visible;
 
-  if (!quivers.length) {
-    const empty = document.createElement("div");
-    empty.className = "tenebre-ammo-hud-item";
-    empty.title = game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver");
-    empty.innerHTML = `<i class="fas fa-box-archive"></i><span class="tenebre-ammo-hud-label">${game.i18n.localize("TENEBRE.Hud.Quivers")}</span><strong>0</strong>`;
-    panel.appendChild(empty);
-    return;
-  }
+  if (!visible) return;
 
   for (const quiver of quivers) {
     const loaded = quiver.loaded;
+    const capacity = getQuiverCapacity();
     const item = document.createElement("div");
     item.className = "tenebre-ammo-hud-item tenebre-ammo-hud-quiver";
     item.title = game.i18n.format("TENEBRE.Hud.QuiverTooltip", {
       name: quiver.name,
-      loaded
+      loaded,
+      capacity
     });
 
     const img = document.createElement("img");
@@ -130,7 +142,7 @@ function renderQuiverHud(panel, actor) {
     item.appendChild(img);
 
     const value = document.createElement("strong");
-    value.textContent = `${loaded}/12`;
+    value.textContent = `${loaded}/${capacity}`;
     item.appendChild(value);
 
     panel.appendChild(item);
@@ -206,42 +218,41 @@ function getPlayersBoundaryRect() {
   const players = document.getElementById("players");
   if (!players) return null;
 
-  const elements = [players, ...players.querySelectorAll("*")];
-  const visibleRects = elements
-    .map((element) => element.getBoundingClientRect?.())
-    .filter((rect) => {
-      return rect
-        && rect.width > 0
-        && rect.height > 0
-        && rect.left < window.innerWidth * 0.45
-        && rect.top > window.innerHeight - 180;
-    });
+  let boundary = null;
+  const includeElement = (element) => {
+    const rect = element.getBoundingClientRect?.();
+    if (
+      !rect
+      || rect.width <= 0
+      || rect.height <= 0
+      || rect.left >= window.innerWidth * 0.45
+      || rect.top <= window.innerHeight - 180
+    ) {
+      return;
+    }
 
-  if (!visibleRects.length) return players.getBoundingClientRect();
+    if (!boundary) {
+      boundary = {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        width: 0,
+        height: 0
+      };
+      return;
+    }
 
-  return {
-    left: Math.min(...visibleRects.map((rect) => rect.left)),
-    right: Math.max(...visibleRects.map((rect) => rect.right)),
-    top: Math.min(...visibleRects.map((rect) => rect.top)),
-    bottom: Math.max(...visibleRects.map((rect) => rect.bottom)),
-    width: 0,
-    height: 0
+    boundary.left = Math.min(boundary.left, rect.left);
+    boundary.right = Math.max(boundary.right, rect.right);
+    boundary.top = Math.min(boundary.top, rect.top);
+    boundary.bottom = Math.max(boundary.bottom, rect.bottom);
   };
-}
 
-function getChatBoundaryRect() {
-  const selectors = [
-    "#chat-form",
-    "#chat-message",
-    "#chat .chat-form",
-    "#sidebar"
-  ];
-
-  for (const selector of selectors) {
-    const element = document.querySelector(selector);
-    const rect = element?.getBoundingClientRect?.();
-    if (rect && rect.width > 0 && rect.height > 0) return rect;
+  includeElement(players);
+  for (const element of players.querySelectorAll("*")) {
+    includeElement(element);
   }
 
-  return null;
+  return boundary ?? players.getBoundingClientRect();
 }

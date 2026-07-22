@@ -1,66 +1,78 @@
-import { AMMO_TYPES } from "./constants.mjs";
+import { AMMO_TYPES, FLAG_SCOPE } from "./constants.mjs";
 import { normalize } from "./utils.mjs";
 
 const SPECIAL_AMMO = [
   {
-    names: ["flecha de precisao", "precision arrow", "precision bolt", "precise arrow", "precise bolt"],
-    ammoType: null,
+    names: ["flecha de precisao", "flecha - precisao", "precision arrow", "arrow - precision", "precision bolt", "precise arrow", "precise bolt"],
+    ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "quality",
     description: "<p><strong>Qualidade:</strong> Precisa.</p><p>Projétil especialmente equilibrado, feito para acertar seus alvos com mais facilidade.</p>"
   },
   {
-    names: ["ponta perfurante de armadura", "armor piercing tip", "armor-piercing tip", "armor piercing arrow", "armor piercing bolt", "bodkin arrow", "bodkin bolt"],
-    ammoType: null,
+    names: ["ponta perfurante de armadura", "flecha - ponta perfurante de armadura", "arrow - armor-piercing head", "armor piercing tip", "armor-piercing tip", "armor piercing arrow", "armor piercing bolt", "bodkin arrow", "bodkin bolt"],
+    ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "quality",
     description: "<p><strong>Qualidade:</strong> Impacto Profundo contra alvos com Armadura maior que 1.</p><p>A ponta facilita perfurar armaduras.</p>"
   },
   {
-    names: ["sibilante", "whistler", "whistling arrow", "whistling bolt", "whistle arrow", "whistle bolt"],
-    ammoType: null,
+    names: ["sibilante", "flecha - sibilante", "arrow - whistler", "whistler", "whistling arrow", "whistling bolt", "whistle arrow", "whistle bolt"],
+    ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "quality",
     description: "<p>A flecha assobia enquanto voa, funcionando como sinal para aliados.</p>"
   },
   {
-    names: ["arpeu", "grappling arrow", "grappling bolt", "grapple arrow", "grapple bolt"],
-    ammoType: null,
+    names: ["arpeu", "flecha - arpeu", "arrow - grappling hook", "grappling arrow", "grappling bolt", "grapple arrow", "grapple bolt"],
+    ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "quality",
     description: "<p>Envia um gancho até 10 metros na vertical ou 30 metros na horizontal. Um fio de seda permite içar uma corda mais resistente até o gancho.</p>"
   },
   {
-    names: ["cabeca de martelo", "hammer head", "hammerhead arrow", "hammerhead bolt", "blunt arrow", "blunt bolt"],
-    ammoType: null,
+    names: ["cabeca de martelo", "flecha - cabeca de martelo", "arrow - hammer head", "hammer head", "hammerhead arrow", "hammerhead bolt", "blunt arrow", "blunt bolt"],
+    ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "quality",
     description: "<p>Após um acerto, role o dano normalmente, mas use o resultado para testar se o alvo fica atordoado: <strong>[Vigoroso - Dano]</strong>. Teste de Resistência do alvo: [[/r 1d20]] contra seu Vigoroso modificado pelo dano. Se falhar, o alvo não executa ações no próximo turno.</p>"
   },
   {
-    names: ["cauda de andorinha", "swallowtail arrow", "swallowtail bolt", "swallow-tail arrow", "swallow-tail bolt"],
-    ammoType: null,
+    names: ["cauda de andorinha", "flecha - cauda de andorinha", "arrow - swallow's tail", "arrow - swallow’s tail", "swallowtail arrow", "swallowtail bolt", "swallow-tail arrow", "swallow-tail bolt"],
+    ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "quality",
     description: "<p>O alvo recebe +1D4 de bônus de Armadura contra este projétil, mas se sofrer dano sangra como descrito na qualidade Sangrenta.</p>"
   },
   {
-    names: ["cortador de corda", "rope cutter", "rope-cutter arrow", "rope-cutter bolt", "rope cutting arrow", "rope cutting bolt"],
-    ammoType: null,
+    names: ["cortador de corda", "flecha - cortador de corda", "arrow - rope cutter", "rope cutter", "rope-cutter arrow", "rope-cutter bolt", "rope cutting arrow", "rope cutting bolt"],
+    ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "quality",
     description: "<p>Ponta em forma de Y usada para cortar cordas. Acertar a corda é difícil: -5 no Teste de ataque; sucesso corta a corda.</p>"
   },
   {
-    names: ["flecha flamejante", "flaming arrow", "flaming bolt"],
-    ammoType: null,
+    names: ["flecha flamejante", "flecha - flamejante", "arrow - flame", "flaming arrow", "flaming bolt"],
+    ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "quality",
     description: "<p><strong>Qualidade:</strong> Flamejante.</p><p>Projétil incendiário usado para atear fogo em criaturas, edifícios ou outros alvos inflamáveis.</p>"
   },
   {
-    names: ["flecha de laco", "laço", "laco", "ensnaring arrow", "ensnaring bolt", "snare arrow", "snare bolt"],
-    ammoType: null,
+    names: ["flecha de laco", "flecha - de laco", "flecha - laco", "arrow - snaring", "laço", "laco", "ensnaring arrow", "ensnaring bolt", "snare arrow", "snare bolt"],
+    ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "quality",
     description: "<p>Uma ponta farpada e um fio de seda prendem o alvo. Retirar exige uma Ação de Movimento e Teste de <strong>[Vigoroso - Dano]</strong>: [[/r 1d20]] contra seu Vigoroso modificado pelo dano. Se for bem-sucedido, sofre [[/r 1d4[Dano]]] de dano e a remove. Mover-se com a flecha presa causa 1 ponto de dano por turno, ignorando Armadura.</p>"
   },
   {
     names: ["flecha certeira", "true arrow"],
     ammoType: AMMO_TYPES.ARROW,
+    recoveryClass: "mystical",
     description: "<p>Flecha alquímica que passa por outros combatentes, não exigindo linha de visão clara. O arqueiro ainda precisa ver alguma parte do alvo e fazer o Teste de ataque normalmente.</p>"
   },
   {
     names: ["raio atordoante", "stun bolt", "stunning bolt"],
     ammoType: AMMO_TYPES.BOLT,
+    recoveryClass: "mystical",
     description: "<p>Virote coberto com relaxante muscular. A criatura atingida deve passar em <strong>[Vigoroso - Dano]</strong>: [[/r 1d20]] contra seu Vigoroso modificado pelo dano, ou cai no chão (ficando caida). Robusto concede +2 em Vigoroso por nível neste Teste.</p>"
   }
 ];
 
 export function getSpecialAmmo(item) {
-  const name = normalize(item?.name);
+  const name = normalize(typeof item === "string" ? item : item?.name);
+  if (!name) return null;
   return SPECIAL_AMMO.find((entry) => entry.names.some((alias) => name.includes(normalize(alias)))) ?? null;
 }
 
@@ -148,15 +160,41 @@ export function getAmmoModifiers(ammo) {
  * @returns {number} threshold
  */
 export function getAmmoRecoveryThreshold(itemOrName) {
+  const explicit = Number(
+    typeof itemOrName === "object"
+      ? itemOrName?.recoveryThreshold
+        ?? itemOrName?.ammoRecoveryThreshold
+        ?? itemOrName?.getFlag?.(FLAG_SCOPE, "ammoRecoveryThreshold")
+      : NaN
+  );
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+
+  const recoveryClass = getAmmoRecoveryClass(itemOrName);
+  if (recoveryClass === "mystical") return 17;
+  if (recoveryClass === "quality") return 15;
+  return 10;
+}
+
+export function getAmmoRecoveryClass(itemOrName) {
+  const explicit = typeof itemOrName === "object"
+    ? itemOrName?.recoveryClass
+      ?? itemOrName?.ammoRecoveryClass
+      ?? itemOrName?.getFlag?.(FLAG_SCOPE, "ammoRecoveryClass")
+    : "";
+  if (["common", "quality", "mystical"].includes(explicit)) return explicit;
+
+  const special = getSpecialAmmo(itemOrName);
+  if (special?.recoveryClass) return special.recoveryClass;
+
   const name = typeof itemOrName === "string" ? itemOrName : itemOrName?.name;
-  if (!name) return 10;
+  if (!name) return "common";
 
   const norm = normalize(name);
 
   // Mystical/Alchemical: True Arrow, Stun Bolt
   const mysticalNames = ["certeira", "true arrow", "atordoante", "stun bolt", "stunning bolt"];
   if (mysticalNames.some(m => norm.includes(normalize(m)))) {
-    return 17;
+    return "mystical";
   }
 
   // Quality: Precision, Armor Piercing/Bodkin, Whistler, Grappling, Hammerhead, Swallowtail, Rope Cutter, Flaming, Ensnaring
@@ -172,9 +210,9 @@ export function getAmmoRecoveryThreshold(itemOrName) {
     "laco", "ensnaring", "snare"
   ];
   if (qualityNames.some(q => norm.includes(normalize(q)))) {
-    return 15;
+    return "quality";
   }
 
-  return 10;
+  return "common";
 }
 

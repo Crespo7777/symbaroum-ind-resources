@@ -2,6 +2,7 @@ import { FLAG_SCOPE, MODULE_ID } from "./constants.mjs";
 import { actorItems, getAmmoShots, isQuiver, itemQuantity } from "./item-flags.mjs";
 import {
   applyDynamicEncumbranceWeights,
+  calculateStackBundleSlots,
   detectEncumbranceSlots,
   getDynamicEncumbranceWeights,
   getMergedEncumbranceWeights,
@@ -124,9 +125,11 @@ const HEAVY_ARMOR_TERMS = [
 
 let dynamicWeightFileFingerprint = null;
 let dynamicWeightFileWatcher = null;
+let dynamicWeightFileWatcherBusy = false;
 let dynamicWeightFileMissing = false;
 let activeWeightConfigFingerprint = null;
 let weightConfigModuleId = null;
+const WEIGHT_FILE_WATCH_INTERVAL_MS = 10000;
 
 export class EncumbranceService {
   static async loadWeightConfig(moduleId) {
@@ -156,19 +159,23 @@ export class EncumbranceService {
     return true;
   }
 
-  static startDynamicWeightFileWatcher(intervalMs = 1000) {
+  static startDynamicWeightFileWatcher(intervalMs = WEIGHT_FILE_WATCH_INTERVAL_MS) {
+    if (!globalThis.game?.user?.isGM) return false;
     if (dynamicWeightFileWatcher) return false;
 
     dynamicWeightFileWatcher = globalThis.setInterval(async () => {
+      if (dynamicWeightFileWatcherBusy) return;
+      dynamicWeightFileWatcherBusy = true;
       try {
+        let baseChanged = false;
         if (weightConfigModuleId) {
-          await loadEncumbranceWeights(weightConfigModuleId);
+          baseChanged = await loadEncumbranceWeights(weightConfigModuleId);
         }
 
         const config = await readDynamicWeightConfig();
         this.applyDynamicWeightConfig(config);
         const fingerprint = fingerprintWeightConfig(getMergedEncumbranceWeights());
-        if (fingerprint === activeWeightConfigFingerprint) return;
+        if (!baseChanged && fingerprint === activeWeightConfigFingerprint) return;
 
         activeWeightConfigFingerprint = fingerprint;
         dynamicWeightFileFingerprint = fingerprintWeightConfig(getDynamicEncumbranceWeights());
@@ -176,9 +183,19 @@ export class EncumbranceService {
         rerenderOpenActorSheets();
       } catch (err) {
         console.warn("Tenebre Resources | Could not watch the encumbrance weight file.", err);
+      } finally {
+        dynamicWeightFileWatcherBusy = false;
       }
     }, intervalMs);
 
+    return true;
+  }
+
+  static stopDynamicWeightFileWatcher() {
+    if (!dynamicWeightFileWatcher) return false;
+    globalThis.clearInterval(dynamicWeightFileWatcher);
+    dynamicWeightFileWatcher = null;
+    dynamicWeightFileWatcherBusy = false;
     return true;
   }
 
@@ -256,11 +273,33 @@ export class EncumbranceService {
   }
 
   /**
+   * Retorna a carga da pilha sem considerar se o item esta equipado ou guardado.
+   * Usado pela ficha do item para exibir o peso derivado da quantidade.
+   */
+  static getItemStackSlots(item) {
+    if (!item) return 0;
+    const slotsPerUnit = this.getItemSlots(item);
+
+    if (isQuiver(item)) {
+      const shots = getAmmoShots(item);
+      const bundleRule = getStackBundleRule("flechas");
+      return bundleRule ? calculateStackBundleSlots(shots, bundleRule) : Math.floor(shots / 10);
+    }
+
+    return calculateStackedSlots(item, slotsPerUnit, encumbranceQuantity(item));
+  }
+
+  static hasComputedStackWeight(item) {
+    return Boolean(getStackBundleRule(item?.name));
+  }
+
+  /**
    * Retorna a carga efetiva do item no ator, respeitando estado ativo/equipado/guardado.
    */
   static getItemLoad(item) {
     const slotsPerUnit = this.getItemSlots(item);
     const state = item?.system?.state;
+    const bundleRule = getStackBundleRule(item?.name);
 
     if (!isTrackedGear(item)) {
       return {
@@ -272,11 +311,24 @@ export class EncumbranceService {
       };
     }
 
-    const stored = ContainerService.isStored(item);
+    const stored = ContainerService.isEnabled() && ContainerService.isStored(item);
     if (stored && !isStoredInCarriedContainer(item)) {
       return {
         slotsPerUnit,
         quantity: 0,
+        totalSlots: 0,
+        state,
+        counted: false
+      };
+    }
+
+    // Armas em active estao nas maos e nao ocupam carga. Equipado permanece
+    // com o personagem e deve contar; other representa equipamento fora dele.
+    const normalizedState = String(state ?? "").toLowerCase();
+    if (!stored && item.type === "weapon" && normalizedState === "active") {
+      return {
+        slotsPerUnit,
+        quantity: 1,
         totalSlots: 0,
         state,
         counted: false
@@ -295,9 +347,9 @@ export class EncumbranceService {
 
     if (isQuiver(item)) {
       const shots = getAmmoShots(item);
-      const bundleRule = getStackBundleRule("flechas");
-      const totalSlots = bundleRule
-        ? Math.floor(shots / bundleRule.bundleSize) * bundleRule.slots
+      const quiverBundleRule = getStackBundleRule("flechas");
+      const totalSlots = quiverBundleRule
+        ? calculateStackBundleSlots(shots, quiverBundleRule)
         : Math.floor(shots / 10);
       return {
         slotsPerUnit,
@@ -309,9 +361,8 @@ export class EncumbranceService {
     }
 
     const quantity = encumbranceQuantity(item);
-    const bundleRule = getStackBundleRule(item?.name);
     if (isProjectileBundleRule(bundleRule)) {
-      const totalSlots = calculateStackedSlots(item, slotsPerUnit, quantity);
+      const totalSlots = calculateStackBundleSlots(quantity, bundleRule);
       return {
         slotsPerUnit,
         quantity,
@@ -407,6 +458,18 @@ export class EncumbranceService {
     return load;
   }
 
+  static clearDefensePenalty(actor) {
+    if (!actor || actor.type !== "player") return;
+
+    const combat = actor.system?.combat;
+    if (combat) applyPenaltyToArmorData(combat, 0);
+
+    const activeArmor = actor.system?.armors?.find?.((armor) => armor.id === combat?.id);
+    if (activeArmor && activeArmor !== combat) {
+      applyPenaltyToArmorData(activeArmor, 0);
+    }
+  }
+
   /**
    * Atribui automaticamente o flag de encumbranceSlots a um item
    * se ele ainda não tiver valor definido.
@@ -484,7 +547,7 @@ function encumbranceQuantity(item) {
 
 function calculateStackedSlots(item, slotsPerUnit, quantity) {
   const bundleRule = getStackBundleRule(item?.name);
-  if (bundleRule) return Math.floor(quantity / bundleRule.bundleSize) * bundleRule.slots;
+  if (bundleRule) return calculateStackBundleSlots(quantity, bundleRule);
   return slotsPerUnit * quantity;
 }
 

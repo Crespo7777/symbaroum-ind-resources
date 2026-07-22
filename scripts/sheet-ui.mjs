@@ -7,57 +7,203 @@ import { getAmmoModifiers, getSpecialAmmo } from "./special-ammo.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { ContainerService } from "./containers.mjs";
 import { matchesSymbaroumLabel, symbaroumLabelVariants } from "./symbaroum-i18n.mjs";
-import { normalize } from "./utils.mjs";
+import { documentSourceUuid, normalize, promptDialog } from "./utils.mjs";
+import { ManeuverService } from "./maneuvers.mjs";
+import { SocketService } from "./sockets.mjs";
+import { ChatItemUseService } from "./chat-item-use.mjs";
+import { CompatibilityService } from "./compatibility.mjs";
+import { isWeaponReadinessIndicatorEffect } from "./weapon-readiness-visuals.mjs";
+import { RollPrivacyService } from "./roll-privacy.mjs";
+import { RitualBrowserService, isRitualDocument } from "./ritual-browser.mjs";
+import { WEAPON_READINESS_ICON, WeaponReadinessService } from "./weapon-readiness.mjs";
+import { GroundContainerService } from "./ground-containers.mjs";
+import { ContainerTransferService } from "./container-transfer.mjs";
 import {
   actorItems,
   findLoadedQuiverItems,
+  getAmmoType,
   getWeaponAmmoType,
   isAmmo,
   isRation,
   itemQuantity,
   isQuiver,
+  getQuiverCapacity,
   getQuiverLoadedAmmo,
-  getQuiverLoadedTotal
+  getQuiverLoadedTotal,
+  localizeAmmoType
 } from "./item-flags.mjs";
 
-// Listas de hooks
-const ACTOR_SHEET_HOOKS = [
-  "renderPlayerSheet",
-  "renderSymbaroumActorSheet",
-  "renderActorSheet"
-];
+const CONTAINER_DRAG_DATA_TYPE = "application/x-tenebre-container-item";
+const RITUALIST_EXPANDED_FLAG = "ritualistExpanded";
+let activeContainerDrag = null;
+const expandedRitualists = new Set();
+const knownRitualsByActor = new Map();
+const ritualActorsByItem = new Map();
+const deletingRitualIdsByActor = new Map();
+const ritualistInjectionRetries = new WeakMap();
 
-const ITEM_SHEET_HOOKS = [
-  "renderEquipmentSheet",
-  "renderWeaponSheet",
-  "renderArmorSheet",
-  "renderSymbaroumItemSheet",
-  "renderItemSheet"
-];
+const selectedManeuversByActor = new Map();
 
 // Registro de hooks
 
 export function registerSheetHooks() {
   patchSymbaroumSheetListeners();
-  for (const hook of ACTOR_SHEET_HOOKS) Hooks.on(hook, onRenderActorSheet);
-  for (const hook of ITEM_SHEET_HOOKS) {
-    Hooks.on(hook, onRenderItemSheet);
-  }
-  Hooks.on("renderApplication", onRenderApplication);
+  patchRitualistInlineDeletion();
+  patchRitualistDropCreation();
+  patchSymbaroumItemChatSender();
+  Hooks.on("renderApplicationV2", onRenderApplicationV2);
   Hooks.on("renderDialog", onRenderDialog);
   Hooks.on("renderTemplate", onRenderTemplate);
   Hooks.on("closeDialog", onCloseDialog);
+  Hooks.on(`${MODULE_ID}.settingsChanged`, onTenebreSettingChanged);
+  Hooks.on("createActiveEffect", onActiveEffectChanged);
+  Hooks.on("updateActiveEffect", onActiveEffectChanged);
+  Hooks.on("deleteActiveEffect", onActiveEffectChanged);
+  Hooks.on("updateItem", onEncumbranceItemUpdated);
+  Hooks.on("preDeleteItem", onOwnedRitualWillDelete);
+  Hooks.on("createItem", (item) => onOwnedRitualCollectionChanged(item, true));
+  Hooks.on("deleteItem", (item) => onOwnedRitualCollectionChanged(item, false));
   patchContextMenu();
-  patchPlayerSheetHeaderButtons();
+}
+
+function patchRitualistDropCreation() {
+  for (const SheetClass of getSymbaroumSheetClasses("Actor", "player")) {
+    const original = SheetClass?.prototype?._onDropItem;
+    if (!original || original._tenebreRitualistDropWrapped) continue;
+
+    SheetClass.prototype._onDropItem = async function tenebreRitualistDrop(event, data) {
+      const ItemClass = globalThis.Item?.implementation ?? CONFIG.Item?.documentClass;
+      if (!ItemClass?.fromDropData) return original.call(this, event, data);
+
+      const droppedItem = data?.documentName === "Item"
+        ? data
+        : await ItemClass.fromDropData(data);
+      const containerTransfer = await ContainerTransferService.handleActorItemDrop(this.actor, droppedItem);
+      if (containerTransfer.handled) return containerTransfer.result;
+      if (!isRitualDocument(droppedItem)) return original.call(this, event, data);
+      if (!this.actor?.isOwner) return null;
+      if (this.actor.uuid === droppedItem.parent?.uuid) return original.call(this, event, data);
+
+      return this.actor.createEmbeddedDocuments("Item", [droppedItem.toObject()], {
+        render: false
+      });
+    };
+    SheetClass.prototype._onDropItem._tenebreRitualistDropWrapped = true;
+  }
+}
+
+function patchRitualistInlineDeletion() {
+  for (const SheetClass of getSymbaroumSheetClasses("Actor", "player")) {
+    const original = SheetClass?.prototype?._itemDelete;
+    if (!original || original._tenebreRitualistDeleteWrapped) continue;
+
+    SheetClass.prototype._itemDelete = async function tenebreRitualistItemDelete(element) {
+      const isInlineRitual = element?.classList?.contains("tenebre-ritualist-item");
+      const item = isInlineRitual ? this.actor?.items?.get(element.dataset.itemId) : null;
+      if (!item || !isRitualDocument(item)) return original.call(this, element);
+
+      const confirmed = await promptDialog({
+        title: game.i18n.localize("TOOLTIP.DELETE_ITEM"),
+        content: `<p>${escapeHtml(game.i18n.localize("TOOLTIP.DELETE_ITEM"))} <strong>${escapeHtml(item.name)}</strong>?</p>`,
+        okLabel: game.i18n.localize("DIALOG.OK"),
+        cancelLabel: game.i18n.localize("DIALOG.CANCEL"),
+        callback: () => true
+      });
+      if (!confirmed) return null;
+
+      return this.actor.deleteEmbeddedDocuments("Item", [item.id], { render: false });
+    };
+    SheetClass.prototype._itemDelete._tenebreRitualistDeleteWrapped = true;
+  }
+}
+
+function onOwnedRitualWillDelete(item) {
+  if (!isRitualDocument(item)) return;
+  const actor = item?.parent;
+  if (!isManagedActor(actor) || !isPlayerActor(actor)) return;
+
+  const actorKey = actor.uuid ?? actor.id;
+  const itemKey = item.uuid ?? item.id;
+  ritualActorsByItem.set(itemKey, actor);
+  const deletingIds = deletingRitualIdsByActor.get(actorKey) ?? new Set();
+  deletingIds.add(item.id);
+  deletingRitualIdsByActor.set(actorKey, deletingIds);
+
+  const cached = knownRitualsByActor.get(actorKey)
+    ?? new Map(actorItems(actor).filter(isRitualDocument).map((ritual) => [ritual.id, ritual]));
+  cached.delete(item.id);
+  knownRitualsByActor.set(actorKey, cached);
+
+  setTimeout(() => refreshOpenRitualistLists(actor), 0);
+}
+
+function onOwnedRitualCollectionChanged(item, created) {
+  if (!isRitualDocument(item)) return;
+  const itemKey = item.uuid ?? item.id;
+  const actor = item?.parent ?? ritualActorsByItem.get(itemKey);
+  if (!isManagedActor(actor) || !isPlayerActor(actor)) return;
+
+  const actorKey = actor.uuid ?? actor.id;
+  if (created && item?.parent) {
+    const cached = knownRitualsByActor.get(actorKey) ?? new Map();
+    cached.set(item.id, item);
+    knownRitualsByActor.set(actorKey, cached);
+    ritualActorsByItem.set(itemKey, actor);
+  } else if (!created) {
+    knownRitualsByActor.get(actorKey)?.delete(item.id);
+  }
+
+  setTimeout(() => refreshOpenRitualistLists(actor), 0);
+
+  setTimeout(() => {
+    ritualActorsByItem.delete(itemKey);
+    deletingRitualIdsByActor.get(actorKey)?.delete(item.id);
+  }, 500);
+}
+
+function forEachOpenActorSheet(actor, callback) {
+  for (const app of Object.values(ui.windows ?? {})) {
+    const sheetActor = app.actor ?? app.document;
+    if (sheetActor?.uuid !== actor.uuid) continue;
+    const root = getRoot(app.element);
+    if (root) callback(root, app);
+  }
+}
+
+function refreshOpenRitualistLists(actor) {
+  forEachOpenActorSheet(actor, (root, app) => {
+    injectRitualistInlineList(app, root, actor);
+  });
+}
+
+function patchSymbaroumItemChatSender() {
+  for (const type of ["ability", "ritual", "mysticalPower", "mystical-power", "trait", "boon", "burden", "artifact", "equipment", "weapon", "armor"]) {
+    for (const SheetClass of getSymbaroumSheetClasses("Item", type)) {
+      if (!SheetClass?.prototype?.sendToChat || SheetClass.prototype.sendToChat._tenebreWrapped) continue;
+
+      const original = SheetClass.prototype.sendToChat;
+      SheetClass.prototype.sendToChat = async function tenebreSendToChat(...args) {
+        const item = this.item ?? this.document ?? this.object;
+        const actor = item?.parent;
+        if (TenebreSettings.get("enableChatItemUse") && actor && ChatItemUseService.canSend(item)) {
+          return ChatItemUseService.send(actor, item);
+        }
+        return original.apply(this, args);
+      };
+      SheetClass.prototype.sendToChat._tenebreWrapped = true;
+    }
+  }
 }
 
 /**
- * Foundry v13: injeta UI via activateListeners (sempre executado ao renderizar a ficha).
- * Hooks legados como renderActorSheet não existem mais no core.
+ * O Symbaroum 6.1.6 ainda usa fichas V1. A injeção ocorre uma vez por render,
+ * depois do activateListeners original, sem repetir o trabalho pelos hooks de herança.
  */
 function patchSymbaroumSheetListeners() {
-  for (const SheetClass of getSymbaroumSheetClasses("Actor", "player")) {
-    patchSheetActivateListeners(SheetClass, (app, html) => onRenderActorSheet(app, html));
+  for (const type of ["player", "monster"]) {
+    for (const SheetClass of getSymbaroumSheetClasses("Actor", type)) {
+      patchSheetActivateListeners(SheetClass, (app, html) => onRenderActorSheet(app, html));
+    }
   }
 
   for (const type of ["equipment", "weapon", "armor"]) {
@@ -81,22 +227,20 @@ function patchSheetActivateListeners(SheetClass, callback) {
 
   const original = SheetClass.prototype.activateListeners;
   SheetClass.prototype.activateListeners = function tenebreActivateListeners(html) {
-    original.call(this, html);
+    const result = original?.call(this, html);
     try {
       callback(this, html);
     } catch (err) {
       console.error(`${MODULE_ID} | Sheet UI injection failed (${SheetClass.name}):`, err);
     }
+    return result;
   };
 }
 
-function onRenderApplication(app, html) {
-  const name = app.constructor?.name;
-  if (name === "PlayerSheet") {
-    onRenderActorSheet(app, html);
-  } else if (["EquipmentSheet", "WeaponSheet", "ArmorSheet"].includes(name)) {
-    onRenderItemSheet(app, html);
-  }
+function onRenderApplicationV2(app, element) {
+  removeTenebreActorHeaderButtons(app, element);
+  if (isSymbaroumActorSheetApplication(app)) onRenderActorSheet(app, element);
+  else if (isSymbaroumItemSheetApplication(app)) onRenderItemSheet(app, element);
 }
 
 function getActorFromDom(elem) {
@@ -111,6 +255,10 @@ function getActorFromDom(elem) {
 }
 
 function patchContextMenu() {
+  const ContextMenuClass = foundry.applications?.ux?.ContextMenu;
+  if (!ContextMenuClass?.prototype?.render) return;
+  if (ContextMenuClass.prototype.render._tenebreContextMenuWrapped && !CompatibilityService.canUseLibWrapper()) return;
+
   const handler = function(wrapped, html) {
     if (this.constructor.name === "CMPowerMenu") {
       if (!this._tenebrePatched) {
@@ -121,7 +269,7 @@ function patchContextMenu() {
           icon: `<i class="fas fa-box-open" style="color: currentColor;"></i>`,
           isVisible: (item) => {
             const actor = this.myParent?.actor;
-            return TenebreSettings.get("enableEncumbrance")
+            return TenebreSettings.get("enableContainers")
               && ContainerService.canAttemptStoreItem(item)
               && ContainerService.getContainers(actor, item).length > 0;
           },
@@ -130,7 +278,7 @@ function patchContextMenu() {
             const itemId = elem.dataset.itemId;
             const item = actor?.items?.get(itemId);
             if (actor && item) {
-              ContainerService.storeItemPrompt(actor, item).then(() => rerenderActorSheets(actor));
+              void ContainerService.storeItemPrompt(actor, item);
             }
           }
         });
@@ -139,7 +287,7 @@ function patchContextMenu() {
           name: "TENEBRE.Containers.OpenContextMenu",
           icon: `<i class="fas fa-box" style="color: currentColor;"></i>`,
           isVisible: (item) => {
-            return TenebreSettings.get("enableEncumbrance") && ContainerService.isContainer(item);
+            return TenebreSettings.get("enableContainers") && ContainerService.isContainer(item);
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);
@@ -159,9 +307,25 @@ function patchContextMenu() {
           },
           callback: function(elem) {
             const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
             if (actor) {
-              RationService.consumeDay(actor);
+              RationService.consumeDay(actor, item);
             }
+          }
+        });
+
+        this.originalMenuItems.push({
+          name: "TENEBRE.Containers.ConfigureContextMenu",
+          icon: `<i class="fas fa-sliders-h" style="color: currentColor;"></i>`,
+          isVisible: (item) => game.user?.isGM
+            && TenebreSettings.get("enableContainers")
+            && ContainerService.isContainer(item),
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
+            if (actor && item) void ContainerService.configureContainerPrompt(actor, item);
           }
         });
 
@@ -184,10 +348,64 @@ function patchContextMenu() {
         });
 
         this.originalMenuItems.push({
+          name: "TENEBRE.ChatItemUse.ContextMenu",
+          icon: `<i class="fas fa-comment-dots" style="color: currentColor;"></i>`,
+          isVisible: (item) => {
+            return TenebreSettings.get("enableChatItemUse") && ChatItemUseService.canSend(item);
+          },
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
+            if (actor && item) {
+              ChatItemUseService.send(actor, item);
+            }
+          }
+        });
+
+        this.originalMenuItems.push({
+          name: "TENEBRE.RitualBrowser.ContextMenu",
+          icon: `<i class="fas fa-book-open" style="color: currentColor;"></i>`,
+          isVisible: (item) => TenebreSettings.get("enableRitualCatalog")
+            && RitualBrowserService.isRitualistAbility(item),
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            if (actor) void RitualBrowserService.open(actor);
+          }
+        });
+
+        this.originalMenuItems.push({
+          name: "TENEBRE.WeaponReadiness.Draw",
+          icon: `<i class="fas fa-hand-fist" style="color: currentColor;"></i>`,
+          isVisible: (item) => WeaponReadinessService.isEnabled()
+            && WeaponReadinessService.isEligibleWeapon(item)
+            && !WeaponReadinessService.isDrawn(item),
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const item = actor?.items?.get(elem.dataset.itemId);
+            if (item) void WeaponReadinessService.setDrawn(item, true);
+          }
+        });
+
+        this.originalMenuItems.push({
+          name: "TENEBRE.WeaponReadiness.Sheathe",
+          icon: `<i class="fas fa-shield-halved" style="color: currentColor;"></i>`,
+          isVisible: (item) => WeaponReadinessService.isEnabled()
+            && WeaponReadinessService.isEligibleWeapon(item)
+            && WeaponReadinessService.isDrawn(item),
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const item = actor?.items?.get(elem.dataset.itemId);
+            if (item) void WeaponReadinessService.setDrawn(item, false);
+          }
+        });
+
+        this.originalMenuItems.push({
           name: "TENEBRE.Ammo.ReloadQuiverContextMenu",
           icon: `<i class="fas fa-redo" style="color: currentColor;"></i>`,
           isVisible: (item) => {
             return TenebreSettings.get("enableAmmoConsumption")
+              && TenebreSettings.get("enableQuiverAmmoContainers")
               && isPlayerActor(item?.parent)
               && isQuiver(item)
               && itemQuantity(item) > 0;
@@ -198,6 +416,27 @@ function patchContextMenu() {
             const item = actor?.items?.get(itemId);
             if (actor && item) {
               AmmoService.reloadQuiverPrompt(actor, item);
+            }
+          }
+        });
+
+        this.originalMenuItems.push({
+          name: "TENEBRE.Ammo.UnloadQuiverContextMenu",
+          icon: `<i class="fas fa-upload" style="color: currentColor;"></i>`,
+          isVisible: (item) => {
+            return TenebreSettings.get("enableAmmoConsumption")
+              && TenebreSettings.get("enableQuiverAmmoContainers")
+              && isPlayerActor(item?.parent)
+              && isQuiver(item)
+              && itemQuantity(item) > 0
+              && getQuiverLoadedTotal(item) > 0;
+          },
+          callback: function(elem) {
+            const actor = getActorFromDom(elem);
+            const itemId = elem.dataset.itemId;
+            const item = actor?.items?.get(itemId);
+            if (actor && item) {
+              AmmoService.unloadQuiver(actor, item).then(() => rerenderActorSheets(actor));
             }
           }
         });
@@ -221,16 +460,17 @@ function patchContextMenu() {
     return wrapped.call(this, html);
   };
 
-  if (game.modules.get("libWrapper")?.active) {
+  if (CompatibilityService.canUseLibWrapper()) {
     libWrapper.register(MODULE_ID, "foundry.applications.ux.ContextMenu.prototype.render", function(wrapped, html) {
       return handler.call(this, wrapped, html);
     }, "WRAPPER");
   } else {
-    const originalRender = foundry.applications.ux.ContextMenu.prototype.render;
-    foundry.applications.ux.ContextMenu.prototype.render = function(html) {
+    const originalRender = ContextMenuClass.prototype.render;
+    ContextMenuClass.prototype.render = function tenebreContextMenuRender(html) {
       const wrapped = (h) => originalRender.call(this, h);
       return handler.call(this, wrapped, html);
     };
+    ContextMenuClass.prototype.render._tenebreContextMenuWrapped = true;
   }
 }
 
@@ -238,14 +478,687 @@ function patchContextMenu() {
 // Renderização da ficha de ator
 function onRenderActorSheet(app, html) {
   const actor = app.actor ?? app.document;
-  if (!actor || actor.type !== "player") return;
+  if (!isManagedActor(actor)) return;
   if (!actor.isOwner && !game.user.isGM) return;
+  if (skipDuplicateSheetRender(html, app, "actor")) return;
 
-  hideStoredItemRows(app, html, actor);
-  injectContainerInlineLists(app, html, actor);
+  syncActorSheetHeaderButtons(app);
+
+  if (!isPlayerActor(actor)) return;
+
+  if (TenebreSettings.get("enableContainers")) {
+    hideStoredItemRows(app, html, actor);
+    injectContainerInlineLists(app, html, actor);
+    wireContainerLeftClickToggle(html, actor);
+    wireContainerDragDrop(app, html, actor);
+  }
+  injectRitualistInlineList(app, html, actor);
   updateRationQuantityDisplay(app, html, actor);
   updateQuiverQuantityDisplay(app, html, actor);
+  injectWeaponReadinessControls(app, html, actor);
   injectEncumbrancePanel(app, html, actor);
+  injectManeuverPanel(app, html, actor);
+  wireChatItemUseIconFallback(app, html, actor);
+  wireInventoryItemIconUse(html, actor);
+}
+
+function injectWeaponReadinessControls(_app, html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  el.querySelectorAll(".tenebre-weapon-readiness-button").forEach((button) => button.remove());
+  el.querySelectorAll(".tenebre-weapon-drawn").forEach((row) => row.classList.remove("tenebre-weapon-drawn"));
+  el.querySelectorAll(".tenebre-weapon-drawn-icon").forEach((icon) => icon.remove());
+  if (!WeaponReadinessService.isEnabled()) return;
+
+  const weapons = WeaponReadinessService.getEligibleWeapons(actor);
+  const section = el.querySelector(".combat .weapons");
+  const header = section?.querySelector(".item-header");
+  if (!section || !header || weapons.length === 0) return;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "tenebre-weapon-readiness-button";
+  button.title = game.i18n.localize("TENEBRE.WeaponReadiness.ButtonHint");
+  button.innerHTML = `<i class="fas fa-hand-fist"></i><span>${escapeHtml(game.i18n.localize("TENEBRE.WeaponReadiness.Button"))}</span>`;
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void WeaponReadinessService.open(actor);
+  });
+  header.append(button);
+
+  for (const weapon of weapons) {
+    if (!WeaponReadinessService.isDrawn(weapon)) continue;
+    const row = section.querySelector(`.item[data-item-id="${CSS.escape(weapon.id)}"]`);
+    if (!row) continue;
+    row.classList.add("tenebre-weapon-drawn");
+    const rollButton = row.querySelector(".roll-weapon");
+    if (!rollButton) continue;
+    const icon = document.createElement("img");
+    icon.className = "tenebre-weapon-drawn-icon";
+    icon.src = WEAPON_READINESS_ICON;
+    icon.alt = "";
+    icon.setAttribute("aria-hidden", "true");
+    icon.title = game.i18n.localize("TENEBRE.WeaponReadiness.Drawn");
+    rollButton.prepend(icon);
+  }
+}
+
+function injectRitualistInlineList(app, html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  const items = actorItems(actor);
+  const ritualist = items.find((item) => RitualBrowserService.isRitualistAbility(item));
+  const getRituals = () => getKnownRituals(actor);
+
+  const revealRitualRows = () => {
+    for (const ritual of getRituals()) {
+      const row = findAbilityItemRow(el, ritual.id);
+      if (!row) continue;
+      row.hidden = false;
+      row.style.removeProperty("display");
+      row.classList.remove("tenebre-hidden-owned-ritual");
+    }
+  };
+
+  if (!ritualist) {
+    el.querySelectorAll(".tenebre-ritualist-inline-row").forEach((row) => row.remove());
+    revealRitualRows();
+    return;
+  }
+
+  const ritualistRow = findAbilityItemRow(el, ritualist.id);
+  if (!ritualistRow) {
+    scheduleRitualistInjectionRetry(app, el, actor);
+    return;
+  }
+
+  cancelRitualistInjectionRetry(el);
+  el.querySelectorAll(".tenebre-ritualist-inline-row").forEach((row) => row.remove());
+
+  moveAbilityRowToEnd(ritualistRow);
+
+  if (!TenebreSettings.get("enableRitualistGrouping")) {
+    revealRitualRows();
+    const previousToggleHandler = ritualistRow._tenebreRitualistToggleHandler;
+    if (previousToggleHandler) ritualistRow.removeEventListener("click", previousToggleHandler, true);
+    delete ritualistRow._tenebreRitualistToggleHandler;
+    delete ritualistRow.dataset.tenebreRitualistToggle;
+    ritualistRow.classList.remove("tenebre-ritualist-anchor", "tenebre-ritualist-expanded");
+    ritualistRow.removeAttribute("aria-expanded");
+    ritualistRow.removeAttribute("title");
+    return;
+  }
+
+  const hideRitualRows = () => {
+    for (const ritual of getRituals()) {
+      const row = findAbilityItemRow(el, ritual.id);
+      if (!row || row === ritualistRow) continue;
+      row.hidden = true;
+      row.style.display = "none";
+      row.classList.add("tenebre-hidden-owned-ritual");
+    }
+  };
+
+  hideRitualRows();
+  setTimeout(hideRitualRows, 0);
+  setTimeout(hideRitualRows, 100);
+
+  const stateKey = actor.uuid ?? actor.id;
+  if (ritualist.getFlag?.(FLAG_SCOPE, RITUALIST_EXPANDED_FLAG) === true) {
+    expandedRitualists.add(stateKey);
+  }
+  ritualistRow.classList.add("tenebre-ritualist-anchor");
+  ritualistRow.title = game.i18n.localize("TENEBRE.RitualBrowser.ToggleOwned");
+
+  const renderExpandedState = () => {
+    el.querySelectorAll(".tenebre-ritualist-inline-row").forEach((row) => row.remove());
+    const expanded = expandedRitualists.has(stateKey);
+    ritualistRow.classList.toggle("tenebre-ritualist-expanded", expanded);
+    ritualistRow.setAttribute("aria-expanded", expanded ? "true" : "false");
+    if (expanded) {
+      const rituals = getRituals();
+      const inlineRow = buildRitualistInlineRow(el, actor, rituals, ritualistRow);
+      inlineRow.classList.toggle(
+        "tenebre-ritualist-inline-row-right",
+        isAbilityRowInRightColumn(ritualistRow)
+      );
+      ritualistRow.insertAdjacentElement("afterend", inlineRow);
+    }
+  };
+
+  const previousToggleHandler = ritualistRow._tenebreRitualistToggleHandler;
+  if (previousToggleHandler) ritualistRow.removeEventListener("click", previousToggleHandler, true);
+
+  const toggleHandler = async (event) => {
+    if (event.button !== 0) return;
+    if (event.target.closest("#context-menu, nav.context-menu, .context-menu")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    const expanded = !expandedRitualists.has(stateKey);
+    if (expanded) expandedRitualists.add(stateKey);
+    else expandedRitualists.delete(stateKey);
+    renderExpandedState();
+    try {
+      await ritualist.update({
+        [`flags.${FLAG_SCOPE}.${RITUALIST_EXPANDED_FLAG}`]: expanded
+      }, { render: false });
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Failed to persist Ritualist expansion state.`, error);
+    }
+  };
+
+  ritualistRow._tenebreRitualistToggleHandler = toggleHandler;
+  ritualistRow.dataset.tenebreRitualistToggle = "true";
+  ritualistRow.addEventListener("click", toggleHandler, true);
+
+  renderExpandedState();
+}
+
+function getKnownRituals(actor) {
+  const actorKey = actor.uuid ?? actor.id;
+  const deletingIds = deletingRitualIdsByActor.get(actorKey) ?? new Set();
+  const rituals = actorItems(actor)
+    .filter((item) => isRitualDocument(item) && !deletingIds.has(item.id));
+
+  knownRitualsByActor.set(actorKey, new Map(rituals.map((ritual) => [ritual.id, ritual])));
+  for (const ritual of rituals) ritualActorsByItem.set(ritual.uuid ?? ritual.id, actor);
+  return rituals;
+}
+
+function scheduleRitualistInjectionRetry(app, root, actor) {
+  if (!root) return;
+
+  const current = ritualistInjectionRetries.get(root);
+  if (current?.timeoutId) return;
+  const attempts = current?.attempts ?? 0;
+  if (attempts >= 3) {
+    ritualistInjectionRetries.delete(root);
+    return;
+  }
+
+  const state = { attempts: attempts + 1, timeoutId: null };
+  state.timeoutId = window.setTimeout(() => {
+    state.timeoutId = null;
+    const currentRoot = getRoot(app?.element) ?? root;
+    if (currentRoot !== root) ritualistInjectionRetries.delete(root);
+    injectRitualistInlineList(app, currentRoot, actor);
+  }, 50 * state.attempts);
+  ritualistInjectionRetries.set(root, state);
+}
+
+function cancelRitualistInjectionRetry(root) {
+  const state = ritualistInjectionRetries.get(root);
+  if (!state) return;
+  if (state.timeoutId) window.clearTimeout(state.timeoutId);
+  ritualistInjectionRetries.delete(root);
+}
+
+function findAbilityItemRow(root, itemId) {
+  return root.querySelector(`.abilities-powers [data-item-id="${itemId}"]`)
+    ?? root.querySelector(`[data-item-id="${itemId}"]`);
+}
+
+function moveAbilityRowToEnd(row) {
+  const list = row?.parentElement;
+  if (!list || list.lastElementChild === row) return;
+  list.append(row);
+}
+
+function isAbilityRowInRightColumn(row) {
+  const list = row?.parentElement;
+  if (!list?.getBoundingClientRect || !row?.getBoundingClientRect) return false;
+  const listRect = list.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  return rowRect.left + (rowRect.width / 2) > listRect.left + (listRect.width / 2);
+}
+
+function buildRitualistInlineRow(root, actor, rituals, anchorRow) {
+  const row = document.createElement(anchorRow?.tagName === "LI" ? "li" : "div");
+  row.className = "tenebre-ritualist-inline-row";
+
+  const content = document.createElement("div");
+  content.className = "tenebre-ritualist-inline";
+
+  if (!rituals.length) {
+    const empty = document.createElement("p");
+    empty.className = "tenebre-ritualist-empty";
+    empty.textContent = game.i18n.localize("TENEBRE.RitualBrowser.NoKnownRituals");
+    content.appendChild(empty);
+  } else {
+    const list = document.createElement("ol");
+    list.className = "tenebre-ritualist-list";
+    for (const ritual of rituals) list.appendChild(buildRitualistItem(root, actor, ritual));
+    content.appendChild(list);
+  }
+
+  row.appendChild(content);
+  return row;
+}
+
+function buildRitualistItem(root, actor, ritual) {
+  const row = document.createElement("li");
+  row.className = "tenebre-ritualist-item symbaroum-contextmenu";
+  row.dataset.itemId = ritual.id;
+
+  const use = document.createElement("button");
+  use.type = "button";
+  use.className = "tenebre-ritualist-use";
+  use.style.backgroundImage = `url("${String(ritual.img || "icons/svg/book.svg").replaceAll('"', '%22')}")`;
+  use.title = game.i18n.localize("TENEBRE.RitualBrowser.Use");
+  use.setAttribute("aria-label", use.title);
+  use.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const original = findAbilityItemRow(root, ritual.id)?.querySelector(".activate-ability");
+    if (original) original.click();
+    else if (ChatItemUseService.canSend(ritual)) await ChatItemUseService.send(actor, ritual);
+  });
+  row.appendChild(use);
+
+  const open = document.createElement("button");
+  open.type = "button";
+  open.className = "tenebre-ritualist-name";
+  open.textContent = ritual.name;
+  open.title = game.i18n.localize("TENEBRE.RitualBrowser.OpenRitual");
+  open.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    ritual.sheet?.render(true);
+  });
+  row.appendChild(open);
+
+  const action = document.createElement("span");
+  action.className = "tenebre-ritualist-action";
+  action.textContent = ritual.system?.actions || game.i18n.localize("TENEBRE.RitualBrowser.Ritual");
+  row.appendChild(action);
+
+  return row;
+}
+
+function wireChatItemUseIconFallback(app, html, actor) {
+  if (!TenebreSettings.get("enableChatItemUse")) return;
+
+  const el = getRoot(html);
+  if (!el) return;
+
+  for (const button of el.querySelectorAll(".activate-ability")) {
+    if (button.dataset.tenebreChatItemUse === "true") continue;
+    const row = button.closest("[data-item-id]");
+    const item = row ? actor.items.get(row.dataset.itemId) : null;
+    if (!shouldUseChatItemFromIcon(item)) continue;
+
+    button.dataset.tenebreChatItemUse = "true";
+    button.classList.add("tenebre-chat-use-available");
+    button.title = game.i18n.localize("TENEBRE.ChatItemUse.ContextMenu");
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      await ChatItemUseService.send(actor, item);
+      app.render?.(false);
+    }, { capture: true });
+  }
+}
+
+function shouldUseChatItemFromIcon(item) {
+  if (!ChatItemUseService.canSend(item)) return false;
+  if (item?.system?.isRitual) return true;
+  return item?.system?.isPower === true && item?.system?.hasScript !== true;
+}
+
+function wireInventoryItemIconUse(html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  const canUseItems = TenebreSettings.get("enableChatItemUse");
+  if (!canUseItems) return;
+
+  const controls = el.querySelectorAll(
+    ".gear .item-row.item[data-item-id] .image-container > .image"
+  );
+
+  for (const control of controls) {
+    if (control.dataset.tenebreItemIconUse === "true") continue;
+
+    const row = control.closest(".item-row.item[data-item-id]");
+    const item = row ? actor.items.get(row.dataset.itemId) : null;
+    const usesItem = canUseItems
+      && !ContainerService.isContainer(item)
+      && ChatItemUseService.canSend(item);
+    if (!usesItem) continue;
+
+    control.dataset.tenebreItemIconUse = "true";
+    control.classList.add("tenebre-item-icon-use");
+    const isNativeButton = control.matches("button, input, select, textarea, a[href]");
+    if (!isNativeButton) {
+      control.tabIndex = 0;
+      control.setAttribute("role", "button");
+    }
+    control.title = game.i18n.localize("TENEBRE.ChatItemUse.ContextMenu");
+
+    const activate = async (event) => {
+      if (event.type === "click" && event.button !== 0) return;
+      if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      await ChatItemUseService.send(actor, item);
+    };
+
+    control.addEventListener("click", activate, { capture: true });
+    if (!isNativeButton) control.addEventListener("keydown", activate, { capture: true });
+  }
+}
+
+function wireContainerLeftClickToggle(html, actor) {
+  const el = getRoot(html);
+  if (!el) return;
+
+  for (const row of el.querySelectorAll(".gear .item-row.item[data-item-id]")) {
+    const item = actor.items.get(row.dataset.itemId);
+    if (!ContainerService.isContainer(item) || ContainerService.isStored(item)) continue;
+
+    const controls = row.querySelectorAll(".item-edit, .image-container > .image");
+    for (const control of controls) {
+      if (control.dataset.tenebreContainerToggle === "true") continue;
+
+      control.dataset.tenebreContainerToggle = "true";
+      control.classList.remove("tenebre-item-icon-use");
+      control.classList.add("tenebre-container-toggle");
+      control.title = game.i18n.localize("TENEBRE.Containers.OpenContextMenu");
+
+      const isNativeButton = control.matches("button, input, select, textarea, a[href]");
+      if (!isNativeButton) {
+        control.tabIndex = 0;
+        control.setAttribute("role", "button");
+      }
+
+      const activate = async (event) => {
+        if (event.type === "click" && event.button !== 0) return;
+        if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        await ContainerService.toggleContainer(actor, item);
+      };
+
+      control.addEventListener("click", activate, { capture: true });
+      if (!isNativeButton) control.addEventListener("keydown", activate, { capture: true });
+    }
+  }
+}
+
+function wireContainerDragDrop(app, html, actor) {
+  const el = getRoot(html);
+  if (!el || el.dataset.tenebreContainerDragDrop === "true") return;
+
+  el.dataset.tenebreContainerDragDrop = "true";
+  prepareContainerDraggables(el, actor);
+
+  el.addEventListener("dragstart", (event) => {
+    const dragData = getContainerDragStartData(event, el, actor);
+    if (!dragData) return;
+
+    activeContainerDrag = dragData;
+    const serialized = JSON.stringify(dragData);
+    event.dataTransfer?.setData(CONTAINER_DRAG_DATA_TYPE, serialized);
+    event.dataTransfer?.setData("text/plain", serialized);
+    event.dataTransfer?.setData("application/json", serialized);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+  }, { capture: true });
+
+  el.addEventListener("dragend", () => {
+    activeContainerDrag = null;
+    clearContainerDropMarkers(el);
+  }, { capture: true });
+
+  el.addEventListener("dragover", (event) => {
+    const dragData = activeContainerDrag;
+    if (!dragData) return;
+
+    clearContainerDropMarkers(el);
+    const container = getContainerDropTarget(event.target, actor);
+    if (dragData.source === "inventory" && container) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      markContainerDropTarget(el, container);
+      return;
+    }
+
+    if (dragData.source === "stored" && isStoredItemWithdrawDrop(event.target)) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      el.classList.add("tenebre-container-withdraw-drop");
+    }
+  }, { capture: true });
+
+  el.addEventListener("dragleave", (event) => {
+    if (!el.contains(event.relatedTarget)) clearContainerDropMarkers(el);
+  }, { capture: true });
+
+  el.addEventListener("drop", async (event) => {
+    const dragData = activeContainerDrag ?? getContainerDropData(event);
+    if (!dragData || dragData.actorId !== actor.id) return;
+
+    const item = actor.items.get(dragData.itemId);
+    if (!item) return;
+
+    const container = getContainerDropTarget(event.target, actor);
+    if (dragData.source === "inventory" && container) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      await ContainerService.storeItemInContainerPrompt(actor, item, container);
+    } else if (dragData.source === "stored" && isStoredItemWithdrawDrop(event.target)) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      await ContainerService.withdrawItemPrompt(actor, item);
+    }
+
+    activeContainerDrag = null;
+    clearContainerDropMarkers(el);
+  }, { capture: true });
+}
+
+function prepareContainerDraggables(el, actor) {
+  for (const row of el.querySelectorAll(".item[data-item-id]")) {
+    const item = actor.items.get(row.dataset.itemId);
+    const canDragContainer = ContainerService.isContainer(item)
+      && !ContainerService.isStored(item)
+      && !GroundContainerService.hasGroundToken(item);
+    if (!canDragContainer && !ContainerService.canAttemptStoreItem(item)) continue;
+    row.draggable = true;
+    row.classList.add("tenebre-container-draggable");
+  }
+}
+
+function getContainerDragStartData(event, root, actor) {
+  const storedRow = event.target?.closest?.(".tenebre-container-item[data-stored-item-id]");
+  if (storedRow && root.contains(storedRow)) {
+    const item = actor.items.get(storedRow.dataset.storedItemId);
+    if (!ContainerService.isStored(item)) return null;
+    return { actorId: actor.id, itemId: item.id, source: "stored" };
+  }
+
+  const itemRow = event.target?.closest?.(".item[data-item-id]");
+  if (!itemRow || !root.contains(itemRow)) return null;
+  const item = actor.items.get(itemRow.dataset.itemId);
+  if (ContainerService.isContainer(item) && !ContainerService.isStored(item)
+    && !GroundContainerService.hasGroundToken(item)) {
+    return GroundContainerService.buildDragData(actor, item);
+  }
+  if (!ContainerService.canAttemptStoreItem(item)) return null;
+  return { actorId: actor.id, actorUuid: actor.uuid, itemId: item.id, source: "inventory" };
+}
+
+function getContainerDropData(event) {
+  const raw = event.dataTransfer?.getData(CONTAINER_DRAG_DATA_TYPE);
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    if (data?.actorId && data?.itemId && data?.source) return data;
+  } catch (_error) {
+    // Ignore non-Tenebre drag payloads.
+  }
+  return null;
+}
+
+function getContainerDropTarget(target, actor) {
+  const inlineRow = target?.closest?.(".tenebre-container-inline-row[data-container-id]");
+  if (inlineRow) return actor.items.get(inlineRow.dataset.containerId) ?? null;
+
+  const itemRow = target?.closest?.(".item[data-item-id]");
+  const item = itemRow ? actor.items.get(itemRow.dataset.itemId) : null;
+  if (ContainerService.isContainer(item) && !ContainerService.isStored(item)) return item;
+  return null;
+}
+
+function isStoredItemWithdrawDrop(target) {
+  return !target?.closest?.(".tenebre-container-inline-row, .tenebre-container-inline, .tenebre-container-item");
+}
+
+function markContainerDropTarget(root, container) {
+  const row = root.querySelector(`.item[data-item-id="${container.id}"]`);
+  row?.classList.add("tenebre-container-drop-target");
+  root.querySelector(`.tenebre-container-inline-row[data-container-id="${container.id}"]`)
+    ?.classList.add("tenebre-container-drop-target");
+}
+
+function clearContainerDropMarkers(root) {
+  root.classList.remove("tenebre-container-withdraw-drop");
+  root.querySelectorAll(".tenebre-container-drop-target").forEach((element) => {
+    element.classList.remove("tenebre-container-drop-target");
+  });
+}
+
+function onTenebreSettingChanged(key) {
+  if (!["enableRestButton", "enableClearEffectsButton"].includes(key)) return;
+  window.setTimeout(syncOpenActorSheetHeaders, 50);
+  window.setTimeout(syncOpenActorSheetHeaders, 800);
+}
+
+function onActiveEffectChanged(effect) {
+  const actor = effect?.parent;
+  if (!isManagedActor(actor)) return;
+  if (!TenebreSettings.get("enableClearEffectsButton")) return;
+
+  syncActorSheetHeaders(actor);
+  window.setTimeout(() => syncActorSheetHeaders(actor), 0);
+  window.setTimeout(() => syncActorSheetHeaders(actor), 100);
+  window.setTimeout(() => syncActorSheetHeaders(actor), 500);
+}
+
+function syncOpenActorSheetHeaders() {
+  for (const app of Object.values(ui.windows ?? {})) {
+    syncActorSheetHeaderButtons(app);
+  }
+
+  const instances = foundry.applications?.instances;
+  if (instances && typeof instances[Symbol.iterator] === "function") {
+    for (const app of instances) syncActorSheetHeaderButtons(app);
+  }
+}
+
+function syncActorSheetHeaders(actor) {
+  if (!actor) return;
+
+  for (const app of Object.values(ui.windows ?? {})) {
+    const sheetActor = app.actor ?? app.document;
+    if (sheetActor?.id === actor.id) syncActorSheetHeaderButtons(app);
+  }
+
+  const instances = foundry.applications?.instances;
+  if (instances && typeof instances[Symbol.iterator] === "function") {
+    for (const app of instances) {
+      const sheetActor = app.actor ?? app.document;
+      if (sheetActor?.id === actor.id) syncActorSheetHeaderButtons(app);
+    }
+  }
+}
+
+function syncActorSheetHeaderButtons(app) {
+  removeTenebreActorHeaderButtons(app);
+  if (!isSymbaroumActorSheetApplication(app)) return;
+
+  const actor = app?.actor ?? app?.document;
+  if (!isManagedActor(actor)) return;
+  if (!actor.isOwner && !game.user.isGM) return;
+
+  const root = getRoot(app.element);
+  const header = root?.querySelector(".window-header, header");
+  if (!header) return;
+
+  const insertBefore = header.querySelector(".death-roll, .recover-death-roll, .configure-sheet, .close");
+
+  if (TenebreSettings.get("enableClearEffectsButton") && hasActorEffects(actor)) {
+    insertHeaderButton(header, insertBefore, {
+      className: "tenebre-clear-effects",
+      icon: "fas fa-eraser",
+      label: game.i18n.localize("TENEBRE.Maneuvers.ClearEffects"),
+      onClick: async (ev) => {
+        ev.preventDefault();
+        const count = await clearActorEffects(actor);
+        ui.notifications.info(game.i18n.format("TENEBRE.Maneuvers.ClearEffectsDone", { count }));
+        syncActorSheetHeaderButtons(app);
+        window.setTimeout(() => syncActorSheetHeaderButtons(app), 0);
+        window.setTimeout(() => syncActorSheetHeaderButtons(app), 100);
+        app.render?.(false);
+      }
+    });
+  }
+
+  if (isPlayerActor(actor) && TenebreSettings.get("enableRestButton")) {
+    insertHeaderButton(header, insertBefore, {
+      className: "tenebre-rest",
+      icon: "fas fa-bed",
+      label: game.i18n.localize("TENEBRE.Rest.DialogTitle") || "Descanso",
+      onClick: async (ev) => {
+        ev.preventDefault();
+        await RestService.openRestDialog(actor);
+      }
+    });
+  }
+}
+
+function removeTenebreActorHeaderButtons(app, element = app?.element) {
+  const root = getRoot(element);
+  root?.querySelectorAll?.(".window-header .tenebre-rest, .window-header .tenebre-clear-effects")
+    .forEach((button) => button.remove());
+}
+
+function isSymbaroumActorSheetApplication(app) {
+  return isRegisteredSymbaroumSheetApplication(app, "Actor", ["player", "monster"]);
+}
+
+function isSymbaroumItemSheetApplication(app) {
+  return isRegisteredSymbaroumSheetApplication(app, "Item", ["equipment", "weapon", "armor"]);
+}
+
+function isRegisteredSymbaroumSheetApplication(app, documentName, types) {
+  if (!app) return false;
+  const document = documentName === "Actor"
+    ? (app.actor ?? app.document)
+    : (app.item ?? app.document);
+  if (document?.documentName !== documentName || !types.includes(document.type)) return false;
+
+  return getSymbaroumSheetClasses(documentName, document.type)
+    .some((SheetClass) => typeof SheetClass === "function" && app instanceof SheetClass);
+}
+
+function insertHeaderButton(header, before, { className, icon, label, onClick }) {
+  const button = document.createElement("a");
+  button.className = `header-button control ${className}`;
+  button.innerHTML = `<i class="${icon}"></i>${escapeHtml(label)}`;
+  button.addEventListener("click", onClick);
+  header.insertBefore(button, before ?? null);
 }
 
 function hideStoredItemRows(app, html, actor) {
@@ -269,7 +1182,7 @@ function hideStoredItemRows(app, html, actor) {
 }
 
 function injectContainerInlineLists(app, html, actor) {
-  if (!TenebreSettings.get("enableEncumbrance")) return;
+  if (!TenebreSettings.get("enableContainers")) return;
 
   const el = getRoot(html);
   if (!el) return;
@@ -282,6 +1195,8 @@ function injectContainerInlineLists(app, html, actor) {
     const row = el.querySelector(`[data-item-id="${container.id}"]`);
     if (!row || row.classList.contains("tenebre-hidden-stored-item")) continue;
 
+    decorateContainerCapacity(row, actor, container);
+
     const expanded = ContainerService.isContainerExpanded(actor, container);
     row.classList.toggle("tenebre-container-expanded", expanded);
     row.setAttribute("aria-expanded", expanded ? "true" : "false");
@@ -289,6 +1204,24 @@ function injectContainerInlineLists(app, html, actor) {
 
     row.insertAdjacentElement("afterend", buildContainerInlineRow(actor, container, row));
   }
+}
+
+function decorateContainerCapacity(row, actor, container) {
+  row.querySelectorAll(".tenebre-container-capacity").forEach((badge) => badge.remove());
+
+  const badge = document.createElement("span");
+  badge.className = "tenebre-container-capacity";
+  badge.textContent = `(${ContainerService.getContainerCapacityLabel(actor, container)})`;
+  badge.title = game.i18n.localize("TENEBRE.Containers.CapacityDisplay");
+
+  const quantity = row.querySelector(".quantity");
+  if (quantity) {
+    quantity.append(" ", badge);
+    return;
+  }
+
+  const name = row.querySelector(".item-name, .name");
+  (name ?? row).append(" ", badge);
 }
 
 function buildContainerInlineRow(actor, container, anchorRow) {
@@ -337,15 +1270,47 @@ function buildContainerInlineItem(actor, item) {
   const row = document.createElement("li");
   row.className = "tenebre-container-item";
   row.dataset.storedItemId = item.id;
+  row.draggable = true;
+
+  const openItem = (event) => {
+    if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    item.sheet?.render(true);
+  };
 
   const img = document.createElement("img");
   img.src = item.img || "icons/svg/item-bag.svg";
   img.alt = "";
+  img.draggable = false;
+  if (TenebreSettings.get("enableChatItemUse") && ChatItemUseService.canSend(item)) {
+    img.classList.add("tenebre-container-item-use");
+    img.tabIndex = 0;
+    img.setAttribute("role", "button");
+    img.title = game.i18n.localize("TENEBRE.ChatItemUse.ContextMenu");
+
+    const useItem = async (event) => {
+      if (event.type === "click" && event.button !== 0) return;
+      if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      await ChatItemUseService.send(actor, item);
+    };
+
+    img.addEventListener("click", useItem, { capture: true });
+    img.addEventListener("keydown", useItem, { capture: true });
+  }
   row.appendChild(img);
 
   const name = document.createElement("span");
-  name.className = "tenebre-container-name";
+  name.className = "tenebre-container-name tenebre-container-name-open";
   name.textContent = item.name;
+  name.tabIndex = 0;
+  name.setAttribute("role", "button");
+  name.title = game.i18n.localize("TENEBRE.Containers.Edit");
+  name.addEventListener("click", openItem);
+  name.addEventListener("keydown", openItem);
   row.appendChild(name);
 
   const quantity = document.createElement("span");
@@ -355,23 +1320,20 @@ function buildContainerInlineItem(actor, item) {
 
   const withdraw = document.createElement("button");
   withdraw.type = "button";
+  withdraw.draggable = false;
   withdraw.textContent = game.i18n.localize("TENEBRE.Containers.Withdraw");
   withdraw.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
     await ContainerService.withdrawItemPrompt(actor, item);
-    rerenderActorSheets(actor);
   });
   row.appendChild(withdraw);
 
   const edit = document.createElement("button");
   edit.type = "button";
+  edit.draggable = false;
   edit.textContent = game.i18n.localize("TENEBRE.Containers.Edit");
-  edit.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    item.sheet?.render(true);
-  });
+  edit.addEventListener("click", openItem);
   row.appendChild(edit);
 
   return row;
@@ -390,6 +1352,8 @@ function rerenderActorSheets(actor) {
 // Injeta quantidade e usos de aljavas na ficha
 function updateQuiverQuantityDisplay(app, html, actor) {
   if (!isPlayerActor(actor)) return;
+  if (!TenebreSettings.get("enableAmmoConsumption")) return;
+  if (!TenebreSettings.get("enableQuiverAmmoContainers")) return;
 
   const el = getRoot(html);
   if (!el) return;
@@ -402,11 +1366,11 @@ function updateQuiverQuantityDisplay(app, html, actor) {
     const qtyDiv = row.querySelector(".quantity");
     if (!qtyDiv) continue;
 
-    const qty = itemQuantity(quiver);
-    if (qty > 0) {
-      const loaded = getQuiverLoadedTotal(quiver);
-      qtyDiv.textContent = `${qty} (${loaded}/12)`;
-    }
+      const qty = itemQuantity(quiver);
+      if (qty > 0) {
+        const loaded = getQuiverLoadedTotal(quiver);
+        qtyDiv.textContent = `${qty} (${loaded}/${getQuiverCapacity()})`;
+      }
   }
 }
 
@@ -417,75 +1381,76 @@ function updateRationQuantityDisplay(app, html, actor) {
   const el = getRoot(html);
   if (!el) return;
 
-  const rationState = RationService.getState(actor);
-  if (rationState.quantity <= 0) return;
+  if (RationService.needsConsolidation(actor)) {
+    RationService.consolidate(actor).then((changed) => {
+      if (changed) rerenderActorSheets(actor);
+    }).catch((error) => {
+      console.warn("Tenebre Resources | Failed to consolidate rations while rendering actor sheet.", error);
+    });
+  }
 
-  for (const item of rationState.items) {
-    const row = el.querySelector(`.item[data-item-id="${item.id}"]`);
-    if (!row) continue;
+  for (const rationState of RationService.getStates(actor)) {
+    if (rationState.quantity <= 0) continue;
 
-    const qtyDiv = row.querySelector(".quantity");
-    if (!qtyDiv) continue;
+    const displayItem = rationState.items.find((item) => itemQuantity(item) > 0);
 
-    const qty = itemQuantity(item);
-    if (qty > 0) {
-      qtyDiv.textContent = `${qty} (${rationState.usesRemaining}/${rationState.usesPerUnit})`;
+    for (const item of rationState.items) {
+      const row = el.querySelector(`.item[data-item-id="${item.id}"]`);
+      if (!row) continue;
+
+      if (displayItem && item.id !== displayItem.id) {
+        row.style.display = "none";
+        continue;
+      }
+
+      const qtyDiv = row.querySelector(".quantity");
+      if (!qtyDiv) continue;
+
+      const qty = itemQuantity(item);
+      if (qty > 0) {
+        qtyDiv.textContent = `${rationState.quantity} (${rationState.totalUsesRemaining}/${rationState.totalUsesCapacity})`;
+      }
     }
   }
 }
 
-// Adiciona botão "Descanso" no cabeçalho da ficha do jogador
-function patchPlayerSheetHeaderButtons() {
-  const PlayerSheetClass = CONFIG.Actor.sheetClasses.player["symbaroum.PlayerSheet"]?.cls
-    || Object.values(CONFIG.Actor.sheetClasses.player || {}).find(s => s.cls?.name === "PlayerSheet")?.cls;
+function hasActorEffects(actor) {
+  return Array.from(actor?.effects ?? []).some((effect) => !isWeaponReadinessIndicatorEffect(effect));
+}
 
-  if (!PlayerSheetClass) {
-    console.warn("Tenebre Resources | Could not find symbaroum.PlayerSheet in CONFIG.Actor.sheetClasses.player");
-    return;
-  }
-
-  const handler = function(wrapped) {
-    const buttons = wrapped.call(this);
-    if (this.actor?.isOwner) {
-      buttons.unshift({
-        label: game.i18n.localize("TENEBRE.Rest.DialogTitle") || "Descanso",
-        class: "tenebre-rest",
-        icon: "fas fa-bed",
-        onclick: async (ev) => {
-          ev.preventDefault();
-          await RestService.openRestDialog(this.actor);
-        }
-      });
-    }
-    return buttons;
-  };
-
-  if (game.modules.get("libWrapper")?.active) {
-    libWrapper.register(
-      MODULE_ID,
-      "CONFIG.Actor.sheetClasses.player.symbaroum.PlayerSheet.cls.prototype._getHeaderButtons",
-      function(wrapped) {
-        return handler.call(this, wrapped);
-      },
-      "WRAPPER"
-    );
-  } else {
-    const original = PlayerSheetClass.prototype._getHeaderButtons;
-    PlayerSheetClass.prototype._getHeaderButtons = function() {
-      const wrapped = () => original.call(this);
-      return handler.call(this, wrapped);
-    };
-  }
+async function clearActorEffects(actor) {
+  const effects = Array.from(actor?.effects ?? []).filter((effect) => effect?.id && !isWeaponReadinessIndicatorEffect(effect));
+  if (!actor || !effects.length) return 0;
+  await ManeuverService.prepareEffectsForRemoval(actor, effects);
+  await SocketService.deleteEmbeddedDocuments(actor, "ActiveEffect", effects.map((effect) => effect.id), { render: true });
+  return effects.length;
 }
 
 function onRenderItemSheet(app, html) {
   const item = app.item ?? app.document ?? app.object;
   if (!item) return;
   if (!item.isOwner && !game.user.isGM) return;
+  if (skipDuplicateSheetRender(html, app, "item")) return;
 
   if (TenebreSettings.get("enableEncumbrance")) {
     injectItemWeightField(app, html, item);
   }
+}
+
+function skipDuplicateSheetRender(html, app, type) {
+  const root = getRoot(html) ?? getRoot(app?.element);
+  if (!root?.dataset) return false;
+
+  const key = type === "item" ? "tenebreItemRenderQueued" : "tenebreActorRenderQueued";
+  if (root.dataset[key] === "true") return true;
+
+  root.dataset[key] = "true";
+  const clearQueuedFlag = () => {
+    if (root.dataset) delete root.dataset[key];
+  };
+  if (typeof queueMicrotask === "function") queueMicrotask(clearQueuedFlag);
+  else Promise.resolve().then(clearQueuedFlag);
+  return false;
 }
 
 // Campo "Peso" na aba Descrição/Estatísticas (estilo Custo / Número)
@@ -496,7 +1461,14 @@ async function injectItemWeightField(app, html, item) {
   if (!root) return;
 
   const existingRows = Array.from(root.querySelectorAll(".tenebre-weight-row"));
-  if (existingRows.length === 1) return;
+  if (existingRows.length === 1) {
+    const input = existingRows[0].querySelector(".tenebre-weight-input");
+    if (input) {
+      input.value = String(getDisplayedItemWeight(item));
+      input.disabled = !Boolean(app.isEditable && item.isOwner && !EncumbranceService.hasComputedStackWeight(item));
+    }
+    return;
+  }
   if (existingRows.length > 1) {
     existingRows.slice(1).forEach((row) => row.remove());
     return;
@@ -521,7 +1493,7 @@ async function injectItemWeightField(app, html, item) {
   root.querySelectorAll(".tenebre-weight-row").forEach((row) => row.remove());
 
   const slots = getDisplayedItemWeight(item);
-  const editable = Boolean(app.isEditable && item.isOwner);
+  const editable = Boolean(app.isEditable && item.isOwner && !EncumbranceService.hasComputedStackWeight(item));
   const row = createWeightRow(slots, editable, numberRow.style);
 
   numberRow.element.insertAdjacentElement(numberRow.insert, row);
@@ -614,9 +1586,29 @@ function refreshActorEncumbrance(actor) {
   for (const app of Object.values(ui.windows)) {
     const sheetActor = app.actor ?? app.document;
     if (sheetActor?.id === actor.id && typeof app.render === "function") {
-      app.render(false);
+      const root = getRoot(app.element);
+      if (root) injectEncumbrancePanel(app, root, actor);
+      else app.render(false);
     }
   }
+}
+
+function onEncumbranceItemUpdated(item, changes) {
+  if (!TenebreSettings.get("enableEncumbrance") || !item?.parent) return;
+
+  const changedKeys = Object.keys(changes ?? {});
+  const moduleFlags = `flags.${MODULE_ID}.`;
+  const affectsLoad = changedKeys.some((key) => key === "system.state"
+    || key === "system.number"
+    || key.startsWith(`${moduleFlags}storedIn`)
+    || key.startsWith(`${moduleFlags}preStoredState`)
+    || key.startsWith(`${moduleFlags}encumbranceSlots`)
+    || key.startsWith(`${moduleFlags}encumbranceManual`)
+    || key.startsWith(`${moduleFlags}-=storedIn`)
+    || key.startsWith(`${moduleFlags}-=preStoredState`));
+  if (!affectsLoad) return;
+
+  refreshActorEncumbrance(item.parent);
 }
 
 // Indicador de carga ao lado do título "Equipamento" na aba Gear
@@ -711,6 +1703,124 @@ function buildEncumbranceIndicatorHtml(load) {
 
   return `${loadText}${porterBadge}${statusHtml}`;
 }
+
+function injectManeuverPanel(app, html, actor) {
+  if (!isPlayerActor(actor)) return;
+
+  const el = getRoot(html);
+  if (!el) return;
+
+  const selectionKey = getManeuverSelectionKey(actor);
+  const previousSelection = el.querySelector(".tenebre-maneuver-panel .tenebre-maneuver-select")?.value;
+  if (previousSelection) selectedManeuversByActor.set(selectionKey, previousSelection);
+
+  el.querySelectorAll(".tenebre-maneuver-panel").forEach((panel) => panel.remove());
+
+  if (!TenebreSettings.get("enableManeuvers")) {
+    el.querySelectorAll(".tenebre-has-maneuvers").forEach((node) => node.classList.remove("tenebre-has-maneuvers"));
+    return;
+  }
+
+  const anchor = el.querySelector(".combat .weapons");
+  if (!anchor) return;
+
+  const selectedManeuverId = selectedManeuversByActor.get(selectionKey) ?? ManeuverService.list()[0]?.id;
+  const panel = document.createElement("div");
+  panel.className = "tenebre-maneuver-panel";
+  panel.innerHTML = buildManeuverPanelHtml(selectedManeuverId);
+  anchor.classList.add("tenebre-has-maneuvers");
+  updateManeuverInformation(panel, selectedManeuverId);
+
+  const maneuverSelect = panel.querySelector(".tenebre-maneuver-select");
+  maneuverSelect?.addEventListener("change", () => {
+    selectedManeuversByActor.set(selectionKey, maneuverSelect.value);
+    updateManeuverInformation(panel, maneuverSelect.value);
+  });
+
+  for (const button of panel.querySelectorAll(".tenebre-maneuver-roll")) {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const select = panel.querySelector(".tenebre-maneuver-select");
+      const maneuverId = select?.value;
+      if (maneuverId) selectedManeuversByActor.set(selectionKey, maneuverId);
+      const privateRoll = Boolean(panel.querySelector(".tenebre-maneuver-private-roll")?.checked);
+      await RollPrivacyService.runPrivateRoll(privateRoll, () => (
+        ManeuverService.execute(actor, maneuverId, {
+          modifier: 0,
+          damageValue: 0
+        })
+      ));
+    });
+  }
+
+  anchor.insertAdjacentElement("afterend", panel);
+}
+
+function getManeuverSelectionKey(actor) {
+  return actor?.uuid ?? actor?.id ?? actor?.name ?? "unknown";
+}
+
+function buildManeuverPanelHtml(selectedManeuverId) {
+  const options = ManeuverService.list().map((maneuver) => {
+    const label = game.i18n.localize(maneuver.labelKey);
+    const selected = maneuver.id === selectedManeuverId ? " selected" : "";
+    return `<option value="${maneuver.id}"${selected}>${escapeHtml(label)}</option>`;
+  }).join("");
+
+  return `
+    <div class="item-list">
+      <div class="item-header">
+        <b class="name">${game.i18n.localize("TENEBRE.Maneuvers.Title")}</b>
+      </div>
+      <div class="items">
+        <div class="item tenebre-maneuver-row">
+          <select class="tenebre-maneuver-select" aria-label="${game.i18n.localize("TENEBRE.Maneuvers.Select")}">
+            ${options}
+          </select>
+          <button type="button" class="tenebre-maneuver-info">
+            <i class="fas fa-info-circle" aria-hidden="true"></i>
+            <span class="tenebre-maneuver-tooltip" role="tooltip"></span>
+          </button>
+          <label class="tenebre-maneuver-private-label" title="${escapeHtml(game.i18n.localize("TENEBRE.RollPrivacy.Hint"))}">
+            <input type="checkbox" class="tenebre-maneuver-private-roll">
+            <span>${game.i18n.localize("TENEBRE.RollPrivacy.ShortLabel")}</span>
+          </label>
+          <button type="button" class="tenebre-maneuver-roll">
+            <i class="fas fa-dice-d20"></i> ${game.i18n.localize("TENEBRE.Maneuvers.Roll")}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function updateManeuverInformation(panel, maneuverId) {
+  const maneuver = ManeuverService.get(maneuverId);
+  const button = panel?.querySelector(".tenebre-maneuver-info");
+  const tooltip = button?.querySelector(".tenebre-maneuver-tooltip");
+  if (!maneuver || !button || !tooltip) return;
+
+  const label = game.i18n.localize(maneuver.labelKey);
+  const notes = (maneuver.noteKeys ?? [])
+    .map((key) => game.i18n.localize(key))
+    .filter(Boolean);
+
+  button.setAttribute("aria-label", game.i18n.format("TENEBRE.Maneuvers.DescriptionFor", { maneuver: label }));
+  tooltip.innerHTML = `
+    <strong>${escapeHtml(label)}</strong>
+    ${notes.map((note) => `<span>${escapeHtml(note)}</span>`).join("")}
+  `;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 // Funções auxiliares
 
 function getRoot(html) {
@@ -727,6 +1837,10 @@ function isPlayerActor(actor) {
   return actor?.type === "player";
 }
 
+function isManagedActor(actor) {
+  return ["player", "monster"].includes(actor?.type);
+}
+
 // Hooks do diálogo de rolagem
 
 function onRenderTemplate(path, data, html) {
@@ -740,6 +1854,13 @@ function onRenderTemplate(path, data, html) {
 function onRenderDialog(dialog, html, data) {
   const el = getRoot(html);
   if (!el) return;
+
+  const isSymbaroumDialog = el.matches?.(".symbaroum.dialog")
+    || Boolean(el.querySelector?.(".symbaroum.dialog"));
+  if (isSymbaroumDialog) {
+    const dialogElement = getRoot(dialog?.element) ?? el.closest?.(".window-app, .application");
+    dialogElement?.classList?.add("tenebre-symbaroum-roll-dialog");
+  }
 
   const isWeaponRoll = Boolean(el.querySelector("input[id^='weapondamage-']"));
   if (isWeaponRoll) {
@@ -766,11 +1887,13 @@ function onRenderDialog(dialog, html, data) {
               chosenAmmo = prepareSelectedAmmoForRoll(el, activeRoll);
             } catch (err) {
               console.error("Tenebre Resources | Error preparing ammo modifiers:", err);
-              ui.notifications.error("Error preparing ammo modifiers: " + err.message);
+              ui.notifications.error(game.i18n.format("TENEBRE.Ammo.PrepareModifiersError", {
+                error: err.message
+              }));
             }
 
             if (!chosenAmmo) {
-              ui.notifications.warn(game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver"));
+              ui.notifications.warn(getAmmoUnavailableMessage(activeRoll));
               throw "Cancelled";
             }
           }
@@ -785,7 +1908,7 @@ function onRenderDialog(dialog, html, data) {
 
           if (activeRoll && isPlayerActor(activeRoll.actor) && chosenAmmo && !activeRoll.consumed) {
             activeRoll.consumed = true;
-            await AmmoService.consumeAmmo(activeRoll.actor, chosenAmmo, activeRoll.weapon, activeRoll.ammoType);
+            activeRoll.shot = await AmmoService.consumeAmmo(activeRoll.actor, chosenAmmo, activeRoll.weapon, activeRoll.ammoType);
           }
 
           return result;
@@ -810,7 +1933,7 @@ function onRenderDialog(dialog, html, data) {
   if (el.querySelector("#tenebre-ammo-select")) return;
 
   const { actor, ammoType } = activeRoll;
-  const quivers = findLoadedQuiverItems(actor, ammoType);
+  const useQuiverContainers = TenebreSettings.get("enableQuiverAmmoContainers");
 
   const selectDiv = document.createElement("div");
   selectDiv.className = "bonus";
@@ -822,24 +1945,23 @@ function onRenderDialog(dialog, html, data) {
   const select = document.createElement("select");
   select.id = "tenebre-ammo-select";
 
-  if (!quivers.length) {
+  const options = useQuiverContainers
+    ? getLoadedQuiverAmmoOptions(actor, ammoType)
+    : getLooseAmmoOptions(actor, ammoType);
+
+  if (!options.length) {
     const option = document.createElement("option");
     option.value = "";
-    option.innerText = game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver");
+    option.innerText = getAmmoUnavailableMessage(activeRoll);
     option.disabled = true;
     option.selected = true;
     select.appendChild(option);
   } else {
-    for (const q of quivers) {
-      const loaded = getQuiverLoadedAmmo(q);
-      for (const entry of loaded) {
-        if (entry.quantity > 0) {
-          const option = document.createElement("option");
-          option.value = `quiver|${q.id}|${entry.name}`;
-          option.innerText = `${q.name}: ${entry.name} (${entry.quantity}/12)`;
-          select.appendChild(option);
-        }
-      }
+    for (const ammoOption of options) {
+      const option = document.createElement("option");
+      option.value = ammoOption.value;
+      option.innerText = ammoOption.label;
+      select.appendChild(option);
     }
   }
 
@@ -867,10 +1989,7 @@ function onRenderDialog(dialog, html, data) {
 }
 
 function getDisplayedItemWeight(item) {
-  const load = EncumbranceService.getItemLoad(item);
-  return load.quantity > 1 && load.totalSlots !== load.slotsPerUnit
-    ? load.totalSlots
-    : load.slotsPerUnit;
+  return EncumbranceService.getItemStackSlots(item);
 }
 
 function attachAmmoRollButtonCapture(dialog, contentEl, activeRoll) {
@@ -890,7 +2009,7 @@ function attachAmmoRollButtonCapture(dialog, contentEl, activeRoll) {
       try {
         prepareSelectedAmmoForRoll(contentEl, activeRoll);
         if (!activeRoll.chosenAmmo) {
-          ui.notifications.warn(game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver"));
+          ui.notifications.warn(getAmmoUnavailableMessage(activeRoll));
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
@@ -907,6 +2026,43 @@ function attachAmmoRollButtonCapture(dialog, contentEl, activeRoll) {
     dialog._tenebreAmmoRollCaptureAttempts = (dialog._tenebreAmmoRollCaptureAttempts ?? 0) + 1;
     setTimeout(() => attachAmmoRollButtonCapture(dialog, contentEl, activeRoll), 0);
   }
+}
+
+function getLoadedQuiverAmmoOptions(actor, ammoType) {
+  const options = [];
+  for (const q of findLoadedQuiverItems(actor, ammoType)) {
+    const loaded = getQuiverLoadedAmmo(q);
+    for (const entry of loaded) {
+      if (entry.quantity <= 0) continue;
+      options.push({
+        value: `quiver|${q.id}|${entry.name}`,
+        label: `${q.name}: ${entry.name} (${entry.quantity}/${getQuiverCapacity()})`
+      });
+    }
+  }
+  return options;
+}
+
+function getLooseAmmoOptions(actor, ammoType) {
+  return actorItems(actor)
+    .filter((item) => isAmmo(item)
+      && !isQuiver(item)
+      && getAmmoType(item) === ammoType
+      && itemQuantity(item) > 0)
+    .map((item) => ({
+      value: item.id,
+      label: `${item.name} (${itemQuantity(item)})`
+    }));
+}
+
+function getAmmoUnavailableMessage(activeRoll) {
+  if (TenebreSettings.get("enableQuiverAmmoContainers")) {
+    return game.i18n.localize("TENEBRE.Hud.NoEquippedQuiver");
+  }
+
+  return game.i18n.format("TENEBRE.Ammo.NoLooseAmmo", {
+    type: localizeAmmoType(activeRoll?.ammoType)
+  });
 }
 
 function prepareSelectedAmmoForRoll(el, activeRoll) {
@@ -949,10 +2105,17 @@ function getSelectedAmmoFromDialog(el, activeRoll) {
       recoveryName: entry.name,
       name: entry.name,
       img: entry.img || "icons/weapons/ammunition/arrows-bodkin-yellow-red.webp",
+      sourceUuid: entry.sourceUuid || documentSourceUuid(originalItem) || originalItem?.uuid || "",
+      itemUuid: entry.sourceUuid || originalItem?.uuid || "",
+      description: entry.description || originalItem?.system?.description || "",
+      recoveryClass: entry.recoveryClass,
+      recoveryThreshold: entry.recoveryThreshold,
       quiverId: quiver.id,
       loadedEntryId: entry.id || entryName,
       type: "equipment",
-      system: originalItem ? foundry.utils.deepClone(originalItem.system) : { description: "" },
+      system: originalItem
+        ? foundry.utils.deepClone(originalItem.system)
+        : { description: entry.description || "" },
       getFlag: (scope, key) => {
         if (originalItem) return originalItem.getFlag(scope, key);
         return undefined;

@@ -3,27 +3,43 @@ import { TenebreSettings } from "./settings.mjs";
 import { HungerService } from "./hunger.mjs";
 import { escapeHtml } from "./utils.mjs";
 import { createChatMessageAfterDice } from "./dice.mjs";
+import { SocketService } from "./sockets.mjs";
+import { RollPrivacyService } from "./roll-privacy.mjs";
 
 // Gerenciamento de descanso de personagens
 export class RestService {
   // Abre diálogo de descanso para o ator
   static async openRestDialog(actor) {
     const restHealingEnabled = TenebreSettings.get("enableRestHealing");
-    const defaultHealing = restHealingEnabled ? (Number(TenebreSettings.get("restHealing")) || 1) : 0;
+    const configuredHealing = Number(TenebreSettings.get("restHealing"));
+    const defaultHealing = restHealingEnabled && Number.isFinite(configuredHealing) ? configuredHealing : 0;
+    const privateRollField = RollPrivacyService.isEnabled()
+      ? `
+        <div class="damagemodifier tenebre-rest-private-row" title="${escapeHtml(game.i18n.localize("TENEBRE.RollPrivacy.Hint"))}">
+          <label for="tenebre-rest-private-roll">${escapeHtml(game.i18n.localize("TENEBRE.RollPrivacy.Label"))}</label>
+          <div class="tenebre-rest-private-control">
+            <input type="checkbox" id="tenebre-rest-private-roll" name="tenebrePrivateRoll">
+            <span class="tenebre-rest-private-check" aria-hidden="true"></span>
+          </div>
+        </div>
+      `
+      : "";
 
     const content = `
-      <div class="tenebre-rest-dialog">
-        <div class="tenebre-rest-actor">
-          <strong>${escapeHtml(actor.name)}</strong>
+      <div class="symbaroum dialog tenebre-rest-dialog">
+        <div class="damagemodifier tenebre-rest-actor-row">
+          <label>${game.i18n.localize("TENEBRE.Maneuvers.Actor")}</label>
+          <input type="text" value="${escapeHtml(actor.name)}" disabled>
         </div>
-        <div class="tenebre-rest-row">
+        <div class="damagemodifier">
           <label for="tenebre-days">${game.i18n.localize("TENEBRE.Rest.Days")}</label>
-          <input type="number" id="tenebre-days" name="days" value="1" min="1" max="30" style="width:80px">
+          <input type="number" id="tenebre-days" name="days" value="1" min="1" max="30">
         </div>
-        <div class="tenebre-rest-row">
+        <div class="damagemodifier">
           <label for="tenebre-healing">${game.i18n.localize("TENEBRE.Rest.HealingPerDay")}</label>
-          <input type="number" id="tenebre-healing" name="healing" value="${defaultHealing}" min="0" max="100" style="width:80px">
+          <input type="number" id="tenebre-healing" name="healing" value="${defaultHealing}" min="0" max="100">
         </div>
+        ${privateRollField}
       </div>
     `;
 
@@ -36,7 +52,8 @@ export class RestService {
         callback: (_event, _button, dialog) => {
           return {
             days: Number(dialog.element.querySelector("#tenebre-days")?.value) || 1,
-            healing: restHealingEnabled ? (Number(dialog.element.querySelector("#tenebre-healing")?.value) ?? 1) : 0
+            healing: restHealingEnabled ? (Number(dialog.element.querySelector("#tenebre-healing")?.value) ?? 1) : 0,
+            privateRoll: RollPrivacyService.isChecked(dialog.element)
           };
         }
       },
@@ -44,7 +61,9 @@ export class RestService {
     });
 
     if (result == null) return;
-    await RestService.applyRest(actor, result.days, result.healing);
+    await RollPrivacyService.runPrivateRoll(result.privateRoll, () => (
+      RestService.applyRest(actor, result.days, result.healing)
+    ));
   }
 
   // Aplica efeitos de descanso (recuperação de vitalidade, remoção de corrupção temporária e resets de morte)
@@ -153,7 +172,7 @@ export class RestService {
       }
     }
 
-    await actor.update(updates);
+    await SocketService.updateDocument(actor, updates);
     if (results.hungerResults.some(hr => hr.dead)) {
       await HungerService.markDead(actor);
     }
@@ -208,7 +227,16 @@ export class RestService {
     await createChatMessageAfterDice({
       speaker: ChatMessage.getSpeaker({ actor }),
       content,
-      rolls
+      rolls,
+      flags: {
+        [MODULE_ID]: {
+          gmLogAction: {
+            type: "status.rest",
+            actorUuid: actor.uuid,
+            values: { days: results.days, amount: results.healed }
+          }
+        }
+      }
     });
   }
 }

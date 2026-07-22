@@ -11,38 +11,60 @@ import { VerseService } from "./verses.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
 import { HungerService } from "./hunger.mjs";
 import { ContainerService } from "./containers.mjs";
+import { ManeuverService } from "./maneuvers.mjs";
 import { setupBithirMod } from "./bithir-macros.mjs";
+import { TokenActionHudIntegration } from "./token-action-hud.mjs";
+import { MovementService } from "./movement-ruler.mjs";
+import { ChatItemUseService } from "./chat-item-use.mjs";
+import { CompatibilityService } from "./compatibility.mjs";
+import { ModernChatService } from "./modern-chat.mjs";
+import { RollPrivacyService } from "./roll-privacy.mjs";
+import { RitualBrowserService } from "./ritual-browser.mjs";
+import { WeaponReadinessService } from "./weapon-readiness.mjs";
+import { WeaponReadinessHudService } from "./weapon-readiness-hud.mjs";
+import { WeaponReadinessVisualService } from "./weapon-readiness-visuals.mjs";
+import { InventoryCleanupService } from "./inventory-cleanup.mjs";
+import { CombatChatPrivacyService } from "./combat-chat-privacy.mjs";
+import { GmLogService } from "./gm-log-service.mjs";
+import { GmLogUiService } from "./gm-log-ui.mjs";
+import { GroundContainerService } from "./ground-containers.mjs";
+import { ContainerTransferService } from "./container-transfer.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
+  CompatibilityService.register();
+  MovementService.register();
+  ModernChatService.register();
+  RollPrivacyService.register();
+  CombatChatPrivacyService.register();
   registerKeybindings();
+  TokenActionHudIntegration.register();
 
   HungerService.registerStatusEffect();
+  ManeuverService.registerStatusEffects();
   setupBithirMod();
 });
 
 Hooks.on("createItem", (item) => {
-  if (!TenebreSettings.get("enableEncumbrance")) return;
-
   if (item.parent && item.parent.type === "player") {
-    EncumbranceService.autoAssignSlots(item);
-  }
-});
+    if (TenebreSettings.get("enableEncumbrance")) {
+      EncumbranceService.autoAssignSlots(item);
+    }
 
-Hooks.on("updateItem", (_item) => {
-  if (!TenebreSettings.get("enableEncumbrance")) return;
+    if (TenebreSettings.get("enableRations") && isRation(item)) {
+      window.setTimeout(() => {
+        RationService.consolidate(item.parent).catch((error) => {
+          console.warn("Tenebre Resources | Failed to consolidate rations after item creation.", error);
+        });
+      }, 0);
+    }
+  }
 });
 
 Hooks.once("ready", async () => {
   if (game.system.id !== "symbaroum") {
     console.warn(`${MODULE_ID} | This module currently supports only the Symbaroum system.`);
     return;
-  }
-
-  // Ativa automação de combate do sistema se necessário
-  if (game.user.isGM && !game.settings.get("symbaroum", "combatAutomation")) {
-    console.log(`${MODULE_ID} | Automatically enabling Symbaroum Combat Automation.`);
-    game.settings.set("symbaroum", "combatAutomation", true);
   }
 
   await EncumbranceService.loadWeightConfig(MODULE_ID);
@@ -52,20 +74,44 @@ Hooks.once("ready", async () => {
 
   patchWeaponRolls();
   registerSheetHooks();
+  ContainerService.registerHooks();
+  ContainerTransferService.registerHooks();
+  GroundContainerService.registerHooks();
+  InventoryCleanupService.registerHooks();
+  await InventoryCleanupService.cleanupExisting();
   HotbarService.register();
   HungerService.registerHooks();
+  ManeuverService.registerHooks();
+  WeaponReadinessService.registerHooks();
+  WeaponReadinessVisualService.registerHooks();
+  WeaponReadinessVisualService.refreshAllIndicators();
+  WeaponReadinessHudService.register();
   patchSymbaroumRollDialogs();
   patchSymbaroumActorUsePower();
   patchSymbaroumDerivedPenalties();
+  Hooks.on("preCreateChatMessage", applyPowerChatContextToMessage);
 
   // Aplica desvantagem de Fome para a rota simples de atributo.
   if (game.symbaroum?.api?.rollAttribute) {
     const originalRollAttribute = game.symbaroum.api.rollAttribute;
-    game.symbaroum.api.rollAttribute = function(actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier) {
+    const wrappedRollAttribute = function(wrapped, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier) {
+      favour = ManeuverService.applyRollFavour(actor, actingAttributeName, favour, weapon);
       favour = HungerService.applyDisfavour(favour, actor);
-      return originalRollAttribute.call(this, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier);
+      return wrapped.call(this, actor, actingAttributeName, targetActor, targetAttributeName, favour, modifier, armor, weapon, advantage, damModifier);
     };
+
+    if (CompatibilityService.canUseLibWrapper()) {
+      libWrapper.register(MODULE_ID, "game.symbaroum.api.rollAttribute", wrappedRollAttribute, "WRAPPER");
+    } else if (!originalRollAttribute._tenebreWrapped) {
+      game.symbaroum.api.rollAttribute = function tenebreRollAttribute(...args) {
+        return wrappedRollAttribute.call(this, originalRollAttribute, ...args);
+      };
+      game.symbaroum.api.rollAttribute._tenebreWrapped = true;
+    }
   }
+
+  GmLogService.register();
+  GmLogUiService.register();
 
   game.tenebreResources = {
     rations: RationService,
@@ -76,11 +122,27 @@ Hooks.once("ready", async () => {
     encumbrance: EncumbranceService,
     hunger: HungerService,
     containers: ContainerService,
+    containerTransfer: ContainerTransferService,
+    groundContainers: GroundContainerService,
+    maneuvers: ManeuverService,
+    movement: MovementService,
+    chatItemUse: ChatItemUseService,
+    modernChat: ModernChatService,
+    rollPrivacy: RollPrivacyService,
+    ritualBrowser: RitualBrowserService,
+    weaponReadiness: WeaponReadinessService,
+    weaponReadinessHud: WeaponReadinessHudService,
+    weaponReadinessVisuals: WeaponReadinessVisualService,
+    compatibility: CompatibilityService,
+    gmLog: GmLogService,
+    inventoryCleanup: InventoryCleanupService,
+    tokenActionHud: TokenActionHudIntegration,
     bithir: game.bithirmod,
 
     inspectActorResources,
     diagnostics: {
-      version: game.modules.get(MODULE_ID)?.version ?? null
+      version: game.modules.get(MODULE_ID)?.version ?? null,
+      compatibility: CompatibilityService.refresh()
     }
   };
 
@@ -88,10 +150,52 @@ Hooks.once("ready", async () => {
   if (TenebreSettings.get("enableEncumbrance")) {
     for (const actor of game.actors) {
       if (actor.type === "player" && actor.isOwner) {
-        EncumbranceService.autoAssignAll(actor);
+        await EncumbranceService.autoAssignAll(actor);
         EncumbranceService.applyDefensePenalty(actor);
       }
     }
+  }
+
+  const activeGms = [...(game.users ?? [])].filter((user) => user.active && user.isGM);
+  const isPrimaryActiveGm = game.user.isGM && (!activeGms.length || activeGms[0]?.id === game.user.id);
+  if (isPrimaryActiveGm) {
+    const containersEnabled = TenebreSettings.get("enableContainers");
+    for (const actor of game.actors) {
+      if (actor.type === "player") {
+        try {
+          const recovered = await ContainerService.recoverOrphanedStoredItems(actor);
+          await ContainerService.synchronizeActorStates(actor, containersEnabled);
+          if (recovered > 0) {
+            console.warn(`${MODULE_ID} | Recovered ${recovered} orphaned stored item(s) for ${actor.name}.`);
+          }
+        } catch (error) {
+          console.warn(`${MODULE_ID} | Could not synchronize container states for ${actor.name}.`, error);
+        }
+      }
+    }
+    const groundContainerReconciliation = await GroundContainerService.reconcileGroundContainers();
+    if (!groundContainerReconciliation.skipped && (
+      groundContainerReconciliation.removedTokens
+      || groundContainerReconciliation.restoredItems
+      || groundContainerReconciliation.repairedItems
+      || groundContainerReconciliation.errors
+    )) {
+      console.info(`${MODULE_ID} | Reconciled ground containers.`, groundContainerReconciliation);
+    }
+  }
+
+  if (TenebreSettings.get("enableRations")) {
+    for (const actor of game.actors) {
+      if (actor.type === "player" && actor.isOwner) {
+        await RationService.consolidate(actor);
+      }
+    }
+  }
+
+  if (game.user?.isGM) {
+    window.setTimeout(() => {
+      void CompatibilityService.showStartupNotice();
+    }, 500);
   }
 
   console.log(`${MODULE_ID} | v${game.modules.get(MODULE_ID)?.version} ready.`);
@@ -157,23 +261,44 @@ function registerKeybindings() {
 
 let rollDialogsPatched = false;
 let pendingDialogActorId = null;
+let pendingPowerUseContext = null;
+let activePowerChatContext = null;
+let activePowerChatContextTimer = null;
+let activePowerChatContextToken = 0;
 
 function patchSymbaroumRollDialogs() {
   if (rollDialogsPatched || !globalThis.Dialog?.prototype?.render) return;
 
   const originalRender = Dialog.prototype.render;
-  Dialog.prototype.render = function tenebreRenderDialog(...args) {
+  const wrappedRender = function(wrapped, ...args) {
     const content = String(this.data?.content ?? this.content ?? "");
     if (content.includes("symbaroum dialog") && hasFavourRollOptions(content)) {
+      if (this.data?.content !== undefined) {
+        this.data.content = RollPrivacyService.injectField(content);
+      } else if (this.content !== undefined) {
+        this.content = RollPrivacyService.injectField(content);
+      }
       const actorId = pendingDialogActorId ?? extractActorIdFromDialogContent(content);
       if (actorId) {
         this._tenebreHungerActorId = actorId;
       }
+      if (pendingPowerUseContext) {
+        this._tenebrePowerChatContext = foundry.utils.deepClone(pendingPowerUseContext);
+      }
       wrapDialogRollButton(this);
     }
 
-    return originalRender.apply(this, args);
+    return wrapped.apply(this, args);
   };
+
+  if (CompatibilityService.canUseLibWrapper()) {
+    libWrapper.register(MODULE_ID, "Dialog.prototype.render", wrappedRender, "WRAPPER");
+  } else {
+    Dialog.prototype.render = function tenebreRenderDialog(...args) {
+      return wrappedRender.call(this, originalRender, ...args);
+    };
+    Dialog.prototype.render._tenebreWrapped = true;
+  }
 
   rollDialogsPatched = true;
 }
@@ -190,16 +315,31 @@ function patchSymbaroumActorUsePower() {
   if (!ActorClass?.prototype?.usePower || ActorClass.prototype.usePower._tenebreWrapped) return;
 
   const originalUsePower = ActorClass.prototype.usePower;
-  ActorClass.prototype.usePower = async function tenebreUsePower(...args) {
+  const wrappedUsePower = async function(wrapped, ...args) {
     const previousActorId = pendingDialogActorId;
+    const previousPowerContext = pendingPowerUseContext;
+    const powerContext = buildPowerUseChatContext(this, args[0]);
     pendingDialogActorId = this.id;
+    pendingPowerUseContext = powerContext;
+    setActivePowerChatContext(powerContext);
     try {
-      return await originalUsePower.apply(this, args);
+      return await wrapped.apply(this, args);
     } finally {
       pendingDialogActorId = previousActorId;
+      pendingPowerUseContext = previousPowerContext;
+      if (activePowerChatContext?.itemUuid === powerContext?.itemUuid) {
+        setActivePowerChatContext(null);
+      }
     }
   };
-  ActorClass.prototype.usePower._tenebreWrapped = true;
+  if (CompatibilityService.canUseLibWrapper()) {
+    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.usePower", wrappedUsePower, "WRAPPER");
+  } else {
+    ActorClass.prototype.usePower = async function tenebreUsePower(...args) {
+      return wrappedUsePower.call(this, originalUsePower, ...args);
+    };
+    ActorClass.prototype.usePower._tenebreWrapped = true;
+  }
 }
 
 function patchSymbaroumDerivedPenalties() {
@@ -207,14 +347,21 @@ function patchSymbaroumDerivedPenalties() {
   if (!ActorClass?.prototype?.prepareDerivedData || ActorClass.prototype.prepareDerivedData._tenebreWrapped) return;
 
   const originalPrepareDerivedData = ActorClass.prototype.prepareDerivedData;
-  ActorClass.prototype.prepareDerivedData = function tenebrePrepareDerivedData(...args) {
-    const result = originalPrepareDerivedData.apply(this, args);
+  const wrappedPrepareDerivedData = function(wrapped, ...args) {
+    const result = wrapped.apply(this, args);
     if (TenebreSettings.get("enableEncumbrance") && this.type === "player") {
       EncumbranceService.applyDefensePenalty(this);
     }
     return result;
   };
-  ActorClass.prototype.prepareDerivedData._tenebreWrapped = true;
+  if (CompatibilityService.canUseLibWrapper()) {
+    libWrapper.register(MODULE_ID, "CONFIG.Actor.documentClass.prototype.prepareDerivedData", wrappedPrepareDerivedData, "WRAPPER");
+  } else {
+    ActorClass.prototype.prepareDerivedData = function tenebrePrepareDerivedData(...args) {
+      return wrappedPrepareDerivedData.call(this, originalPrepareDerivedData, ...args);
+    };
+    ActorClass.prototype.prepareDerivedData._tenebreWrapped = true;
+  }
 }
 
 function wrapDialogRollButton(dialog) {
@@ -223,10 +370,99 @@ function wrapDialogRollButton(dialog) {
 
   const originalCallback = rollButton.callback;
   rollButton.callback = async function tenebreRollDialogCallback(html, ...args) {
-    applyHungerDisfavourToDialog(html, dialog._tenebreHungerActorId);
-    return originalCallback.call(this, html, ...args);
+    const privateRoll = RollPrivacyService.isChecked(html);
+    return RollPrivacyService.runPrivateRoll(privateRoll, async () => {
+      setActivePowerChatContext(dialog?._tenebrePowerChatContext ?? null);
+      applyStatusFavourToDialog(html, dialog);
+      return originalCallback.call(this, html, ...args);
+    });
   };
   rollButton.callback._tenebreWrapped = true;
+}
+
+function applyPowerChatContextToMessage(message, data) {
+  if (!activePowerChatContext) return;
+  if (!TenebreSettings.get("enableAutomatedAnimationsIntegration")) return;
+
+  const content = String(message?.content ?? data?.content ?? "");
+  if (!isSymbaroumAbilityChat(content)) return;
+
+  const context = foundry.utils.deepClone(activePowerChatContext);
+  const flags = foundry.utils.deepClone(message?.flags ?? data?.flags ?? {});
+  if (flags.world?.context?.itemUuid) return;
+
+  flags.world = {
+    ...(flags.world ?? {}),
+    context
+  };
+  flags[MODULE_ID] = {
+    ...(flags[MODULE_ID] ?? {}),
+    chatItemUse: true,
+    itemUuid: context.itemUuid,
+    actorUuid: context.actorUuid,
+    tokenUuid: context.tokenUuid ?? null,
+    targetTokenUuid: context.targetTokenUuid ?? null,
+    source: "symbaroum-power-roll"
+  };
+
+  message.updateSource({ flags });
+  setActivePowerChatContext(null);
+}
+
+function isSymbaroumAbilityChat(content) {
+  return content.includes("symbaroum chat ability");
+}
+
+function buildPowerUseChatContext(actor, item) {
+  if (!TenebreSettings.get("enableAutomatedAnimationsIntegration")) return null;
+  if (!actor || !item || !ChatItemUseService.canSend(item)) return null;
+
+  const token = getActorTokenForContext(actor);
+  const targetToken = Array.from(game.user?.targets ?? [])[0] ?? null;
+  const context = {
+    itemUuid: item.uuid,
+    actorUuid: actor.uuid
+  };
+
+  const tokenUuid = token?.document?.uuid ?? token?.uuid;
+  if (tokenUuid) context.tokenUuid = tokenUuid;
+
+  const targetTokenUuid = targetToken?.document?.uuid ?? targetToken?.uuid;
+  if (targetTokenUuid) {
+    context.targetTokenUuid = targetTokenUuid;
+    context.criticaled = false;
+    context.fumbled = false;
+  }
+
+  return context;
+}
+
+function getActorTokenForContext(actor) {
+  const controlled = canvas?.tokens?.controlled?.find((token) => token.actor?.id === actor.id);
+  if (controlled) return controlled;
+
+  const activeTokens = actor?.getActiveTokens?.() ?? [];
+  if (Array.isArray(activeTokens)) return activeTokens[0] ?? null;
+  return activeTokens?.object ?? null;
+}
+
+function setActivePowerChatContext(context) {
+  if (activePowerChatContextTimer) {
+    clearTimeout(activePowerChatContextTimer);
+    activePowerChatContextTimer = null;
+  }
+
+  activePowerChatContext = context ? foundry.utils.deepClone(context) : null;
+  activePowerChatContextToken += 1;
+  if (!activePowerChatContext) return;
+
+  const token = activePowerChatContextToken;
+  activePowerChatContextTimer = setTimeout(() => {
+    if (activePowerChatContextToken === token) {
+      activePowerChatContext = null;
+      activePowerChatContextTimer = null;
+    }
+  }, 15000);
 }
 
 function extractActorIdFromDialogContent(content) {
@@ -238,19 +474,55 @@ function extractActorIdFromDialogContent(content) {
   return actors.find((actor) => dialogId.startsWith(actor.id))?.id ?? null;
 }
 
-function applyHungerDisfavourToDialog(html, actorId) {
+function applyStatusFavourToDialog(html, dialog) {
   const root = html?.[0] ?? html;
   if (!root?.querySelectorAll) return;
 
   const favours = Array.from(root.querySelectorAll("input[name='favour']"));
   if (!favours.length) return;
 
-  const favourValue = getHungerFavourValue(actorId);
-  if (favourValue === null) return;
+  const actorId = dialog?._tenebreHungerActorId;
+  const activeWeaponRoll = game.tenebreResources?.activeManeuverWeaponRoll;
+  const actor = game.actors?.get?.(actorId) ?? activeWeaponRoll?.actor;
+  const weapon = activeWeaponRoll?.actor === actor ? activeWeaponRoll.weapon : null;
+  const attribute = getDialogActingAttribute(root, dialog);
+  const currentFavour = Number(favours.find((input) => input.checked)?.value ?? 0) || 0;
+
+  let nextFavour = currentFavour;
+  if (actor) {
+    nextFavour = ManeuverService.applyRollFavour(actor, attribute, nextFavour, weapon);
+    nextFavour = HungerService.applyDisfavour(nextFavour, actor);
+  }
+
+  const targetFavour = getHungerFavourValue(actorId);
+  if (targetFavour !== null) nextFavour = Number(targetFavour) || 0;
 
   for (const input of favours) {
-    input.checked = String(input.value) === favourValue;
+    input.checked = Number(input.value) === nextFavour;
   }
+}
+
+function getDialogActingAttribute(root, dialog) {
+  const selectors = [
+    "select[name='actingAttribute']",
+    "select[name='actingAttributeName']",
+    "select[id^='actingAttribute-']",
+    "input[name='actingAttribute']",
+    "input[name='actingAttributeName']"
+  ];
+
+  for (const selector of selectors) {
+    const element = root.querySelector(selector);
+    if (element?.value) return element.value;
+  }
+
+  const title = normalizeText(dialog?.data?.title ?? dialog?.title ?? "");
+  if (title.includes("defesa") || title.includes("defense")) return "defense";
+
+  const text = normalizeText(root.textContent ?? "");
+  if (text.includes("teste de defesa") || text.includes("defense test")) return "defense";
+
+  return "";
 }
 
 function getHungerFavourValue(actorId) {
@@ -261,4 +533,12 @@ function getHungerFavourValue(actorId) {
   if (actor?.type === "monster" && hungryTarget) return "1";
 
   return null;
+}
+
+function normalizeText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 }

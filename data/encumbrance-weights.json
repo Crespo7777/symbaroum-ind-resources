@@ -174,7 +174,8 @@
     "Elemental Essence": 1,
     "Elixir da Vida": 1,
     "Elixir of Life": 1,
-    "Equipamento de Acampar": 1,
+    "Equipamento de Acampar": 0,
+    "Equipamento de Campo": 0,
     "Equipamento de Escalada": 1,
     "Escada": 1,
     "Escada de Corda": 1,
@@ -200,7 +201,8 @@
     "Fencing Sword": 1,
     "Ferramenta de Artesão": 1,
     "Fiddle": 1,
-    "Field equipment": 1,
+    "Field equipment": 0,
+    "Camping equipment": 0,
     "Field Laboratory": 1,
     "Field Library": 1,
     "Field Smithy": 1,
@@ -565,6 +567,14 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "Arrow - Flame": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Arrow - Grappling Hook": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Arrow - Hammer Head": {
       "bundleSize": 10,
       "slots": 1
@@ -693,11 +703,27 @@
       "bundleSize": 10,
       "slots": 1
     },
+    "Flecha - Arpéu": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha - Cabeça de Martelo": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha - Cauda de Andorinha": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Flecha - Cortador de Corda": {
       "bundleSize": 10,
       "slots": 1
     },
     "Flecha - Flamejante": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "Flecha - de Laço": {
       "bundleSize": 10,
       "slots": 1
     },
@@ -849,6 +875,10 @@
       "bundleSize": 50,
       "slots": 1
     },
+    "Raio Atordoante": {
+      "bundleSize": 10,
+      "slots": 1
+    },
     "Sibilante": {
       "bundleSize": 10,
       "slots": 1
@@ -866,6 +896,10 @@
       "slots": 1
     },
     "Stunning Bolt": {
+      "bundleSize": 10,
+      "slots": 1
+    },
+    "True Arrow": {
       "bundleSize": 10,
       "slots": 1
     },

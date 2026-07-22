@@ -1,11 +1,167 @@
 // Bithir's Symbaroum Mods integration for Symbaroum Ind Resources
 // Adapted for modern ES Modules (V11/V12/V13 compatible)
 
+import { TenebreSettings } from "./settings.mjs";
+import { escapeHtml, normalize, promptDialog } from "./utils.mjs";
+import { CompatibilityService } from "./compatibility.mjs";
+
 const moduleId = 'symbaroum-ind-resources';
 const i18nPath = 'BITHIRMOD.';
 const basePath = `modules/${moduleId}`;
 const assetPath = `${basePath}/assets`;
 const templatePath = `${basePath}/templates`;
+const BaseDie = globalThis.foundry?.dice?.terms?.Die ?? globalThis.Die;
+const translationMigrationVersion = 3;
+
+const folderNameMigrations = {
+    'Ind Resouces - Utilidades': 'Ind Resources - Utilidades',
+    'Equipmentos': 'Equipamentos'
+};
+
+const tableNameMigrations = {
+    'Forest Events': 'Eventos na Floresta',
+    'Forest Events - Horror': 'Eventos na Floresta - Horror',
+    'Forest Events - Mundane': 'Eventos na Floresta - Mundano',
+    'Forest Events - Mystical / Inspiring': 'Eventos na Floresta - Místico / Inspirador',
+    'Eventos na Floresta - Mistico / Inspirador': 'Eventos na Floresta - Místico / Inspirador',
+    'Forest Events - On the path': 'Eventos na Floresta - Na trilha',
+    'armadura corrompida': 'corrupt-armor',
+    'corrupt-armorname': 'corrupt-armor-name',
+    'nome-da-armadura-corrompida': 'corrupt-armor-name',
+    'arma corrompida': 'corrupt-weapon',
+    'corrupt-weaponname': 'corrupt-weapon-name',
+    'nome-de-arma-corrompida': 'corrupt-weapon-name'
+};
+
+const tableResultTextMigrations = {
+    'Forest Events - Horror': 'Eventos na Floresta - Horror',
+    'Forest Events - Mundane': 'Eventos na Floresta - Mundano',
+    'Forest Events - Mystical / Inspiring': 'Eventos na Floresta - Místico / Inspirador',
+    'Eventos na Floresta - Mistico / Inspirador': 'Eventos na Floresta - Místico / Inspirador',
+    'Forest Events - On the path': 'Eventos na Floresta - Na trilha',
+    'Nothing of interest': 'Nada de interessante'
+};
+
+const forestEventTableIds = {
+    'Forest Events': 'imQ9P3r4J2Shdmsp',
+    'Forest Events - Horror': 'p7dVGKcMXTK8x162',
+    'Forest Events - Mundane': 'mnmGh1osFoA9K30k',
+    'Forest Events - Mystical / Inspiring': 'UaqVIVb8HpGtOmkf',
+    'Forest Events - On the path': '6K7GwP737QdEhjPe'
+};
+
+const forestEventMacroCommand = 'await game.tenebreResources?.bithir?.macros?.rollForestEvents?.();';
+let forestEventTranslationsCache = null;
+
+function tableResultContent(result) {
+    return result?.description || result?.name || result?._source?.description || result?._source?.name || result?._source?.text || "";
+}
+
+async function promptUtilityDialog(options) {
+    return promptDialog({ ...options, contentClass: "tenebre-bithir-dialog" });
+}
+
+async function loadForestEventTranslations() {
+    if (forestEventTranslationsCache) return forestEventTranslationsCache;
+    try {
+        forestEventTranslationsCache = await foundry.utils.fetchJsonWithTimeout(`${basePath}/data/forest-events-pt-BR.json`);
+    } catch (error) {
+        console.error(`${moduleId} | Failed to load forest event translations`, error);
+        forestEventTranslationsCache = {};
+    }
+    return forestEventTranslationsCache;
+}
+
+function forestEventTableKeyForName(name, translations = {}) {
+    const normalizedName = normalize(name);
+    if (!normalizedName) return null;
+
+    for (const [key, data] of Object.entries(translations)) {
+        const candidates = [
+            key,
+            data?.name,
+            tableNameMigrations[key],
+            tableResultTextMigrations[key]
+        ].filter(Boolean);
+
+        if (candidates.some(candidate => normalize(candidate) === normalizedName)) return key;
+    }
+
+    return null;
+}
+
+function sortedTableResults(table) {
+    return Array.from(table?.results ?? []).sort((a, b) => {
+        const aMin = Number(a.range?.[0] ?? 0);
+        const bMin = Number(b.range?.[0] ?? 0);
+        return aMin - bMin;
+    });
+}
+
+function translatedForestResult(tableKey, result, table, translations, fallback) {
+    const results = translations?.[tableKey]?.results ?? [];
+    const index = sortedTableResults(table).findIndex(candidate => candidate.id === result?.id);
+    return results[index] || fallback || tableResultContent(result);
+}
+
+function findForestEventTable(tableKey, translations = {}) {
+    const tableId = forestEventTableIds[tableKey];
+    if (tableId && game.tables?.get?.(tableId)) return game.tables.get(tableId);
+
+    const names = [
+        tableKey,
+        translations?.[tableKey]?.name,
+        tableNameMigrations[tableKey],
+        tableResultTextMigrations[tableKey]
+    ].filter(Boolean);
+
+    for (const name of names) {
+        const table = game.tables?.getName?.(name);
+        if (table) return table;
+    }
+
+    const normalizedNames = new Set(names.map(name => normalize(name)));
+    return Array.from(game.tables ?? []).find(table => normalizedNames.has(normalize(table.name))) ?? null;
+}
+
+function splitForestEventText(text) {
+    const value = String(text ?? "").trim();
+    const colonIndex = value.indexOf(":");
+    if (colonIndex > 0 && colonIndex <= 80) {
+        return {
+            title: value.slice(0, colonIndex).trim(),
+            body: value.slice(colonIndex + 1).trim()
+        };
+    }
+
+    return { title: "", body: value };
+}
+
+function renderForestEventCard({ eventText, category, mainRoll, eventRoll }) {
+    const { title, body } = splitForestEventText(eventText);
+    const rollSummary = eventRoll && eventRoll !== mainRoll
+        ? `${mainRoll?.total ?? "-"} / ${eventRoll.total ?? "-"}`
+        : `${mainRoll?.total ?? "-"}`;
+
+    return `
+        <div class="tenebre-chat-card tenebre-forest-event-card symbaroum-mod">
+            ${title ? `<h3><i class="fas fa-tree"></i> ${escapeHtml(title)}</h3>` : ""}
+            ${body ? `<p>${escapeHtml(body)}</p>` : ""}
+            <ul>
+                ${category ? `<li><strong>${game.i18n.localize("BITHIRMOD.FOREST_EVENTS_CATEGORY")}:</strong> ${escapeHtml(category)}</li>` : ""}
+                <li><strong>${game.i18n.localize("BITHIRMOD.FOREST_EVENTS_ROLL")}:</strong> ${escapeHtml(rollSummary)}</li>
+            </ul>
+        </div>`;
+}
+
+function isForestEventsMacro(macro) {
+    const name = normalize(macro?.name);
+    const command = String(macro?.command ?? "");
+    return ["eventos de floresta", "eventos na floresta", "forest events"].includes(name) ||
+        command.includes("imQ9P3r4J2Shdmsp") ||
+        command.includes("Forest Events") ||
+        command.includes("Eventos na Floresta");
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIGURATION
@@ -35,6 +191,19 @@ export const BithirConfig = {
 export class BithirApi {
     localize(key) {
         return game.i18n.localize(`${i18nPath}${key}`);
+    }
+
+    localizeFallback(key, fallback) {
+        const localized = this.localize(key);
+        return localized === `${i18nPath}${key}` ? fallback : localized;
+    }
+
+    localizeVerseTitle(title) {
+        const key = title
+            .replace(/[^a-zA-Z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '')
+            .toUpperCase();
+        return this.localizeFallback(`VERSE_${key}`, title);
     }
 
     async replaceAsync(string, regex, replacerFunction) {
@@ -89,7 +258,7 @@ export class BithirApi {
                 return "";
             }
             const rollResult = await table.roll();
-            return rollResult.results[0]?.text ?? rollResult.results[0]?.name ?? "";
+            return tableResultContent(rollResult.results[0]);
         });
         if (newStr === str) return newStr;
         return await this.parseSimpleElement(type, attributes, newStr);
@@ -101,7 +270,7 @@ const api = new BithirApi();
 // ─────────────────────────────────────────────────────────────────────────────
 // CUSTOM DICE TERMS
 // ─────────────────────────────────────────────────────────────────────────────
-export class InspirationDie extends Die {
+export class InspirationDie extends BaseDie {
     constructor(termData) {
         termData.faces = 6;
         super(termData);
@@ -131,7 +300,7 @@ export class InspirationDie extends Die {
     }
 
     getResultLabel(result) {
-        return `<img src="${assetPath}/inspirationdice/i${this.denomination}d${result.result}.png" data-tooltip="${result.tooltip}"/>`;
+        return `<img src="${assetPath}/inspirationdice/i${this.denomination}d${result.result}.png" data-tooltip="${escapeHtml(result.tooltip)}"/>`;
     }
 }
 
@@ -308,6 +477,8 @@ export class RewardDie extends InspirationDie {
 // ─────────────────────────────────────────────────────────────────────────────
 export class BithirMacros {
     async thusSpoke() {
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
         let data = await foundry.utils.fetchJsonWithTimeout(`${basePath}/data/aroaleta-verses.json`);
         const keys = Object.keys(data);
         const selectedKey = BithirConfig.randomElement(keys);
@@ -318,7 +489,7 @@ export class BithirMacros {
             <p class="symbaroum-mod fancytext">
                 “${aroaletaText}”
             </p>
-            <p class="symbaroum-mod fancytext">${selectedKey}</p>
+            <p class="symbaroum-mod fancytext">${api.localizeVerseTitle(selectedKey)}</p>
             <div style="display: flex;align-items: center;justify-content: center;"><span style="display:flex" class="symbaroum-mod fancyheader">&nbsp;</span></div>
         </blockquote>`;
         
@@ -329,18 +500,20 @@ export class BithirMacros {
     }
 
     async generateNPCMacro() {
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
         const generatorFileRegex = /.*\/(.*)-generator.json/;
         let generatorList = '';
         const { files } = await foundry.applications.apps.FilePicker.browse("data", `${basePath}/data/`);
         for (let i = 0; i < files.length; i++) {
             let mymatch = files[i].match(generatorFileRegex);
             if (mymatch == null) { continue; }
-            generatorList += `<option value="${mymatch[1]}">${mymatch[1]}</option>`;
+            generatorList += `<option value="${mymatch[1]}">${api.localizeFallback(`GENERATOR_${mymatch[1]}`, mymatch[1])}</option>`;
         }
         
         let expLevel = '';
         for (let resistLv of BithirConfig.resistanceLevels) {
-            expLevel += `<option value="${resistLv.name}">${resistLv.name}</option>`;
+            expLevel += `<option value="${resistLv.name}">${api.localizeFallback(`RESISTANCE_${resistLv.name.toUpperCase()}`, resistLv.name)}</option>`;
         }
         
         let dialog_content = `  
@@ -350,7 +523,7 @@ export class BithirMacros {
             <div style="flex-basis: auto;flex-direction: row;display: flex;">
                 <div class="dialogEntry"><select id="generator" name="generator">${generatorList}</select></div>
             </div><br/>
-            <h2>Select generator resistance level</h2>
+            <h2>${api.localize('GENERATOR_SELECTRESISTANCELEVEL')}</h2>
             <br />
             <div style="flex-basis: auto;flex-direction: row;display: flex;">
                 <div class="dialogEntry"><select id="expLevel" name="expLevel">${expLevel}</select></div>
@@ -358,30 +531,28 @@ export class BithirMacros {
             <br/>        
         </div>`;
         
-        const x = new Dialog({
+        const result = await promptUtilityDialog({
             content: dialog_content,
-            buttons: {
-                Ok: { 
-                    label: api.localize(`OK`), 
-                    callback: async (html) => {
-                        const generatorConfigName = html.find('#generator')[0].value;
-                        const expLevelName = html.find('#expLevel')[0].value;
-                        const selectedExpLevel = BithirConfig.resistanceLevels.find(resistLv => resistLv.name === expLevelName);
-                        if (selectedExpLevel) {
-                            await this.generateNPC(generatorConfigName, selectedExpLevel);
-                        }
-                    }
-                },
-                Cancel: { label: api.localize(`CANCEL`) }
+            okLabel: api.localize(`OK`),
+            cancelLabel: api.localize(`CANCEL`),
+            width: 350,
+            callback: async (element) => {
+                const generatorConfigName = element.querySelector('#generator')?.value;
+                const expLevelName = element.querySelector('#expLevel')?.value;
+                return { generatorConfigName, expLevelName };
             }
         });
-        
-        x.options.width = 200;
-        x.position.width = 350;
-        x.render(true);
+
+        if (!result) return;
+        const selectedExpLevel = BithirConfig.resistanceLevels.find(resistLv => resistLv.name === result.expLevelName);
+        if (result.generatorConfigName && selectedExpLevel) {
+            await this.generateNPC(result.generatorConfigName, selectedExpLevel);
+        }
     }
 
     async generateNPC(generatorConfigName, xpLevel) {        
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
         const generatorConfig = await foundry.utils.fetchJsonWithTimeout(`${basePath}/data/${generatorConfigName}-generator.json`);
         const folderId = await this.getFolderID(generatorConfig.folderName);        
         
@@ -511,9 +682,10 @@ export class BithirMacros {
                 let itemName = null;
                 for (let tr of tableDraw.results) {
                     if (tr.documentUuid) {
-                        itemToAdd = (await fromUuid(tr.documentUuid)).toObject();
+                        const document = await fromUuid(tr.documentUuid);
+                        if (document) itemToAdd = document.toObject();
                     } else {
-                        itemName = tr.text ?? tr.name;
+                        itemName = tableResultContent(tr);
                     }
                 }
                 if (!itemToAdd) { continue; }
@@ -621,81 +793,135 @@ export class BithirMacros {
     }
 
     async rollRollInspiration() {
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
         let dialog_content = `  
         <div class="form-group bithirmod">
         <div class="dialogHeader">
-            <div class="dialogEntry"><label for="location" class="dialogEntry">Location dice</label></div><div><input type="text" name="location" value="1" class="inspirationInput"></div>
+            <div class="dialogEntry"><label for="location" class="dialogEntry">${api.localize('inspiration_location_dice')}</label></div><div><input type="text" name="location" value="1" class="inspirationInput"></div>
         </div>
         <div class="dialogHeader">
-            <div class="dialogEntry"><label for="event" class="dialogEntry">Event dice</label></div><div><input type="text" name="event" value="1" class="inspirationInput"></div>
+            <div class="dialogEntry"><label for="event" class="dialogEntry">${api.localize('inspiration_event_dice')}</label></div><div><input type="text" name="event" value="1" class="inspirationInput"></div>
         </div>
         <div class="dialogHeader">
-            <div class="dialogEntry"><label for="creature" class="dialogEntry">Creature dice</label></div><div><input type="text" name="creature" value="1" class="inspirationInput"></div>
+            <div class="dialogEntry"><label for="creature" class="dialogEntry">${api.localize('inspiration_creature_dice')}</label></div><div><input type="text" name="creature" value="1" class="inspirationInput"></div>
         </div>
         <div class="dialogHeader">
-            <div class="dialogEntry"><label for="reward" class="dialogEntry">Reward dice</label></div><div><input type="text" name="reward" value="1" class="inspirationInput"></div>
+            <div class="dialogEntry"><label for="reward" class="dialogEntry">${api.localize('inspiration_reward_dice')}</label></div><div><input type="text" name="reward" value="1" class="inspirationInput"></div>
         </div>
         <br/>
         </div>`;
         
-        let x = new Dialog({
+        const result = await promptUtilityDialog({
             title: api.localize('inspiration_title'),
             content: dialog_content,
-            buttons: {
-                Ok: { 
-                    label: api.localize('OK'), 
-                    callback: async (html) => {             
-                        let location = parseInt(html.find("input[name='location']")[0].value);
-                        let event = parseInt(html.find("input[name='event']")[0].value);
-                        let creature = parseInt(html.find("input[name='creature']")[0].value);
-                        let reward = parseInt(html.find("input[name='reward']")[0].value);
-                        let rollString = [];
-                        if (!isNaN(location) && location !== 0) { rollString.push(`${location}dl`); }
-                        if (!isNaN(event) && event !== 0) { rollString.push(`${event}de`); }
-                        if (!isNaN(creature) && creature !== 0) { rollString.push(`${creature}dc`); }
-                        if (!isNaN(reward) && reward !== 0) { rollString.push(`${reward}dr`); }
-                        
-                        let rolls = await new Roll(rollString.join('+')).evaluate();
-                        let rollData = {
-                            formula: rolls.formula,
-                            rolls: this.assembleInspirationResults(rolls)
-                        };
-                        const template = await foundry.applications.handlebars.renderTemplate(`${templatePath}/inspirationroll.hbs`, rollData);
-
-                        let chatData = {
-                            user: game.user.id,
-                            speaker: ChatMessage.getSpeaker({ alias: api.localize('inspiration_results') }),
-                            roll: JSON.stringify(rolls),
-                            rolls: [rolls],
-                            rollMode: game.settings.get('core', 'rollMode'),
-                            content: template,
-                        };
-                        
-                        if (game.modules.get("dice-so-nice")?.active) {
-                            const dsnsettings = game.user.getFlag("dice-so-nice", "settings");
-                            if (!dsnsettings || dsnsettings.hideAfterRoll) {
-                                if (!dsnsettings) {
-                                    await game.user.setFlag('dice-so-nice', 'settings', game.dice3d.constructor.CONFIG());
-                                }
-                                const timeout = parseInt(game.user.getFlag("dice-so-nice", "settings").timeBeforeHide);
-                                if (!isNaN(timeout)) {
-                                    game.user.getFlag("dice-so-nice", "settings").hideAfterRoll = false;
-                                    setTimeout(() => { 
-                                        game.user.getFlag("dice-so-nice", "settings").hideAfterRoll = true;
-                                    }, timeout + 500);
-                                }
-                            }
-                        }
-                        ChatMessage.create(chatData);
-                    }
-                },
-                Cancel: { label: api.localize('CANCEL') }
-            }  
+            okLabel: api.localize('OK'),
+            cancelLabel: api.localize('CANCEL'),
+            width: 300,
+            callback: async (element) => ({
+                location: parseInt(element.querySelector("input[name='location']")?.value),
+                event: parseInt(element.querySelector("input[name='event']")?.value),
+                creature: parseInt(element.querySelector("input[name='creature']")?.value),
+                reward: parseInt(element.querySelector("input[name='reward']")?.value)
+            })
         });
+
+        if (!result) return;
+        let rollString = [];
+        if (!isNaN(result.location) && result.location !== 0) { rollString.push(`${result.location}dl`); }
+        if (!isNaN(result.event) && result.event !== 0) { rollString.push(`${result.event}de`); }
+        if (!isNaN(result.creature) && result.creature !== 0) { rollString.push(`${result.creature}dc`); }
+        if (!isNaN(result.reward) && result.reward !== 0) { rollString.push(`${result.reward}dr`); }
+        if (rollString.length === 0) return;
+
+        let rolls = await new Roll(rollString.join('+')).evaluate();
+        let rollData = {
+            formula: rolls.formula,
+            rolls: this.assembleInspirationResults(rolls)
+        };
+        const template = await foundry.applications.handlebars.renderTemplate(`${templatePath}/inspirationroll.hbs`, rollData);
+
+        let chatData = {
+            user: game.user.id,
+            speaker: ChatMessage.getSpeaker({ alias: api.localize('inspiration_results') }),
+            roll: JSON.stringify(rolls),
+            rolls: [rolls],
+            rollMode: game.settings.get('core', 'rollMode'),
+            content: template,
+        };
         
-        x.options.width = 200;
-        x.position.width = 300;
-        x.render(true);
+        if (game.modules.get("dice-so-nice")?.active) {
+            const dsnsettings = game.user.getFlag("dice-so-nice", "settings");
+            if (!dsnsettings || dsnsettings.hideAfterRoll) {
+                if (!dsnsettings) {
+                    await game.user.setFlag('dice-so-nice', 'settings', game.dice3d.constructor.CONFIG());
+                }
+                const timeout = parseInt(game.user.getFlag("dice-so-nice", "settings").timeBeforeHide);
+                if (!isNaN(timeout)) {
+                    game.user.getFlag("dice-so-nice", "settings").hideAfterRoll = false;
+                    setTimeout(() => {
+                        game.user.getFlag("dice-so-nice", "settings").hideAfterRoll = true;
+                    }, timeout + 500);
+                }
+            }
+        }
+        ChatMessage.create(chatData);
+    }
+
+    async rollForestEvents() {
+        if (!isBithirUtilitiesEnabled()) return warnBithirDisabled();
+
+        const translations = await loadForestEventTranslations();
+        const mainTable = findForestEventTable('Forest Events', translations);
+        if (!mainTable) {
+            ui.notifications.warn(api.localizeFallback('FOREST_EVENTS_NO_TABLE', 'Forest Events table not found.'));
+            return null;
+        }
+
+        const mainRollData = await mainTable.roll();
+        const mainResult = mainRollData?.results?.[0];
+        if (!mainResult) return null;
+
+        const rawCategory = tableResultContent(mainResult);
+        const translatedCategory = translatedForestResult('Forest Events', mainResult, mainTable, translations, rawCategory);
+        let categoryKey = forestEventTableKeyForName(rawCategory, translations) ||
+            forestEventTableKeyForName(translatedCategory, translations);
+        let eventTable = categoryKey ? findForestEventTable(categoryKey, translations) : null;
+
+        if (!eventTable && mainResult.documentUuid) {
+            const document = await fromUuid(mainResult.documentUuid);
+            if (document?.documentName === "RollTable") {
+                eventTable = document;
+                categoryKey = forestEventTableKeyForName(document.name, translations) ?? categoryKey;
+            }
+        }
+
+        let eventRollData = null;
+        let eventText = translatedCategory;
+        let category = null;
+
+        if (eventTable && categoryKey && categoryKey !== 'Forest Events') {
+            category = translations?.[categoryKey]?.name ?? eventTable.name;
+            eventRollData = await eventTable.roll();
+            const eventResult = eventRollData?.results?.[0];
+            eventText = translatedForestResult(categoryKey, eventResult, eventTable, translations, tableResultContent(eventResult));
+        }
+
+        const rolls = [mainRollData?.roll, eventRollData?.roll].filter(Boolean);
+        await ChatMessage.create({
+            user: game.user.id,
+            speaker: ChatMessage.getSpeaker({ alias: api.localizeFallback('FOREST_EVENTS_TITLE', 'Forest Events') }),
+            rolls,
+            rollMode: CONST.DICE_ROLL_MODES.PRIVATE,
+            content: renderForestEventCard({
+                eventText,
+                category,
+                mainRoll: mainRollData?.roll,
+                eventRoll: eventRollData?.roll
+            })
+        });
+
+        return { mainTable, eventTable, mainRollData, eventRollData, eventText };
     }
 
     assembleInspirationResults(rolls) {
@@ -714,25 +940,100 @@ export class BithirMacros {
 // ─────────────────────────────────────────────────────────────────────────────
 // REGISTRATION HOOKS & SETUP
 // ─────────────────────────────────────────────────────────────────────────────
+async function migrateImportedUtilityTranslations() {
+    if (!game.user?.isGM) return;
+
+    const currentVersion = game.settings.get(moduleId, 'utilityTranslationMigrationVersion') ?? 0;
+    if (currentVersion >= translationMigrationVersion) return;
+
+    try {
+        const forestEventTranslations = await loadForestEventTranslations();
+        const folderUpdates = game.folders
+            .filter(folder => folderNameMigrations[folder.name])
+            .map(folder => ({ _id: folder.id, name: folderNameMigrations[folder.name] }));
+
+        if (folderUpdates.length > 0) {
+            await Folder.updateDocuments(folderUpdates);
+        }
+
+        for (const table of game.tables ?? []) {
+            const forestEventKey = forestEventTableKeyForName(table.name, forestEventTranslations);
+            const migratedTableName = forestEventKey
+                ? forestEventTranslations?.[forestEventKey]?.name
+                : tableNameMigrations[table.name];
+
+            if (migratedTableName) {
+                await table.update({ name: migratedTableName });
+            }
+
+            const resultUpdates = [];
+            const sortedResults = sortedTableResults(table);
+            for (const result of sortedResults) {
+                const text = tableResultContent(result);
+                const index = sortedResults.findIndex(candidate => candidate.id === result.id);
+                const migratedText = forestEventKey
+                    ? forestEventTranslations?.[forestEventKey]?.results?.[index]
+                    : tableResultTextMigrations[text];
+                if (migratedText) {
+                    resultUpdates.push({ _id: result.id, name: migratedText, description: migratedText });
+                }
+            }
+
+            if (resultUpdates.length > 0 && typeof table.updateEmbeddedDocuments === 'function') {
+                await table.updateEmbeddedDocuments('TableResult', resultUpdates);
+            }
+        }
+
+        const macroUpdates = Array.from(game.macros ?? [])
+            .filter(isForestEventsMacro)
+            .map(macro => ({
+                _id: macro.id,
+                name: api.localizeFallback('FOREST_EVENTS_TITLE', 'Eventos de Floresta'),
+                command: forestEventMacroCommand
+            }));
+
+        if (macroUpdates.length > 0) {
+            await Macro.updateDocuments(macroUpdates);
+        }
+
+        await game.settings.set(moduleId, 'utilityTranslationMigrationVersion', translationMigrationVersion);
+    } catch (error) {
+        console.error(`${moduleId} | Failed to migrate imported utility translations`, error);
+    }
+}
+
 export function setupBithirMod() {
+    if (CompatibilityService.shouldSkipBundledBithir()) {
+        return;
+    }
+
     // Register settings
-    game.settings.register(moduleId, 'hideShadowGeneration', {
+    registerBithirSetting('hideShadowGeneration', {
         name: 'BITHIRMOD.SHADOW_hideGeneration',
         hint: 'BITHIRMOD.SHADOW_hideGeneration_hint',
         scope: "world",
-        config: true,
+        config: false,
         default: false,
         type: Boolean
     });
 
-    game.settings.register(moduleId, 'hideShadowLabel', {
+    registerBithirSetting('hideShadowLabel', {
         name: 'BITHIRMOD.SHADOW_hideLabel',
         hint: 'BITHIRMOD.SHADOW_hideLabel_hint',
         scope: "world",
-        config: true,
+        config: false,
         default: false,
         type: Boolean
     });
+
+    registerBithirSetting('utilityTranslationMigrationVersion', {
+        scope: "world",
+        config: false,
+        default: 0,
+        type: Number
+    });
+
+    Hooks.once('ready', migrateImportedUtilityTranslations);
 
     // Register Custom Dice Terms
     CONFIG.Dice.terms[LocationDie.DENOMINATION] = LocationDie;
@@ -754,7 +1055,11 @@ export function setupBithirMod() {
 
     // Character Sheet Generate Shadow UI button
     Hooks.on('renderActorSheet', (app, html, data) => {
-        if (game.settings.get(moduleId, 'hideShadowGeneration') || 
+        html.closest('.app').find('.bithirmod-generate-shadow').remove();
+
+        if (!isBithirUtilitiesEnabled() ||
+            !isGenerateShadowEnabled() ||
+            game.settings.get(moduleId, 'hideShadowGeneration') ||
             !app.object.testUserPermission(game.user, foundry.CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER)) {
             return;
         }
@@ -783,35 +1088,27 @@ export function setupBithirMod() {
                 </div><br/>
             </div>`;
             
-            const x = new Dialog({
+            const result = await promptUtilityDialog({
                 content: dialog_content,
-                buttons: {
-                    Ok: { 
-                        label: api.localize(`OK`), 
-                        callback: async (html) => {
-                            const selectedShadow = html.find('#shadow')[0].value;
-                            if (selectedShadow === 'restoreshadow') {
-                                let originalShadow = await actor.getFlag(moduleId, 'originalShadow');
-                                actor.update({ 'system.bio.shadow': originalShadow });
-                            } else {
-                                if (actor.system.bio?.shadow && actor.system.bio.shadow !== '') {
-                                    await actor.setFlag(moduleId, 'originalShadow', actor.system.bio.shadow);
-                                }
-                                const newShadow = await api.generateShadow(selectedShadow, actor);
-                                actor.update({ 'system.bio.shadow': newShadow.capitalize() });
-                            }
-                        }
-                    },
-                    Cancel: { label: api.localize(`CANCEL`) }
-                }
+                okLabel: api.localize(`OK`),
+                cancelLabel: api.localize(`CANCEL`),
+                width: 300,
+                callback: async (element) => element.querySelector('#shadow')?.value
             });
-            
-            x.options.width = 200;
-            x.position.width = 300;
-            x.render(true);        
+
+            if (!result) return;
+            if (result === 'restoreshadow') {
+                let originalShadow = await actor.getFlag(moduleId, 'originalShadow');
+                await actor.update({ 'system.bio.shadow': originalShadow });
+            } else {
+                if (actor.system.bio?.shadow && actor.system.bio.shadow !== '') {
+                    await actor.setFlag(moduleId, 'originalShadow', actor.system.bio.shadow);
+                }
+                const newShadow = await api.generateShadow(result, actor);
+                await actor.update({ 'system.bio.shadow': newShadow.capitalize() });
+            }
         });
         
-        html.closest('.app').find('.bithirmod-generate-shadow').remove();
         let titleElement = html.closest('.app').find('.window-title');
         openBtn.insertAfter(titleElement);
     });
@@ -820,11 +1117,56 @@ export function setupBithirMod() {
     const bithirObj = {
         config: BithirConfig,
         macros: new BithirMacros(),
-        api: api
+        api: api,
+        refreshOpenActorSheets: rerenderOpenActorSheets
     };
 
     if (game.tenebreResources) {
         game.tenebreResources.bithir = bithirObj;
     }
     game.bithirmod = bithirObj; // keep same namespace for backwards compatibility inside table roll commands
+}
+
+export function isExternalBithirModuleActive() {
+    return CompatibilityService.shouldSkipBundledBithir();
+}
+
+function registerBithirSetting(key, data) {
+    if (game.settings.settings.has(`${moduleId}.${key}`)) return;
+    game.settings.register(moduleId, key, data);
+}
+
+function isBithirUtilitiesEnabled() {
+    return getTenebreSetting("enableBithirUtilities", true);
+}
+
+function isGenerateShadowEnabled() {
+    return getTenebreSetting("enableGenerateShadow", true);
+}
+
+function getTenebreSetting(key, fallback) {
+    try {
+        if (!game.settings.settings.has(`${moduleId}.${key}`)) return fallback;
+        return TenebreSettings.get(key);
+    } catch (_error) {
+        return fallback;
+    }
+}
+
+function warnBithirDisabled() {
+    ui.notifications.warn(game.i18n.localize("TENEBRE.Settings.BithirUtilitiesDisabled"));
+    return null;
+}
+
+function rerenderOpenActorSheets() {
+    for (const app of Object.values(ui.windows ?? {})) {
+        if (app?.actor || app?.document?.documentName === "Actor") app.render?.(false);
+    }
+
+    const instances = foundry.applications?.instances;
+    if (instances && typeof instances[Symbol.iterator] === "function") {
+        for (const app of instances) {
+            if (app?.document?.documentName === "Actor") app.render?.({ force: false });
+        }
+    }
 }
