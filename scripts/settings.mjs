@@ -169,7 +169,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "movementBaseFeet"
     ];
 
-    const strings = ["movementUnitSystem"];
+    const strings = ["movementUnitSystem", "nativeChatPresentation"];
 
     for (const key of booleans) {
       if (canInspectSubmittedFields ? submittedFields.has(key) : key in data) {
@@ -191,6 +191,10 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
 
     if ("movementUnitSystem" in data && !["meters", "feet"].includes(data.movementUnitSystem)) {
       data.movementUnitSystem = "meters";
+    }
+
+    if ("nativeChatPresentation" in data && !["system", "updated"].includes(data.nativeChatPresentation)) {
+      data.nativeChatPresentation = "system";
     }
 
     if (canInspectSubmittedFields && Array.from(submittedFields).some((key) => key.startsWith("extraRationFoods."))) {
@@ -308,6 +312,12 @@ export class TenebreSettings {
 
     register("enableManeuvers", Boolean, true, "TENEBRE.Settings.EnableManeuvers", "TENEBRE.Settings.EnableManeuversHint");
     register("enableRollPrivacy", Boolean, true, "TENEBRE.Settings.EnableRollPrivacy", "TENEBRE.Settings.EnableRollPrivacyHint");
+    register("nativeChatPresentation", String, "system", "TENEBRE.Settings.NativeChatPresentation", "TENEBRE.Settings.NativeChatPresentationHint", {
+      choices: {
+        system: "TENEBRE.Settings.NativeChatPresentationSystem",
+        updated: "TENEBRE.Settings.NativeChatPresentationUpdated"
+      }
+    });
     register("enableWeaponReadiness", Boolean, true, "TENEBRE.Settings.EnableWeaponReadiness", "TENEBRE.Settings.EnableWeaponReadinessHint");
     register("showWeaponReadinessButton", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessButton", "TENEBRE.Settings.ShowWeaponReadinessButtonHint");
     register("showWeaponReadinessTokenIndicator", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator", "TENEBRE.Settings.ShowWeaponReadinessTokenIndicatorHint");
@@ -376,6 +386,9 @@ function register(key, type, defaultValue, name, hint, extra = {}) {
 
 function onSettingChanged(key, value) {
   Hooks.callAll(MODULE_ID + ".settingsChanged", key, value);
+  if (key === "nativeChatPresentation") {
+    globalThis.ui?.chat?.render?.({ force: true });
+  }
   const requiresForcedSheetRender = [
     "enableRations",
     "rationUses",

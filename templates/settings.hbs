@@ -224,6 +224,15 @@
       <h2>{{localize "TENEBRE.Settings.CombatGroup"}}</h2>
 
       <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.NativeChatPresentation"}}</span>
+        <select name="nativeChatPresentation">
+          <option value="system" {{#if (eq settings.nativeChatPresentation "system")}}selected{{/if}}>{{localize "TENEBRE.Settings.NativeChatPresentationSystem"}}</option>
+          <option value="updated" {{#if (eq settings.nativeChatPresentation "updated")}}selected{{/if}}>{{localize "TENEBRE.Settings.NativeChatPresentationUpdated"}}</option>
+        </select>
+      </label>
+      <p class="hint">{{localize "TENEBRE.Settings.NativeChatPresentationHint"}}</p>
+
+      <label class="tenebre-settings-field">
         <span>{{localize "TENEBRE.Settings.EnableManeuvers"}}</span>
         <input type="checkbox" name="enableManeuvers" {{checked settings.enableManeuvers}}>
       </label>

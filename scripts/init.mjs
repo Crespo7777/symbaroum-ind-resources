@@ -24,6 +24,7 @@ import { WeaponReadinessHudService } from "./weapon-readiness-hud.mjs";
 import { WeaponReadinessVisualService } from "./weapon-readiness-visuals.mjs";
 import { InventoryCleanupService } from "./inventory-cleanup.mjs";
 import { CombatChatPrivacyService } from "./combat-chat-privacy.mjs";
+import { NativeChatPresentationService } from "./native-chat-presentation.mjs";
 import { GmLogService } from "./gm-log-service.mjs";
 import { GmLogUiService } from "./gm-log-ui.mjs";
 import { GroundContainerService } from "./ground-containers.mjs";
@@ -35,6 +36,7 @@ Hooks.once("init", () => {
   MovementService.register();
   RollPrivacyService.register();
   CombatChatPrivacyService.register();
+  NativeChatPresentationService.register();
   registerKeybindings();
   TokenActionHudIntegration.register();
 

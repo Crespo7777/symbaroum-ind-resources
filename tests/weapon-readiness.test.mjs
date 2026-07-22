@@ -32,8 +32,14 @@ import { buildVisualActiveEffectData } from "../scripts/compatibility.mjs";
 const scope = "symbaroum-ind-resources";
 globalThis.game = { symbaroum: {} };
 
-test("sheet and HUD readiness indicators share the Symbaroum weapon icon", () => {
+test("HUD and token readiness indicators use the Symbaroum weapon icon", () => {
   assert.equal(WEAPON_READINESS_ICON, "/systems/symbaroum/asset/image/weapon.png");
+});
+
+test("actor sheets do not add a redundant drawn-weapon icon to weapon rows", () => {
+  const sheetUiSource = fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/sheet-ui.mjs"), "utf8");
+  assert.doesNotMatch(sheetUiSource, /rollButton\.prepend\(icon\)/);
+  assert.doesNotMatch(sheetUiSource, /icon\.src\s*=\s*WEAPON_READINESS_ICON/);
 });
 
 test("weapon readiness chat messages are controlled by an independent setting", () => {

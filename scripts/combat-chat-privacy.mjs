@@ -30,8 +30,11 @@ export class CombatChatPrivacyService {
     const damage = combatDamageSummary(message, parsed.damageText);
     const publicCombat = {
       attackerName: parsed.attackerName,
+      attackerImg: parsed.attackerImg,
       weaponName: parsed.weaponName,
+      weaponImg: parsed.weaponImg,
       targetName: parsed.targetName,
+      targetImg: parsed.targetImg,
       testFormula: parsed.testFormula,
       rollValue: parsed.rollValue,
       outcomeText: parsed.outcomeText,
@@ -110,8 +113,11 @@ function parseNativeCombatMessage(content = "") {
 
   return {
     attackerName: cleanText(attack[1]),
+    attackerImg: backgroundImageUrl(root.querySelector(".introImg")?.getAttribute("style")),
     weaponName: cleanText(root.querySelector(".subText")?.textContent || attack[2]),
+    weaponImg: root.querySelector(".foreground > img")?.getAttribute("src") ?? "",
     targetName,
+    targetImg: backgroundImageUrl(root.querySelector(".introImg .introImg")?.getAttribute("style")),
     testFormula,
     rollValue,
     outcomeText,
@@ -132,10 +138,20 @@ function buildPublicCombatContent(data) {
   const damage = data.damageFormula
     ? `<p>${damageLabel}: ${escapeHtml(data.damageFormula)}</p>`
     : "";
+  const presentationData = [
+    ["attacker-img", data.attackerImg],
+    ["weapon-img", data.weaponImg],
+    ["target-img", data.targetImg]
+  ].filter(([, value]) => value)
+    .map(([key, value]) => ` data-tenebre-${key}="${escapeHtml(value)}"`)
+    .join("");
   return `
     <div class="symbaroum chat combat tenebre-public-combat">
-      <div class="foreground">
-        <div class="introTxt">${escapeHtml(data.attackerName)} ${attacksWith} ${escapeHtml(data.weaponName)}</div>
+      <div class="foreground"${presentationData}>
+        <div class="introImg">
+          <div class="introTxt">${escapeHtml(data.attackerName)} ${attacksWith} ${escapeHtml(data.weaponName)}</div>
+          <div class="introImg"></div>
+        </div>
         <div class="targetText">${victim}: ${escapeHtml(data.targetName)}</div>
         <div class="subText">${escapeHtml(data.weaponName)}</div>
         <div class="finalTxt"><p data-item-id="">${escapeHtml(data.testFormula)}</p></div>
@@ -207,4 +223,9 @@ function cleanText(value) {
 
 function normalizeText(value) {
   return cleanText(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function backgroundImageUrl(style = "") {
+  const match = String(style).match(/background-image\s*:\s*url\((['"]?)(.*?)\1\)/i);
+  return match?.[2] ?? "";
 }

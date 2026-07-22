@@ -100,8 +100,11 @@ test("sanitized copy preserves public combat data without GM-only fields", () =>
         combatSplitId: "split-a",
         publicCombatPayload: {
           attackerName: "Heroi",
+          attackerImg: "actors/heroi.webp",
           weaponName: "Arco",
+          weaponImg: "items/arco.webp",
           targetName: "Ogro",
+          targetImg: "actors/ogro.webp",
           testFormula: "Preciso ← Defesa",
           rollValue: "7",
           outcomeText: "Heroi falha - Falha Crítica : Ataque Livre do Oponente",
@@ -118,6 +121,10 @@ test("sanitized copy preserves public combat data without GM-only fields", () =>
   assert.doesNotMatch(data.content, /Proteção|Dano final|Damage taken/i);
   assert.match(data.content, /Preciso ← Defesa/);
   assert.match(data.content, /Ataque Livre do Oponente/);
+  assert.match(data.content, /data-tenebre-attacker-img="actors\/heroi\.webp"/);
+  assert.match(data.content, /data-tenebre-weapon-img="items\/arco\.webp"/);
+  assert.match(data.content, /data-tenebre-target-img="actors\/ogro\.webp"/);
+  assert.doesNotMatch(data.content, /background-image|<img/i);
 });
 
 test("only the responsible GM publishes one public copy for a player attack", async () => {

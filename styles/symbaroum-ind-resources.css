@@ -2170,21 +2170,6 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   box-shadow: none;
 }
 
-.symbaroum.sheet.actor .player .main .combat .weapon.tenebre-weapon-drawn {
-  box-shadow: inset 3px 0 0 #c99b2f;
-}
-
-.symbaroum.sheet.actor .player .main .combat .tenebre-weapon-drawn-icon {
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  margin: 0 5px;
-  border: 0;
-  object-fit: contain;
-  filter: sepia(1) saturate(2.4) hue-rotate(355deg) brightness(0.9);
-  pointer-events: none;
-}
-
 .tenebre-weapon-readiness-dialog {
   display: grid;
   gap: 2px;
@@ -2530,5 +2515,149 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 @media (max-width: 760px) {
   .tenebre-gm-log-filter {
     width: 120px;
+  }
+}
+
+/* Optional presentation for the existing native Symbaroum combat message. */
+.symbaroum.chat.combat.tenebre-native-combat-updated {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #4a3b31;
+  border-radius: 6px;
+  color: #18130f;
+  background: url("/systems/symbaroum/asset/image/background/not-editable.webp") repeat;
+  font-family: "Signika", var(--font-primary), sans-serif;
+}
+
+.symbaroum.chat.combat.tenebre-native-combat-updated > .foreground[hidden] {
+  display: none !important;
+}
+
+.tenebre-native-attack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tenebre-native-attack-title {
+  margin: 0;
+  color: #18130f;
+  font-family: "Philosopher", var(--font-primary), serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+}
+
+.tenebre-native-attack-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr) 18px minmax(0, 1fr);
+  gap: 3px;
+  align-items: center;
+  min-width: 0;
+}
+
+.tenebre-native-attack-participant {
+  display: grid;
+  grid-template-rows: 64px auto;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+}
+
+.tenebre-native-attack-participant img {
+  box-sizing: border-box;
+  width: 58px;
+  height: 64px;
+  margin: 0 auto;
+  border: 2px solid #3e352f;
+  border-radius: 6px;
+  background: #17130f;
+  object-fit: cover;
+}
+
+.tenebre-native-attack-participant figcaption {
+  min-width: 0;
+  color: #18130f;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 14px;
+  overflow-wrap: anywhere;
+}
+
+.tenebre-native-attack-arrow {
+  color: #18130f;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+.tenebre-native-attack-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  border: 2px solid #9d4c3e;
+  text-align: center;
+}
+
+.tenebre-native-attack-summary > * {
+  margin: 0;
+}
+
+.tenebre-native-attack-summary p,
+.tenebre-native-attack-summary h4,
+.tenebre-native-attack-summary .finalTxt {
+  color: #18130f;
+  font-family: "Signika", var(--font-primary), sans-serif;
+  font-size: 13px;
+  line-height: 17px;
+  text-align: center;
+}
+
+.tenebre-native-attack-formula,
+.tenebre-native-attack-objective,
+.tenebre-native-attack-summary h4 {
+  font-weight: 700;
+}
+
+.tenebre-native-attack-summary .tooltip {
+  display: inline-block;
+  position: relative;
+}
+
+.tenebre-native-attack-summary .tooltiptext {
+  z-index: 10;
+}
+
+.tenebre-native-attack-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tenebre-native-attack-actions > button,
+.tenebre-native-attack-actions > [data-action] {
+  width: 100%;
+  margin: 0;
+}
+
+@media (max-width: 420px) {
+  .tenebre-native-attack-title {
+    font-size: 18px;
+    line-height: 22px;
+  }
+
+  .tenebre-native-attack-participant {
+    grid-template-rows: 56px auto;
+  }
+
+  .tenebre-native-attack-participant img {
+    width: 50px;
+    height: 56px;
   }
 }

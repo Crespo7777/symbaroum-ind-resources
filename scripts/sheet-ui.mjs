@@ -15,7 +15,7 @@ import { CompatibilityService } from "./compatibility.mjs";
 import { isWeaponReadinessIndicatorEffect } from "./weapon-readiness-visuals.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { RitualBrowserService, isRitualDocument } from "./ritual-browser.mjs";
-import { WEAPON_READINESS_ICON, WeaponReadinessService } from "./weapon-readiness.mjs";
+import { WeaponReadinessService } from "./weapon-readiness.mjs";
 import { GroundContainerService } from "./ground-containers.mjs";
 import { ContainerTransferService } from "./container-transfer.mjs";
 import {
@@ -528,21 +528,6 @@ function injectWeaponReadinessControls(_app, html, actor) {
   });
   header.append(button);
 
-  for (const weapon of weapons) {
-    if (!WeaponReadinessService.isDrawn(weapon)) continue;
-    const row = section.querySelector(`.item[data-item-id="${CSS.escape(weapon.id)}"]`);
-    if (!row) continue;
-    row.classList.add("tenebre-weapon-drawn");
-    const rollButton = row.querySelector(".roll-weapon");
-    if (!rollButton) continue;
-    const icon = document.createElement("img");
-    icon.className = "tenebre-weapon-drawn-icon";
-    icon.src = WEAPON_READINESS_ICON;
-    icon.alt = "";
-    icon.setAttribute("aria-hidden", "true");
-    icon.title = game.i18n.localize("TENEBRE.WeaponReadiness.Drawn");
-    rollButton.prepend(icon);
-  }
 }
 
 function injectRitualistInlineList(app, html, actor) {
