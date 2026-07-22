@@ -39,7 +39,7 @@ sua explicacao detalhada:
 - [Regua e limites de movimento](#movimento)
 - [Sacar, guardar e trocar armas](#sacar-e-guardar-armas)
 - [Manobras de combate](#manobras)
-- [Chat Ilustrado e modo Legacy](#chat-moderno)
+- [Chat nativo do Symbaroum](#chat-nativo-do-symbaroum)
 - [Rolagens privadas](#rolagem-privada)
 - [Pedidos de resistencia](#pedidos-de-resistencia)
 - [Catalogo e agrupamento de Ritualista](#catalogo-de-ritualista)
@@ -198,8 +198,6 @@ sempre que a API do Foundry permite.
 | Exibir botao Sacar/Guardar Armas | Mostra o controle rapido e arrastavel na interface. |
 | Exibir indicador no token | Mostra no token quando o personagem possui arma sacada. |
 | Ativar animacao ao sacar/guardar | Reproduz o feedback visual opcional durante a troca de armas. |
-| Ativar visual moderno do chat | Ativa a transformacao das mensagens de chat. |
-| Estilo do chat moderno | Alterna entre `Ilustrado` e `Legacy`. |
 | Ativar uso e envio de itens/habilidades no chat | Habilita uso manual de habilidades, poderes, rituais e itens sem acao ativa. |
 | Ativar integracao com Automated Animations | Inclui os metadados consumidos pela integracao. |
 | Exibir botao Limpar efeitos | Mostra o comando nas fichas com efeitos ativos. |
@@ -428,7 +426,7 @@ Durante o descanso:
 - Vitalidade pode ser recuperada.
 - Corrupcao temporaria pode ser zerada.
 - Testes de inanição sao resolvidos se o personagem estiver com Fome.
-- Cards ilustrados informam sucesso, falha ou morte por inanição.
+- Mensagens no chat nativo informam sucesso, falha ou morte por inanição.
 
 ---
 
@@ -668,7 +666,7 @@ O modulo pode mostrar:
 - um contador no botao rapido;
 - um indicador no token;
 - uma animacao opcional ao sacar, guardar ou trocar;
-- uma mensagem compacta no chat Ilustrado ou no formato Legacy.
+- uma mensagem compacta no chat nativo do Symbaroum.
 
 Cada uma dessas superficies possui opcao propria nas configuracoes de Combate.
 
@@ -699,53 +697,20 @@ Quando possivel, o modulo:
 - Rola o teste necessario.
 - Aplica efeitos ativos.
 - Remove efeitos expirados.
-- Publica cards de chat no estilo configurado.
+- Publica o resultado no chat nativo do Symbaroum.
 
 ---
 
-## Chat Moderno
+## Chat nativo do Symbaroum
 
-O modulo possui dois estilos:
+O modulo preserva o HTML e a aparencia originais do chat do sistema Symbaroum.
+Nao existe renderer alternativo nem transformacao visual das mensagens. As
+automacoes do modulo continuam publicando pelo chat nativo e preservam Roll,
+audiencia, privacidade, criticos, resistencia, dano, efeitos, links e
+integracoes.
 
-| Estilo | Descricao |
-| --- | --- |
-| Ilustrado | Cards visuais no estilo Symbaroum, com retratos, icones, resultado e texto claro. |
-| Legacy | Usa o chat original do sistema Symbaroum. |
-
-O estilo **Ilustrado** cobre:
-
-- Ataques.
-- Testes de atributo.
-- Testes de defesa.
-- Pedidos de resistencia.
-- Habilidades.
-- Poderes.
-- Rituais.
-- Manobras.
-- Uso de itens.
-- Pao de Viagem.
-- Recarregar e recuperar municao.
-- Descanso.
-- Fome.
-- Rolagem de morte.
-- Aplicar resultados.
-- Macros e mensagens de sistema.
-
-### Contrato do chat e paridade
-
-O sistema Symbaroum continua sendo a fonte de verdade das regras. O Ilustrado
-e uma camada visual que deve preservar Roll, audiencia, privacidade, criticos,
-resistencia, dano, efeitos, links e integracoes. A documentacao tecnica esta
-separada para facilitar a auditoria:
-
-- [Chat nativo do Symbaroum](docs/chat-symbaroum-nativo.md): ciclo de rolagem,
-  templates, settings, privacidade, resistencia, dano, iniciativa e Dice So
-  Nice.
-- [Chat Ilustrado e paridade](docs/chat-ilustrado-paridade.md): pipeline do
-  modulo, mapeamento de builders, matriz de paridade, riscos e testes.
-
-O estilo **Legacy** e o caminho recomendado quando a prioridade for usar o
-HTML original sem transformacao visual do modulo.
+A documentacao tecnica do ciclo nativo esta em
+[Chat nativo do Symbaroum](docs/chat-symbaroum-nativo.md).
 
 ### Pedidos de resistencia
 
@@ -960,26 +925,6 @@ Controla:
 - Peso individual por item.
 - Pesos por pacote, como flechas a cada 10 ou moedas a cada 50.
 
-### Frases do chat ilustrado
-
-```text
-data/modern-chat-flavor.json
-```
-
-Controla frases narrativas usadas nos cards:
-
-- Ataques.
-- Habilidades.
-- Atributos.
-- Rituais.
-- Poderes.
-- Itens.
-- Fome.
-- Descanso.
-- Sistema.
-
-Tambem aceita overrides por nome de item/habilidade.
-
 ### Geradores
 
 ```text
@@ -1015,7 +960,6 @@ Arquivos principais:
 | --- | --- |
 | `scripts/init.mjs` | Entrada principal do modulo. |
 | `scripts/settings.mjs` | Registro e dialog de configuracoes. |
-| `scripts/modern-chat.mjs` | Conversao e layout dos cards modernos. |
 | `scripts/ammo.mjs` | Aljavas, consumo, descarga, recarga e recuperacao. |
 | `scripts/rations.mjs` | Pao de Viagem. |
 | `scripts/hunger.mjs` | Efeito Fome e recuperacao de Vigoroso. |

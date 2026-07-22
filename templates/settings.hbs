@@ -153,10 +153,6 @@
         <span>{{localize "TENEBRE.Settings.ShowQuiverHud"}}</span>
         <input type="checkbox" name="showQuiverHud" {{checked settings.showQuiverHud}}>
       </label>
-      <label class="tenebre-settings-field">
-        <span>{{localize "TENEBRE.Settings.ShowSpecialAmmoInChat"}}</span>
-        <input type="checkbox" name="showSpecialAmmoInChat" {{checked settings.showSpecialAmmoInChat}}>
-      </label>
     </section>
   {{/if}}
 
@@ -254,17 +250,6 @@
       <label class="tenebre-settings-field" data-combat-weapon-readiness-dependent>
         <span>{{localize "TENEBRE.Settings.ShowWeaponReadinessChatMessages"}}</span>
         <input type="checkbox" name="showWeaponReadinessChatMessages" {{checked settings.showWeaponReadinessChatMessages}}>
-      </label>
-      <label class="tenebre-settings-field">
-        <span>{{localize "TENEBRE.Settings.EnableModernChat"}}</span>
-        <input type="checkbox" name="enableModernChat" {{checked settings.enableModernChat}}>
-      </label>
-      <label class="tenebre-settings-field" data-combat-modern-chat-dependent>
-        <span>{{localize "TENEBRE.Settings.ModernChatStyle"}}</span>
-        <select name="modernChatStyle">
-          <option value="illustrated" {{#if modernChatStyleIllustratedSelected}}selected{{/if}}>{{localize "TENEBRE.Settings.ModernChatStyleIllustrated"}}</option>
-          <option value="legacy" {{#if modernChatStyleLegacySelected}}selected{{/if}}>{{localize "TENEBRE.Settings.ModernChatStyleLegacy"}}</option>
-        </select>
       </label>
       <label class="tenebre-settings-field">
         <span>{{localize "TENEBRE.Settings.EnableChatItemUse"}}</span>

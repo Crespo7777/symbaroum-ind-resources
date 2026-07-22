@@ -6,7 +6,6 @@ const movementSource = await readFile(new URL("../scripts/movement-ruler.mjs", i
 const initSource = await readFile(new URL("../scripts/init.mjs", import.meta.url), "utf8");
 const sheetSource = await readFile(new URL("../scripts/sheet-ui.mjs", import.meta.url), "utf8");
 const encumbranceSource = await readFile(new URL("../scripts/encumbrance.mjs", import.meta.url), "utf8");
-const modernChatSource = await readFile(new URL("../scripts/modern-chat.mjs", import.meta.url), "utf8");
 const ammoSource = await readFile(new URL("../scripts/ammo.mjs", import.meta.url), "utf8");
 
 test("movement validation uses the public synchronous preMoveToken hook", () => {
@@ -52,15 +51,9 @@ test("encumbrance weight watcher is stoppable and overlap guarded", () => {
   assert.match(encumbranceSource, /clearInterval\(dynamicWeightFileWatcher\)/);
 });
 
-test("apply-results chat message uses the text-only illustrated card", () => {
-  const source = modernChatSource.match(/function buildApplyResultsCard[\s\S]*?\n}\n\nfunction buildSystemMacroCard/)?.[0] ?? "";
-  assert.match(source, /simpleIllustratedTextCard/);
-  assert.match(source, /tenebre-modern-chat-apply-results/);
-  assert.doesNotMatch(source, /cardShell/);
-});
 
 test("ammunition provenance uses compendiumSource instead of deprecated core.sourceId APIs", () => {
-  const sources = [sheetSource, ammoSource, modernChatSource].join("\n");
+  const sources = [sheetSource, ammoSource].join("\n");
   assert.doesNotMatch(sources, /getFlag\?\.\("core", "sourceId"\)/);
   assert.doesNotMatch(sources, /flags\.core\s*=\s*\{\s*sourceId:/);
   assert.match(ammoSource, /_stats\s*=\s*\{\s*compendiumSource:/);

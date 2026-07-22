@@ -17,7 +17,6 @@ import { TokenActionHudIntegration } from "./token-action-hud.mjs";
 import { MovementService } from "./movement-ruler.mjs";
 import { ChatItemUseService } from "./chat-item-use.mjs";
 import { CompatibilityService } from "./compatibility.mjs";
-import { ModernChatService } from "./modern-chat.mjs";
 import { RollPrivacyService } from "./roll-privacy.mjs";
 import { RitualBrowserService } from "./ritual-browser.mjs";
 import { WeaponReadinessService } from "./weapon-readiness.mjs";
@@ -34,7 +33,6 @@ Hooks.once("init", () => {
   TenebreSettings.register();
   CompatibilityService.register();
   MovementService.register();
-  ModernChatService.register();
   RollPrivacyService.register();
   CombatChatPrivacyService.register();
   registerKeybindings();
@@ -127,7 +125,6 @@ Hooks.once("ready", async () => {
     maneuvers: ManeuverService,
     movement: MovementService,
     chatItemUse: ChatItemUseService,
-    modernChat: ModernChatService,
     rollPrivacy: RollPrivacyService,
     ritualBrowser: RitualBrowserService,
     weaponReadiness: WeaponReadinessService,

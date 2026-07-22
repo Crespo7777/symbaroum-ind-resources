@@ -5,6 +5,7 @@ export const COMPAT_MODULES = {
   automatedAnimations: "autoanimations",
   calendaria: "calendaria",
   calendariaSdm: "calendaria-sdm",
+  cleanerSheetTitleBar: "cleaner-sheet-title-bar",
   dragRuler: "drag-ruler",
   libWrapper: "lib-wrapper",
   metamorph: "metamorph",
@@ -40,8 +41,18 @@ export class CompatibilityService {
   static decisions = [];
 
   static register() {
+    this.applySheetTitleBarCompatibility();
     this.refresh();
     this.logSummary();
+  }
+
+  static applySheetTitleBarCompatibility() {
+    const active = this.isModuleActive(COMPAT_MODULES.cleanerSheetTitleBar);
+    globalThis.document?.documentElement?.classList?.toggle(
+      "tenebre-cleaner-sheet-title-bar-active",
+      active
+    );
+    return active;
   }
 
   static refresh() {
@@ -222,6 +233,16 @@ export class CompatibilityService {
         area: "Token ruler and movement validation",
         action: "Tenebre movement ruler patches disabled.",
         reason: "Drag Ruler owns ruler rendering and token movement measurement; avoiding double patches prevents movement/ruler conflicts."
+      }));
+    }
+
+    if (this.isModuleActive(COMPAT_MODULES.cleanerSheetTitleBar)) {
+      decisions.push(decision({
+        level: DECISION_LEVELS.ok,
+        moduleId: COMPAT_MODULES.cleanerSheetTitleBar,
+        area: "Document sheet title bars",
+        action: "Keeping title-bar labels visually compact during Tenebre-triggered sheet renders.",
+        reason: "Cleaner Sheet Title Bar removes labels after a delay; the compatibility class prevents labels from flashing before its cleanup runs."
       }));
     }
 
