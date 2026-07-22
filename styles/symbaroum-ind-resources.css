@@ -2498,6 +2498,16 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 }
 
 /* Compact presentation for native NPC attacks against player characters. */
+.symbaroum.chat.ability .foreground > h4 ~ p:has(> #applyEffect) {
+  display: flex;
+  justify-content: center;
+}
+
+.symbaroum.chat.ability .foreground > h4 ~ p:has(> #applyEffect) > #applyEffect {
+  width: auto;
+  margin-inline: auto;
+}
+
 .symbaroum.chat.combat.tenebre-npc-attack-compact {
   box-sizing: border-box;
   width: 100%;

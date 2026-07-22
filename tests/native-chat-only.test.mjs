@@ -53,6 +53,13 @@ test("module CSS does not target the core chat viewport or restore old native st
   assert.doesNotMatch(css, /tenebre-native-|tenebre-public-combat/);
 });
 
+test("the native Symbaroum resistance-roll button is centered without changing other effect buttons", () => {
+  const css = read("styles/symbaroum-ind-resources.css");
+  assert.match(css, /\.symbaroum\.chat\.ability \.foreground > h4 ~ p:has\(> #applyEffect\)\s*\{[\s\S]*?justify-content:\s*center;/);
+  assert.match(css, /h4 ~ p:has\(> #applyEffect\) > #applyEffect/);
+  assert.doesNotMatch(css, /\.symbaroum\.chat\.ability\s+#applyEffect\s*\{/);
+});
+
 test("chat integrations remain registered without replacing native messages", () => {
   const initSource = read("scripts/init.mjs");
   const settingsSource = read("scripts/settings.mjs");
