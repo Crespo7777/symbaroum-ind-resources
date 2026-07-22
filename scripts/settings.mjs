@@ -32,7 +32,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
 
   async _prepareContext(_options) {
     const settings = TenebreSettings.export();
-    const modernChatStyle = settings.modernChatStyle === "legacy" ? "legacy" : "illustrated";
     const category = this.constructor.settingCategory ?? "rations";
     const extraRationFoods = Object.entries(normalizeExtraRationFoods(settings.extraRationFoods).foods).map(([key, food]) => ({ key, ...food }));
     return {
@@ -49,8 +48,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       showUtilities: category === "utilities",
       movementUnitMetersSelected: settings.movementUnitSystem === "meters",
       movementUnitFeetSelected: settings.movementUnitSystem === "feet",
-      modernChatStyleIllustratedSelected: modernChatStyle === "illustrated",
-      modernChatStyleLegacySelected: modernChatStyle === "legacy",
       isGM: game.user.isGM
     };
   }
@@ -72,7 +69,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
     form?.querySelector?.('input[name="enableMovementRuler"]')?.addEventListener("change", () => syncMovementSettingsVisibility(form));
     syncCombatSettingsVisibility(form);
     form?.querySelector?.('input[name="enableManeuvers"]')?.addEventListener("change", () => syncCombatSettingsVisibility(form));
-    form?.querySelector?.('input[name="enableModernChat"]')?.addEventListener("change", () => syncCombatSettingsVisibility(form));
     form?.querySelector?.('input[name="enableWeaponReadiness"]')?.addEventListener("change", () => syncCombatSettingsVisibility(form));
     syncUtilitiesSettingsVisibility(form);
     form?.querySelector?.('input[name="enableBithirUtilities"]')?.addEventListener("change", () => syncUtilitiesSettingsVisibility(form));
@@ -128,7 +124,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableAmmoRecoveryByQuality",
       "showAmmoRecoveryHud",
       "showQuiverHud",
-      "showSpecialAmmoInChat",
       "enableHunger",
       "enableRestHealing",
       "enableEncumbrance",
@@ -147,7 +142,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "showWeaponReadinessTokenIndicator",
       "enableWeaponReadinessAnimation",
       "showWeaponReadinessChatMessages",
-      "enableModernChat",
       "enableChatItemUse",
       "enableAutomatedAnimationsIntegration",
       "enableRestButton",
@@ -175,10 +169,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "movementBaseFeet"
     ];
 
-    const strings = [
-      "movementUnitSystem",
-      "modernChatStyle"
-    ];
+    const strings = ["movementUnitSystem"];
 
     for (const key of booleans) {
       if (canInspectSubmittedFields ? submittedFields.has(key) : key in data) {
@@ -198,9 +189,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       }
     }
 
-    if ("modernChatStyle" in data && !["illustrated", "legacy"].includes(data.modernChatStyle)) {
-      data.modernChatStyle = "illustrated";
-    }
     if ("movementUnitSystem" in data && !["meters", "feet"].includes(data.movementUnitSystem)) {
       data.movementUnitSystem = "meters";
     }
@@ -291,7 +279,6 @@ export class TenebreSettings {
     register("ammoRecoveryMysticalTarget", Number, 17, "TENEBRE.Settings.AmmoRecoveryMysticalTarget", "TENEBRE.Settings.AmmoRecoveryMysticalTargetHint");
     register("showAmmoRecoveryHud", Boolean, true, "TENEBRE.Settings.ShowAmmoRecoveryHud", "TENEBRE.Settings.ShowAmmoRecoveryHudHint");
     register("showQuiverHud", Boolean, true, "TENEBRE.Settings.ShowQuiverHud", "TENEBRE.Settings.ShowQuiverHudHint");
-    register("showSpecialAmmoInChat", Boolean, true, "TENEBRE.Settings.ShowSpecialAmmoInChat", "TENEBRE.Settings.ShowSpecialAmmoInChatHint");
     register("enableHunger", Boolean, true, "TENEBRE.Settings.EnableHunger", "TENEBRE.Settings.EnableHungerHint");
     register("enableRestHealing", Boolean, true, "TENEBRE.Settings.EnableRestHealing", "TENEBRE.Settings.EnableRestHealingHint");
     register("restHealing", Number, DEFAULTS.restHealing, "TENEBRE.Settings.RestHealing", "TENEBRE.Settings.RestHealingHint");
@@ -328,13 +315,6 @@ export class TenebreSettings {
     register("showWeaponReadinessChatMessages", Boolean, false, "TENEBRE.Settings.ShowWeaponReadinessChatMessages", "TENEBRE.Settings.ShowWeaponReadinessChatMessagesHint");
     register("weaponReadinessButtonPosition", Object, {}, "TENEBRE.Settings.WeaponReadinessButtonPosition", "TENEBRE.Settings.WeaponReadinessButtonPositionHint", { scope: "client" });
     register("gmLogWindowPosition", Object, {}, "TENEBRE.Settings.GmLogWindowPosition", "TENEBRE.Settings.GmLogWindowPositionHint", { scope: "client" });
-    register("enableModernChat", Boolean, true, "TENEBRE.Settings.EnableModernChat", "TENEBRE.Settings.EnableModernChatHint");
-    register("modernChatStyle", String, "illustrated", "TENEBRE.Settings.ModernChatStyle", "TENEBRE.Settings.ModernChatStyleHint", {
-      choices: {
-        illustrated: "TENEBRE.Settings.ModernChatStyleIllustrated",
-        legacy: "TENEBRE.Settings.ModernChatStyleLegacy"
-      }
-    });
     register("enableChatItemUse", Boolean, true, "TENEBRE.Settings.EnableChatItemUse", "TENEBRE.Settings.EnableChatItemUseHint");
     register("enableAutomatedAnimationsIntegration", Boolean, true, "TENEBRE.Settings.EnableAutomatedAnimationsIntegration", "TENEBRE.Settings.EnableAutomatedAnimationsIntegrationHint");
     register("enableClearEffectsButton", Boolean, true, "TENEBRE.Settings.EnableClearEffectsButton", "TENEBRE.Settings.EnableClearEffectsButtonHint");
@@ -460,10 +440,6 @@ function onSettingChanged(key, value) {
     refreshTokenActionHud();
   }
 
-  if (key === "enableModernChat" || key === "modernChatStyle") {
-    refreshChatLog();
-  }
-
   game.tenebreResources?.hotbar?.refresh?.();
   if (requiresForcedSheetRender) scheduleOpenSheetRerender({ force: true });
 }
@@ -533,11 +509,9 @@ function syncMovementSettingsVisibility(form) {
 function syncCombatSettingsVisibility(form) {
   if (!form?.querySelector?.('input[name="enableManeuvers"]')) return;
   const maneuversEnabled = Boolean(form.querySelector('input[name="enableManeuvers"]')?.checked);
-  const modernChatEnabled = Boolean(form.querySelector('input[name="enableModernChat"]')?.checked);
   const weaponReadinessEnabled = Boolean(form.querySelector('input[name="enableWeaponReadiness"]')?.checked);
 
   setHidden(form.querySelectorAll("[data-combat-maneuvers-dependent]"), !maneuversEnabled);
-  setHidden(form.querySelectorAll("[data-combat-modern-chat-dependent]"), !modernChatEnabled);
   setHidden(form.querySelectorAll("[data-combat-weapon-readiness-dependent]"), !weaponReadinessEnabled);
 }
 
@@ -879,28 +853,6 @@ function refreshTokenActionHud() {
     Promise.resolve(hud.update({ type: "hook", name: `${MODULE_ID}.settingsChanged` }))
       .catch((error) => console.warn(`${MODULE_ID} | Token Action HUD refresh failed.`, error));
   }
-}
-
-function refreshChatLog() {
-  window.setTimeout(() => {
-    const chat = ui?.chat;
-    if (typeof chat?.render !== "function") return;
-
-    try {
-      const ApplicationV2 = foundry.applications?.api?.ApplicationV2;
-      if (ApplicationV2 && chat instanceof ApplicationV2) {
-        chat.render({ force: true });
-      } else {
-        chat.render(true);
-      }
-    } catch (error) {
-      try {
-        chat.render({ force: true });
-      } catch (innerError) {
-        console.warn(`${MODULE_ID} | Could not refresh chat after settings change.`, innerError ?? error);
-      }
-    }
-  }, 50);
 }
 
 function rerenderOpenSheets({ force = false } = {}) {

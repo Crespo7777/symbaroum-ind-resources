@@ -1,5 +1,5 @@
 import { MODULE_ID } from "./constants.mjs";
-import { combatDamageSummary, effectiveRollValue } from "./modern-chat.mjs";
+import { combatDamageSummary, effectiveRollValue } from "./combat-chat-utils.mjs";
 import { escapeHtml } from "./utils.mjs";
 
 const publishingSplitIds = new Set();

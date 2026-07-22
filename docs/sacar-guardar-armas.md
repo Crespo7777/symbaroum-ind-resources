@@ -373,8 +373,8 @@ drawnWeaponIds: IDs sacados
 sheathedWeaponIds: IDs guardados
 ```
 
-O Chat Ilustrado usa o card compacto `Armas`; o modo Legacy usa o card compacto do
-Foundry/Symbaroum. Ambos expressam a mesma alteracao mecanica.
+O chat nativo do Foundry/Symbaroum recebe uma mensagem compacta que expressa a
+alteracao mecanica.
 
 O adaptador do Registro do Mestre converte a mensagem em evento
 `inventory.weaponReadiness`, classificando a acao como sacar, guardar ou trocar e
@@ -479,7 +479,7 @@ Nao introduzir polling, escrita em hook de render ou atualizacoes Item por Item.
 11. Apenas proprietario ou GM pode alterar o armamento do Actor.
 12. Desativar configuracoes deve refletir sem F5 e sem apagar dados do personagem.
 13. Hooks e listeners sao registrados apenas uma vez.
-14. Chat Ilustrado e Legacy registram a mesma mudanca mecanica.
+14. O chat nativo registra a mudanca mecanica uma unica vez.
 
 ## 17. Cenarios de falha e recuperacao
 
@@ -557,7 +557,7 @@ como oportunidades para alteracao incidental.
 ### Chat e integracoes
 
 - sacar, guardar e trocar geram uma unica mensagem;
-- Legacy e Ilustrado carregam flags equivalentes;
+- a mensagem nativa carrega as flags necessarias para as integracoes;
 - Registro do Mestre classifica corretamente a operacao;
 - animacao ausente ou com erro nao duplica nem cancela a mudanca;
 - municao nao e consumida quando o ataque e bloqueado.

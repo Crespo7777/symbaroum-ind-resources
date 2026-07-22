@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const privacySource = fs.readFileSync(path.join(root, "scripts/combat-chat-privacy.mjs"), "utf8");
-const modernChatSource = fs.readFileSync(path.join(root, "scripts/modern-chat.mjs"), "utf8");
 
 globalThis.foundry = {
   applications: {
@@ -23,7 +22,7 @@ const {
   publicCombatMessageData,
   responsibleGmId
 } = await import("../scripts/combat-chat-privacy.mjs");
-const { effectiveRollValue, opposedTargetModifier, protectionFromTotals } = await import("../scripts/modern-chat.mjs");
+const { effectiveRollValue, opposedTargetModifier, protectionFromTotals } = await import("../scripts/combat-chat-utils.mjs");
 
 test("opposed combat tests expose attribute names without numeric target values", () => {
   assert.equal(opposedFormula("Preciso : (20) ⬅ Defesa : (-3) Mod: 1"), "Preciso ← Defesa");
@@ -75,7 +74,6 @@ test("NPC combat is split into a blind GM original and sanitized public message"
   assert.match(privacySource, /combatSplitSourceId: splitId/);
   assert.doesNotMatch(privacySource, /pendingPublicMessages/);
   assert.match(privacySource, /publicCombat/);
-  assert.match(modernChatSource, /!game\.user\?\.isGM && message\?\.flags\?\.\[MODULE_ID\]\?\.fullCombatForGm/);
 });
 
 test("one deterministic active GM publishes the sanitized copy", () => {
@@ -190,108 +188,6 @@ test("only the responsible GM publishes one public copy for a player attack", as
   assert.equal(created.length, 1);
 });
 
-test("public combat rendering omits NPC protection and final applied damage", () => {
-  const combatBuilder = modernChatSource.slice(
-    modernChatSource.indexOf("function buildCombatCard"),
-    modernChatSource.indexOf("function buildAbilityRollCard")
-  );
-  assert.match(combatBuilder, /gmCombat && appliedDamage/);
-  assert.match(combatBuilder, /const protection = gmCombat/);
-  assert.match(combatBuilder, /explicitProtection \|\| \(damage \? protectionValue/);
+test("public combat payload omits NPC protection and final applied damage", () => {
   assert.doesNotMatch(privacySource, /protectionValue|appliedDamage|DamageTaken/);
-});
-
-test("illustrated combat and attribute cards consume the native final roll state", () => {
-  assert.match(modernChatSource, /function finalNativeD20Element\(source\)/);
-  assert.match(modernChatSource, /source\?\.querySelectorAll\?\.\("\.symba-rolls\.roll\.d20"\)/);
-  assert.match(modernChatSource, /\.dice-roll \.dice-total \.symba-rolls\.roll\.d20/);
-  assert.match(modernChatSource, /function nativeRollTooltipText\(source\)/);
-  assert.match(modernChatSource, /rollDetails: gmCombat \? nativeRoll\.details : ""/);
-  assert.match(modernChatSource, /rollDetails: nativeRoll\.details/);
-  assert.match(modernChatSource, /source\.querySelector\?\.\("#applyEffect"\)/);
-  assert.match(modernChatSource, /const nativeRoll = nativeFinalRollState\(source, text\)/);
-  assert.match(modernChatSource, /const nativeRoll = nativeFinalRollState\(rollCard, text\)/);
-  assert.match(modernChatSource, /const critical = nativeRoll\.critical \|\| criticalState/);
-  assert.match(modernChatSource, /const resultKey = miss[\s\S]*hit && critical === "success"/);
-  assert.match(modernChatSource, /const resultKey = failure[\s\S]*success && critical === "success"/);
-  assert.match(modernChatSource, /outcome: hit \? "success" : miss \? "failure" : ""/);
-  assert.match(modernChatSource, /function nativeCombatEffectRows\(source, \{ includeDamageConsequences = false \} = \{\}\)/);
-  assert.match(modernChatSource, /"CHAT\.CRITICAL_FAILURE_FREEATTACK"/);
-  assert.match(modernChatSource, /"CHAT\.CRITICAL_FREEATTACK"/);
-  assert.match(modernChatSource, /"CHAT\.CRITICAL_PLUS3DAMAGE"/);
-  assert.match(modernChatSource, /"COMBAT\.CHAT_DAMAGE_NUL"/);
-  assert.match(modernChatSource, /"COMBAT\.CHAT_DAMAGE_DYING"/);
-  assert.match(modernChatSource, /"COMBAT\.CHAT_DAMAGE_PAIN"/);
-  assert.match(modernChatSource, /"COMBAT\.CHAT_DMG_PARAMS"/);
-  assert.match(modernChatSource, /const nativeEffects = nativeCombatEffectRows\(source, \{ includeDamageConsequences: gmCombat \}\)/);
-  const attributeBuilder = modernChatSource.slice(
-    modernChatSource.indexOf("function buildAttributeRollCard"),
-    modernChatSource.indexOf("function buildDeathRollCard")
-  );
-  assert.match(attributeBuilder, /const nativeEffects = nativeCombatEffectRows\(rollCard\)/);
-  assert.match(attributeBuilder, /\.\.\.nativeEffects/);
-  const deathBuilder = modernChatSource.slice(
-    modernChatSource.indexOf("function buildDeathRollCard"),
-    modernChatSource.indexOf("function buildApplyResultsCard")
-  );
-  assert.match(deathBuilder, /rollDetails: nativeRollDetailsText\(rollCard\)/);
-  assert.match(modernChatSource, /value\.fullRow/);
-  assert.match(modernChatSource, /const textHit = \/\\b\(acerta\|hits\?\)\\b\/i\.test\(text\)/);
-  assert.match(modernChatSource, /const hit = textHit \|\| \(!textMiss && nativeRoll\.status === "success"\)/);
-});
-
-test("generic native ability cards are illustrated without hard-coded ability names", () => {
-  const abilityBuilder = modernChatSource.slice(
-    modernChatSource.indexOf("function buildAbilityRollCard"),
-    modernChatSource.indexOf("function buildAttributeRollCard")
-  );
-  assert.match(abilityBuilder, /source\.querySelector\?\.\("\.symbaroum\.chat\.ability"\)/);
-  assert.match(abilityBuilder, /\.finalTxt p\[data-item-id\]/);
-  assert.match(abilityBuilder, /targetedSequence: Boolean\(targetName\)/);
-  assert.match(abilityBuilder, /itemUuid: abilityItem\?\.uuid/);
-  assert.doesNotMatch(abilityBuilder, /Cascata de Enxofre|Sulphur Cascade/i);
-});
-
-/*
-test("GM attack cards include hidden-test values and objective while public cards do not", () => {
-  const combatBuilder = modernChatSource.slice(
-    modernChatSource.indexOf("function buildCombatCard"),
-    modernChatSource.indexOf("function buildAbilityRollCard")
-  );
-  assert.match(combatBuilder, /attackTestAttributeValues\(findAttributeLine\(text\), actor, targetActor\)/);
-  assert.match(modernChatSource, /data\.attackTestValues[\s\S]{0,80}illustratedAttackTestHtml/);
-  assert.match(modernChatSource, /illustratedAttackObjectiveHtml\(data\.attackTestValues\)/);
-  assert.match(modernChatSource, /hideAttackFlavor: gmCombat/);
-  assert.match(modernChatSource, /const defenseFirst = \["defesa", "defense"\]/);
-  assert.match(modernChatSource, /const leftActor = defenseFirst \? targetActor : actor/);
-  assert.match(modernChatSource, /const rightActor = defenseFirst \? actor : targetActor/);
-  assert.match(modernChatSource, /parsedOrActorAttributeValue\(parts\[0\], leftActor\)/);
-  assert.match(modernChatSource, /opposedTargetAttributeValue\(parts\[1\], rightActor\)/);
-  assert.match(modernChatSource, /return Number\.isFinite\(raw\) \? 10 - raw : NaN/);
-  assert.match(modernChatSource, /match\(\/\^\(\.\+\?\)\\s\*:\?\\s\*\\\(\\s\*\(-\\?\\d\+\)/);
-  assert.match(modernChatSource, /gmOnly: Boolean\(data\.gmCombat\)/);
-  assert.match(combatBuilder, /protection !== ""/);
-});
-*/
-
-test("GM attack cards preserve test values and GM-only details", () => {
-  const combatBuilder = modernChatSource.slice(
-    modernChatSource.indexOf("function buildCombatCard"),
-    modernChatSource.indexOf("function buildAbilityRollCard")
-  );
-  assert.match(combatBuilder, /attackTestAttributeValues\(findAttributeLine\(text\), actor, targetActor\)/);
-  assert.match(modernChatSource, /data\.attackTestValues[\s\S]{0,80}illustratedAttackTestHtml/);
-  assert.match(modernChatSource, /illustratedAttackObjectiveHtml\(data\.attackTestValues\)/);
-  assert.match(modernChatSource, /hideAttackFlavor: gmCombat/);
-  assert.match(modernChatSource, /const defenseFirst = \["defesa", "defense"\]/);
-  assert.match(modernChatSource, /const leftActor = defenseFirst \? targetActor : actor/);
-  assert.match(modernChatSource, /const rightActor = defenseFirst \? actor : targetActor/);
-  assert.match(modernChatSource, /parsedOrActorAttributeValue\(parts\[0\], leftActor\)/);
-  assert.match(modernChatSource, /opposedTargetAttributeValue\(parts\[1\], rightActor\)/);
-  assert.match(modernChatSource, /cleanName\(part\)\.match\(/);
-  assert.match(modernChatSource, /operator: right < 0 \? "-" : "\+"/);
-  assert.match(modernChatSource, /right: Math\.abs\(right\)/);
-  assert.match(modernChatSource, /result: left \+ right/);
-  assert.match(modernChatSource, /gmOnly: Boolean\(data\.gmCombat\)/);
-  assert.match(combatBuilder, /protection !== ""/);
 });

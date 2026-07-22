@@ -245,9 +245,7 @@ async function createReadinessChatMessage(actor, drawn, sheathed) {
   const content = buildWeaponReadinessChatContent({
     title: game.i18n.localize("TENEBRE.WeaponReadiness.ChatTitle"),
     text,
-    image,
-    illustrated: game.settings.get(MODULE_ID, "enableModernChat")
-      && game.settings.get(MODULE_ID, "modernChatStyle") !== "legacy"
+    image
   });
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
@@ -263,32 +261,14 @@ async function createReadinessChatMessage(actor, drawn, sheathed) {
   });
 }
 
-export function buildWeaponReadinessChatContent({ title = "", text = "", image = "", illustrated = false } = {}) {
-  if (!illustrated) {
-    return `
-      <article class="tenebre-modern-chat tenebre-weapon-readiness-chat">
-        <img src="${escapeHtml(image)}" alt="">
-        <div>
-          <strong>${escapeHtml(title)}</strong>
-          <p>${escapeHtml(text)}</p>
-        </div>
-      </article>
-    `;
-  }
-
-  const separator = `
-    <div class="tenebre-illustrated-separator">
-      <img src="modules/${MODULE_ID}/assets/icons/Separador.png" alt="">
-    </div>
-  `;
+export function buildWeaponReadinessChatContent({ title = "", text = "", image = "" } = {}) {
   return `
-    <article class="tenebre-modern-chat tenebre-modern-chat-illustrated tenebre-modern-chat-simple-weapon-readiness tenebre-modern-chat-neutral">
-      <h3 class="tenebre-illustrated-title">${escapeHtml(title)}</h3>
-      ${separator}
-      <div class="tenebre-illustrated-details">
-        <p class="tenebre-illustrated-flavor">${escapeHtml(text)}</p>
+    <article class="tenebre-weapon-readiness-chat">
+      <img src="${escapeHtml(image)}" alt="">
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <p>${escapeHtml(text)}</p>
       </div>
-      ${separator}
     </article>
   `;
 }

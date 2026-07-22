@@ -32,11 +32,6 @@ import { buildVisualActiveEffectData } from "../scripts/compatibility.mjs";
 const scope = "symbaroum-ind-resources";
 globalThis.game = { symbaroum: {} };
 
-function requireModernChatSource() {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-  return fs.readFileSync(path.join(root, "scripts", "modern-chat.mjs"), "utf8");
-}
-
 test("sheet and HUD readiness indicators share the Symbaroum weapon icon", () => {
   assert.equal(WEAPON_READINESS_ICON, "/systems/symbaroum/asset/image/weapon.png");
 });
@@ -49,44 +44,16 @@ test("weapon readiness chat messages are controlled by an independent setting", 
   assert.equal(isWeaponReadinessChatEnabled({ get: () => { throw new Error("unavailable"); } }), false);
 });
 
-test("weapon readiness messages use the compact illustrated card when requested", () => {
-  const html = buildWeaponReadinessChatContent({
-    title: "Armas",
-    text: "Crespo sacou Arco.",
-    illustrated: true
-  });
-
-  assert.match(html, /tenebre-modern-chat-illustrated/);
-  assert.match(html, /tenebre-modern-chat-simple-weapon-readiness/);
-  assert.match(html, /Separador\.png/);
-  assert.match(html, /Crespo sacou Arco\./);
-  assert.doesNotMatch(html, /tenebre-weapon-readiness-chat/);
-});
-
-test("modern chat references only the canonical illustrated separator asset", () => {
-  const modernChat = requireModernChatSource();
-  assert.match(modernChat, /assets\/icons\/Separador\.png/);
-  assert.doesNotMatch(modernChat, /illustrated-separator\.png/);
-});
-
-test("weapon readiness cards use the shared illustrated separator styling", () => {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-  const css = fs.readFileSync(path.join(root, "styles", "symbaroum-ind-resources.css"), "utf8");
-  assert.doesNotMatch(css, /\.tenebre-modern-chat-simple-weapon-readiness \.tenebre-illustrated-separator/);
-});
-
-test("weapon readiness messages preserve legacy layout and escape content", () => {
+test("weapon readiness messages use the native layout and escape content", () => {
   const html = buildWeaponReadinessChatContent({
     title: "Armas",
     text: "Crespo sacou <Arco>.",
-    image: "weapon.png",
-    illustrated: false
+    image: "weapon.png"
   });
 
   assert.match(html, /tenebre-weapon-readiness-chat/);
   assert.match(html, /weapon\.png/);
   assert.match(html, /Crespo sacou &lt;Arco&gt;\./);
-  assert.doesNotMatch(html, /tenebre-modern-chat-illustrated/);
 });
 
 function weapon(id, {
@@ -340,7 +307,6 @@ test("each drawn armament receives an independent token indicator", async () => 
     globalThis.game = originalGame;
   }
 });
-
 test("legacy aggregated token indicators migrate to one effect per drawn armament", async () => {
   const originalGame = globalThis.game;
   const gm = { id: "gm", active: true, isGM: true };
