@@ -31,6 +31,7 @@ import { NpcAttackChatService } from "./npc-attack-chat.mjs";
 import { OpposedTestChatService } from "./opposed-test-chat.mjs";
 import { StatusEffectPickerService } from "./status-effect-picker.mjs";
 import { BerserkerChatService } from "./berserker-chat.mjs";
+import { ResistanceChatService } from "./resistance-chat.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
@@ -40,6 +41,7 @@ Hooks.once("init", () => {
   NpcAttackChatService.register();
   OpposedTestChatService.register();
   BerserkerChatService.register();
+  ResistanceChatService.register();
   registerKeybindings();
   TokenActionHudIntegration.register();
 

@@ -10,7 +10,14 @@ const source = read("scripts/berserker-chat.mjs");
 const init = read("scripts/init.mjs");
 const css = read("styles/symbaroum-ind-resources.css");
 
-const { isBerserkerItem } = await import("../scripts/berserker-chat.mjs");
+const {
+  isBerserkerItem,
+  isBrimstoneCascadeItem,
+  isHolyAuraItem,
+  isLayOnHandsItem,
+  splitAbilityCaption,
+  stripTargetLabel
+} = await import("../scripts/berserker-chat.mjs");
 
 test("only the native Berserker ability is eligible for the Amoque card", () => {
   assert.equal(isBerserkerItem({ system: { reference: "berserker" } }), true);
@@ -21,10 +28,49 @@ test("only the native Berserker ability is eligible for the Amoque card", () => 
 });
 
 test("Amoque card centers actor and ability portraits with captions underneath", () => {
-  assert.match(source, /card\.append\(createPortrait\(actorImage, actorName, "tenebre-berserker-actor"\)\)/);
-  assert.match(source, /card\.append\(createAbilityFigure\(abilityImage, abilityCaption \|\| item\.name, item\)\)/);
+  assert.match(source, /card\.append\(createParticipants\(actorImage, actorName, targetImage, targetName\)\)/);
+  assert.match(source, /card\.append\(createAbilityFigure\(abilityImage, caption, item\)\)/);
   assert.match(source, /figure\.append\(image, caption\)/);
   assert.match(css, /\.tenebre-berserker-actor,[\s\S]*?flex-direction:\s*column;[\s\S]*?align-items:\s*center;/);
+});
+
+test("Imposição de Mãos uses the same ability card and preserves its target and details", () => {
+  assert.equal(isLayOnHandsItem({ system: { reference: "layonhands" } }), true);
+  assert.equal(isLayOnHandsItem({ system: { reference: "inheritwound" } }), false);
+  assert.match(source, /isBerserkerItem\(item\)/);
+  assert.match(source, /isLayOnHandsItem\(item\)/);
+  assert.match(source, /targetImage = backgroundImageUrl/);
+  assert.match(source, /targetName = stripTargetLabel/);
+  assert.match(source, /participants\.append\(arrow, createPortrait\(targetImage, targetName, "tenebre-berserker-target"\)\)/);
+  assert.match(source, /source\.querySelectorAll\(":scope > \.finalTxt"\)/);
+  assert.match(css, /\.tenebre-berserker-participants\s*\{[\s\S]*?justify-content:\s*center;/);
+  assert.equal(stripTargetLabel("Paciente: Argasto"), "Argasto");
+});
+
+test("ability roll modifiers remain visible outside the linked ability name", () => {
+  assert.deepEqual(splitAbilityCaption("Imposição de Mãos (Novato), armadura obstrutiva"), {
+    caption: "Imposição de Mãos (Novato)",
+    modifiers: "armadura obstrutiva"
+  });
+  assert.match(source, /const \{ caption, modifiers \} = splitAbilityCaption/);
+  assert.match(source, /tenebre-berserker-modifiers/);
+});
+
+test("Aura Sagrada uses the same ability card and keeps damage and corruption details", () => {
+  assert.equal(isHolyAuraItem({ system: { reference: "holyaura" } }), true);
+  assert.equal(isHolyAuraItem({ system: { reference: "unholyaura" } }), false);
+  assert.match(source, /isHolyAuraItem\(item\)/);
+  assert.match(source, /POWER_LABEL\.HOLY_AURA/);
+  assert.match(source, /source\.querySelectorAll\(":scope > \.finalTxt"\)/);
+});
+
+test("Cascata de Enxofre uses the same targeted ability card", () => {
+  assert.equal(isBrimstoneCascadeItem({ system: { reference: "brimstonecascade" } }), true);
+  assert.equal(isBrimstoneCascadeItem({ system: { reference: "flamewall" } }), false);
+  assert.match(source, /isBrimstoneCascadeItem\(item\)/);
+  assert.match(source, /POWER_LABEL\.BRIMSTONE_CASCADE/);
+  assert.match(source, /targetImage = backgroundImageUrl/);
+  assert.match(source, /source\.querySelectorAll\(":scope > \.finalTxt"\)/);
 });
 
 test("the displayed ability name opens the owned ability sheet", () => {

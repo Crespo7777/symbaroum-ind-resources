@@ -101,7 +101,7 @@ export const StatusEffectPickerService = {
 
 export function collectAvailableStatusEffects(actor, statusEffects = globalThis.CONFIG?.statusEffects ?? []) {
   const byId = new Map();
-  for (const effect of Array.from(statusEffects ?? [])) {
+  for (const effect of statusEffectValues(statusEffects)) {
     const id = statusEffectId(effect);
     if (!id || byId.has(id)) continue;
     const name = localizeValue(effect.name ?? effect.label ?? id);
@@ -116,6 +116,15 @@ export function collectAvailableStatusEffects(actor, statusEffects = globalThis.
   }
 
   return [...byId.values()].sort((left, right) => left.name.localeCompare(right.name, game.i18n?.lang));
+}
+
+export function statusEffectValues(statusEffects) {
+  if (!statusEffects) return [];
+  if (statusEffects instanceof Map) return [...statusEffects.values()];
+  if (Array.isArray(statusEffects)) return statusEffects;
+  if (typeof statusEffects[Symbol.iterator] === "function") return Array.from(statusEffects);
+  if (typeof statusEffects === "object") return Object.values(statusEffects);
+  return [];
 }
 
 export function isEffectActive(actor, statusId) {
@@ -200,7 +209,7 @@ function buildPickerContent(token, effects) {
       </label>
       <div class="tenebre-effect-picker-grid" role="list" tabindex="0"
         aria-label="${escapeHtml(game.i18n.localize("TENEBRE.StatusEffects.Title"))}">${cards}</div>
-      <p class="tenebre-effect-picker-empty" hidden>${escapeHtml(game.i18n.localize("TENEBRE.StatusEffects.Empty"))}</p>
+      <p class="tenebre-effect-picker-empty"${effects.length ? " hidden" : ""}>${escapeHtml(game.i18n.localize("TENEBRE.StatusEffects.Empty"))}</p>
     </section>`;
 }
 

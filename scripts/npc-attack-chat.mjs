@@ -138,7 +138,10 @@ function enhanceNpcAttackCard(root) {
     card.append(createTextElement("p", "tenebre-npc-attack-description", model.resistedDescription));
   }
   card.append(createResolution(model));
-  appendOriginalChatPreview(card, source, { hasUnadaptedContent: model.hasUnadaptedContent });
+  appendOriginalChatPreview(card, source, {
+    hasUnadaptedContent: model.hasUnadaptedContent,
+    unadaptedElements: model.unadaptedElements
+  });
 
   source.hidden = true;
   root.classList.add("tenebre-npc-attack-compact");
@@ -172,6 +175,13 @@ function buildNpcAttackModel(source) {
   const damageDie = weaponDamageDie(attackerActor, formulaElement?.dataset?.itemId);
   const resolution = extractResolution(source, formulaContainer, damageDie);
   if (!resolution.rollText || !resolution.outcome) return null;
+  const weaponDetailsElement = source.querySelector(":scope > .subText");
+  const unadaptedElements = [
+    ...resolution.unadaptedElements,
+    ...(hasUnrepresentedWeaponDetails(weaponDetailsElement?.textContent, weaponName, resolution.damageFormula)
+      ? [weaponDetailsElement]
+      : [])
+  ];
 
   const model = {
     action,
@@ -196,8 +206,8 @@ function buildNpcAttackModel(source) {
     resistedDescription,
     formula,
     ...resolution,
-    hasUnadaptedContent: resolution.hasUnadaptedContent
-      || hasUnrepresentedWeaponDetails(source.querySelector(":scope > .subText")?.textContent, weaponName, resolution.damageFormula)
+    hasUnadaptedContent: unadaptedElements.length > 0,
+    unadaptedElements
   };
   model.action = replaceNpcNames(model.action, model);
   return model;
@@ -241,9 +251,9 @@ function extractResolution(source, formulaContainer, damageDie) {
   const damageRollTotal = parseRollValue(damageResultNode?.querySelector(".dice-total")?.textContent);
   const damageResult = parseDamageResult(damageFormulaText, damageResultText, damageDie, damageRollTotal, rawDamage);
   const consumedNodes = new Set([rollNode, outcomeNode, damageFormulaNode, damageResultNode].filter(Boolean));
-  const hasUnadaptedContent = children
+  const unadaptedElements = children
     .slice(Math.max(0, formulaIndex + 1))
-    .some((child) => !consumedNodes.has(child) && cleanText(child.textContent));
+    .filter((child) => !consumedNodes.has(child) && cleanText(child.textContent));
   return {
     rollText,
     rollValue: parseRollValue(rollText),
@@ -252,7 +262,8 @@ function extractResolution(source, formulaContainer, damageDie) {
     damageRoll: damageResult.rolledDamage,
     damage: damageResult.damage,
     protection: damageResult.protection,
-    hasUnadaptedContent
+    hasUnadaptedContent: unadaptedElements.length > 0,
+    unadaptedElements
   };
 }
 

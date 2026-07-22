@@ -2754,6 +2754,30 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   border-top: 1px solid rgb(127 23 23 / 45%);
 }
 
+.tenebre-original-chat-highlight-legend {
+  margin: 0 0 8px;
+  padding: 4px 6px;
+  border-left: 3px solid #b52323;
+  color: #641010;
+  background: rgb(255 228 120 / 38%);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.tenebre-original-chat-preview .tenebre-original-chat-omitted {
+  border-radius: 2px;
+  outline: 2px solid #b52323;
+  outline-offset: 2px;
+  background: rgb(255 228 120 / 42%) !important;
+  box-shadow: 0 0 0 3px rgb(181 35 35 / 12%);
+}
+
+.tenebre-original-chat-preview .dice-tooltip.tenebre-original-chat-omitted {
+  display: block !important;
+}
+
 /* Searchable status effect picker opened from the module macro. */
 .tenebre-effect-picker-window .window-content,
 .application:has(.tenebre-effect-picker) .window-content,
@@ -2762,6 +2786,18 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   flex-direction: column;
   min-height: 0;
   overflow: hidden !important;
+}
+
+.tenebre-effect-picker-window .dialog-form,
+.application:has(.tenebre-effect-picker) .dialog-form,
+.window-app:has(.tenebre-effect-picker) .dialog-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .tenebre-effect-picker-window .dialog-content,
@@ -2828,19 +2864,32 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   white-space: nowrap;
 }
 
-.tenebre-effect-picker-search {
+.tenebre-symbaroum-dialog label.tenebre-effect-picker-search {
+  box-sizing: border-box;
   display: flex;
   flex: 0 0 auto;
   gap: 8px;
   align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
   padding: 0 10px;
   border: 1px solid #80644e;
   border-radius: 6px;
-  background: rgb(255 255 255 / 45%);
+  color: #211812;
+  background: rgb(255 255 255 / 45%) !important;
+  font-family: "Signika", var(--font-primary), sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  text-align: left;
 }
 
-.tenebre-effect-picker-search input[type="search"] {
+.tenebre-symbaroum-dialog label.tenebre-effect-picker-search input[type="search"] {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   height: 34px;
   margin: 0;
   border: 0;
@@ -2852,13 +2901,21 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   display: grid;
   flex: 1 1 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: min-content;
   gap: 7px;
-  min-height: 0;
+  align-content: start;
+  min-height: 120px;
   padding-right: 3px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+
+.tenebre-effect-picker-window .form-footer,
+.application:has(.tenebre-effect-picker) .form-footer,
+.window-app:has(.tenebre-effect-picker) .form-footer {
+  flex: 0 0 auto;
 }
 
 .tenebre-effect-picker-grid:focus-visible {
@@ -2950,7 +3007,7 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   }
 }
 
-/* Compact presentation for the native Amoque (Berserker) ability card. */
+/* Compact presentation for selected native ability and mystical-power cards. */
 .symbaroum.chat.ability.tenebre-berserker-compact {
   box-sizing: border-box;
   width: 100%;
@@ -2968,7 +3025,16 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   text-align: center;
 }
 
+.tenebre-berserker-participants {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
 .tenebre-berserker-actor,
+.tenebre-berserker-target,
 .tenebre-berserker-ability {
   display: flex;
   flex-direction: column;
@@ -2979,6 +3045,7 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 }
 
 .tenebre-berserker-actor img,
+.tenebre-berserker-target img,
 .tenebre-berserker-ability img {
   box-sizing: border-box;
   width: 64px;
@@ -2995,6 +3062,7 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
 }
 
 .tenebre-berserker-actor figcaption,
+.tenebre-berserker-target figcaption,
 .tenebre-berserker-ability figcaption {
   max-width: 100%;
   color: #18130f;
@@ -3005,11 +3073,27 @@ html.tenebre-cleaner-sheet-title-bar-active header.window-header a:not(.document
   overflow-wrap: anywhere;
 }
 
+.tenebre-berserker-flow-arrow {
+  flex: 0 0 auto;
+  color: #4a4038;
+  font-family: Georgia, serif;
+  font-size: 22px;
+  line-height: 1;
+}
+
 .tenebre-berserker-intro {
   margin: 1px 0;
   color: #3f352e;
   font-size: 13px;
   line-height: 1.25;
+}
+
+.tenebre-berserker-modifiers {
+  margin: -3px 0 1px;
+  color: #554940;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.2;
 }
 
 .tenebre-berserker-ability-link {

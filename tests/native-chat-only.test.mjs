@@ -60,12 +60,58 @@ test("the native Symbaroum resistance-roll button is centered without changing o
   assert.doesNotMatch(css, /\.symbaroum\.chat\.ability\s+#applyEffect\s*\{/);
 });
 
+test("a completed native resistance prompt is removed after the system clears its roll flag", async () => {
+  const { bindResistancePrompt, removeCompletedResistancePrompt } = await import("../scripts/resistance-chat.mjs");
+  const pending = new Set();
+  let clickListener;
+  let listenerOptions;
+  let deleted = false;
+  let resistanceFlag = { tokenId: "attacker", targetData: { tokenId: "target" } };
+  const button = {
+    dataset: {},
+    addEventListener: (_event, listener, options) => {
+      clickListener = listener;
+      listenerOptions = options;
+    }
+  };
+  const message = {
+    id: "resistance-message",
+    getFlag: () => resistanceFlag,
+    delete: async () => {
+      deleted = true;
+    }
+  };
+  const html = { querySelectorAll: () => [button] };
+
+  assert.equal(bindResistancePrompt(message, html, pending), true);
+  assert.equal(listenerOptions.capture, true);
+  clickListener();
+  assert.equal(pending.has(message.id), true);
+
+  assert.equal(await removeCompletedResistancePrompt(message, pending), false);
+  assert.equal(deleted, false, "the request must remain when the system did not start the roll");
+
+  resistanceFlag = undefined;
+  assert.equal(await removeCompletedResistancePrompt(message, pending), true);
+  assert.equal(deleted, true);
+  assert.equal(pending.has(message.id), false);
+});
+
+test("effect-application messages are not treated as resistance prompts", async () => {
+  const { bindResistancePrompt } = await import("../scripts/resistance-chat.mjs");
+  const message = { id: "effects-message", getFlag: () => undefined };
+  const html = { querySelectorAll: () => { throw new Error("button lookup should not run"); } };
+
+  assert.equal(bindResistancePrompt(message, html, new Set()), false);
+});
+
 test("chat integrations remain registered without replacing native messages", () => {
   const initSource = read("scripts/init.mjs");
   const settingsSource = read("scripts/settings.mjs");
 
   assert.match(initSource, /RollPrivacyService\.register\(\)/);
   assert.match(initSource, /NpcAttackChatService\.register\(\)/);
+  assert.match(initSource, /ResistanceChatService\.register\(\)/);
   assert.match(initSource, /chatItemUse:\s*ChatItemUseService/);
   assert.match(initSource, /gmLog:\s*GmLogService/);
   assert.match(settingsSource, /register\("enableChatItemUse"/);

@@ -25,7 +25,8 @@ const {
   StatusEffectPickerService,
   collectAvailableStatusEffects,
   findFirstEmptyHotbarSlot,
-  isEffectActive
+  isEffectActive,
+  statusEffectValues
 } = await import("../scripts/status-effect-picker.mjs");
 
 test("hotbar installation prefers the current page and then any empty slot", () => {
@@ -51,6 +52,14 @@ test("the picker consumes the live configured effect list without duplicate IDs"
   ]);
   assert.deepEqual(effects.map((effect) => effect.id).sort(), ["blind", "burning"]);
   assert.equal(effects.find((effect) => effect.id === "blind")?.active, true);
+});
+
+test("configured effects are normalized from Arrays, Maps and keyed objects", () => {
+  const blind = { id: "blind" };
+  const burning = { id: "burning" };
+  assert.deepEqual(statusEffectValues([blind, burning]), [blind, burning]);
+  assert.deepEqual(statusEffectValues(new Map([["blind", blind], ["burning", burning]])), [blind, burning]);
+  assert.deepEqual(statusEffectValues({ blind, burning }), [blind, burning]);
 });
 
 test("toggling delegates to the public Actor status API with an explicit state", async () => {
@@ -125,5 +134,8 @@ test("the picker window is resizable while its searchable grid owns vertical scr
   assert.match(source, /class="tenebre-effect-picker-grid" role="list" tabindex="0"/);
   assert.match(source, /grid\.scrollTop = 0/);
   assert.match(css, /\.tenebre-effect-picker-window \.window-content[\s\S]*?min-height:\s*0;[\s\S]*?overflow:\s*hidden !important;/);
-  assert.match(css, /\.tenebre-effect-picker-grid\s*\{[\s\S]*?flex:\s*1 1 0;[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(css, /\.tenebre-effect-picker-window \.dialog-form[\s\S]*?flex:\s*1 1 auto;[\s\S]*?height:\s*100%;[\s\S]*?min-height:\s*0;/);
+  assert.match(css, /label\.tenebre-effect-picker-search\s*\{[\s\S]*?width:\s*100%;/);
+  assert.match(css, /\.tenebre-effect-picker-grid\s*\{[\s\S]*?flex:\s*1 1 0;[\s\S]*?min-height:\s*120px;[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(source, /effects\.length \? " hidden" : ""/);
 });

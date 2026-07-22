@@ -633,6 +633,7 @@
   "TENEBRE.NpcAttackChat.ReceivesDamage": "{name} takes {damage} damage.",
   "TENEBRE.ChatOriginal.Show": "Show original message",
   "TENEBRE.ChatOriginal.Hide": "Hide original message",
+  "TENEBRE.ChatOriginal.NotShown": "Highlighted: information not shown in the Ind Resources card.",
   "TENEBRE.OpposedTestChat.Objective": "Objective",
   "TENEBRE.OpposedTestChat.Roll": "Roll",
   "TENEBRE.OpposedTestChat.Success": "success",

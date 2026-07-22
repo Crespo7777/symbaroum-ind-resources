@@ -190,6 +190,7 @@ test("GM receives a red information control when native attack content is not fu
   assert.match(preview, /globalThis\.game\?\.user\?\.isGM/);
   assert.match(preview, /source\.cloneNode\(true\)/);
   assert.match(preview, /TENEBRE\.ChatOriginal\.Show/);
+  assert.match(source, /unadaptedElements: model\.unadaptedElements/);
   assert.match(css, /\.tenebre-original-chat-info\s*\{[\s\S]*?background:\s*#b52323;/);
 });
 

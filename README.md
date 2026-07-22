@@ -61,7 +61,7 @@ recursos adequados para sua mesa.
 | --- | --- |
 | Foundry VTT | v13 |
 | Sistema Symbaroum | 6.1.6 |
-| Modulo | 0.15.0 |
+| Modulo | 0.16.0 |
 | Manifest | `https://raw.githubusercontent.com/Crespo7777/symbaroum-ind-resources/main/module.json` |
 | Download | `https://github.com/Crespo7777/symbaroum-ind-resources/releases/latest/download/symbaroum-ind-resources.zip` |
 

@@ -1,6 +1,9 @@
 import { MODULE_ID } from "./constants.mjs";
 
 const BERSERKER_REFERENCE = "berserker";
+const LAY_ON_HANDS_REFERENCE = "layonhands";
+const HOLY_AURA_REFERENCE = "holyaura";
+const BRIMSTONE_CASCADE_REFERENCE = "brimstonecascade";
 
 export class BerserkerChatService {
   static #registered = false;
@@ -28,6 +31,18 @@ export function isBerserkerItem(item) {
   return item?.system?.reference === BERSERKER_REFERENCE;
 }
 
+export function isLayOnHandsItem(item) {
+  return item?.system?.reference === LAY_ON_HANDS_REFERENCE;
+}
+
+export function isHolyAuraItem(item) {
+  return item?.system?.reference === HOLY_AURA_REFERENCE;
+}
+
+export function isBrimstoneCascadeItem(item) {
+  return item?.system?.reference === BRIMSTONE_CASCADE_REFERENCE;
+}
+
 export function enhanceBerserkerCards(scope, message) {
   for (const root of matchingElements(scope, ".symbaroum.chat.ability")) {
     enhanceBerserkerCard(root, message);
@@ -51,23 +66,29 @@ function enhanceBerserkerCard(root, message) {
   const source = root.querySelector(":scope > .foreground");
   const abilityCaption = cleanText(source?.querySelector(":scope > .subText")?.textContent);
   const actor = resolveSpeakerActor(message);
-  const item = findDisplayedBerserker(actor, abilityCaption);
+  const item = findDisplayedAbility(actor, abilityCaption);
   if (!source || !actor || !item) return;
 
   const actorImage = backgroundImageUrl(source.querySelector(":scope > .introImg")?.getAttribute("style")) || actor.img;
   const abilityImage = source.querySelector(":scope > img")?.getAttribute("src") || item.img;
   const introText = cleanText(source.querySelector(":scope > .introImg > .introTxt")?.textContent);
   const actorName = stripParenthetical(actor.name);
+  const targetImage = backgroundImageUrl(source.querySelector(":scope > .introImg > .introImg")?.getAttribute("style"));
+  const targetName = stripTargetLabel(source.querySelector(":scope > .introImg > .targetText")?.textContent);
+  const { caption, modifiers } = splitAbilityCaption(abilityCaption || item.name);
 
   const card = document.createElement("div");
   card.className = "tenebre-berserker-card";
-  card.append(createPortrait(actorImage, actorName, "tenebre-berserker-actor"));
+  card.append(createParticipants(actorImage, actorName, targetImage, targetName));
 
   if (introText) {
     card.append(createTextElement("p", "tenebre-berserker-intro", introText));
   }
 
-  card.append(createAbilityFigure(abilityImage, abilityCaption || item.name, item));
+  card.append(createAbilityFigure(abilityImage, caption, item));
+  if (modifiers) {
+    card.append(createTextElement("p", "tenebre-berserker-modifiers", modifiers));
+  }
 
   const details = document.createElement("div");
   details.className = "tenebre-berserker-details";
@@ -80,6 +101,21 @@ function enhanceBerserkerCard(root, message) {
   root.append(card);
   root.classList.add("tenebre-berserker-compact");
   root.dataset.tenebreBerserker = "true";
+}
+
+function createParticipants(actorImage, actorName, targetImage, targetName) {
+  const participants = document.createElement("div");
+  participants.className = "tenebre-berserker-participants";
+  participants.append(createPortrait(actorImage, actorName, "tenebre-berserker-actor"));
+
+  if (targetImage && targetName) {
+    const arrow = document.createElement("span");
+    arrow.className = "tenebre-berserker-flow-arrow";
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.textContent = "→";
+    participants.append(arrow, createPortrait(targetImage, targetName, "tenebre-berserker-target"));
+  }
+  return participants;
 }
 
 function createPortrait(src, name, className) {
@@ -117,15 +153,39 @@ function createAbilityFigure(src, captionText, item) {
   return figure;
 }
 
-function findDisplayedBerserker(actor, abilityCaption) {
+function findDisplayedAbility(actor, abilityCaption) {
   if (!actor || !abilityCaption) return null;
-  const items = Array.from(actor.items ?? []).filter(isBerserkerItem);
+  const items = Array.from(actor.items ?? []).filter((item) => (
+    isBerserkerItem(item)
+      || isLayOnHandsItem(item)
+      || isHolyAuraItem(item)
+      || isBrimstoneCascadeItem(item)
+  ));
   if (!items.length) return null;
 
   const displayedName = normalize(abilityCaption);
-  const localizedName = normalize(localize("ABILITY_LABEL.BERSERKER", "Berserker"));
   return items.find((item) => displayedName.startsWith(normalize(item.name)))
-    ?? (displayedName.startsWith(localizedName) ? items[0] : null);
+    ?? items.find((item) => displayedName.startsWith(normalize(referenceLabel(item))));
+}
+
+function referenceLabel(item) {
+  if (isBerserkerItem(item)) return localize("ABILITY_LABEL.BERSERKER", "Berserker");
+  if (isLayOnHandsItem(item)) return localize("POWER_LABEL.LAY_ON_HANDS", "Lay on Hands");
+  if (isHolyAuraItem(item)) return localize("POWER_LABEL.HOLY_AURA", "Holy Aura");
+  if (isBrimstoneCascadeItem(item)) return localize("POWER_LABEL.BRIMSTONE_CASCADE", "Brimstone Cascade");
+  return item?.name ?? "";
+}
+
+export function splitAbilityCaption(value) {
+  const [caption, ...modifiers] = cleanText(value).split(",");
+  return {
+    caption: cleanText(caption),
+    modifiers: cleanText(modifiers.join(", "))
+  };
+}
+
+export function stripTargetLabel(value = "") {
+  return stripParenthetical(cleanText(value).replace(/^(?:Paciente|Patient|Alvo|Target|V[ií]tima|Victim)\s*:\s*/iu, ""));
 }
 
 function resolveSpeakerActor(message) {

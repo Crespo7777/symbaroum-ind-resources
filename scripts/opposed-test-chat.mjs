@@ -108,7 +108,10 @@ function enhanceOpposedTestCard(root, message) {
     createRollSummary(model),
     createTextElement("p", "tenebre-opposed-test-outcome", model.outcome)
   );
-  appendOriginalChatPreview(card, source, { hasUnadaptedContent: model.hasUnadaptedContent });
+  appendOriginalChatPreview(card, source, {
+    hasUnadaptedContent: model.hasUnadaptedContent,
+    unadaptedElements: model.unadaptedElements
+  });
 
   source.hidden = true;
   root.classList.add("tenebre-opposed-test-compact");
@@ -132,7 +135,10 @@ function buildOpposedTestModel(source, message) {
     .filter(Boolean)
     .join(" — ");
   const [actingAttribute, targetAttribute] = formula.attributes;
-  const marginText = cleanText(source.querySelector(".dice-roll h4:nth-child(2)")?.textContent);
+  const marginElement = source.querySelector(".dice-roll h4:nth-child(2)");
+  const tooltipElement = source.querySelector(".dice-tooltip");
+  const marginText = cleanText(marginElement?.textContent);
+  const unadaptedElements = [marginText ? marginElement : null, tooltipElement].filter(Boolean);
   return {
     actor: { name: stripNpcParenthetical(actorName), img: actorImage },
     target: { name: stripNpcParenthetical(target.name), img: target.img },
@@ -140,7 +146,8 @@ function buildOpposedTestModel(source, message) {
     objective: formula.objective,
     roll: Number(cleanText(rollElement.textContent)),
     outcome: formatOpposedTestResult(actorName, succeeded, criticalText),
-    hasUnadaptedContent: Boolean(marginText || source.querySelector(".dice-tooltip"))
+    hasUnadaptedContent: unadaptedElements.length > 0,
+    unadaptedElements
   };
 }
 

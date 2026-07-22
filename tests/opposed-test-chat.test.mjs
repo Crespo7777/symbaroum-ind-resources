@@ -53,6 +53,7 @@ test("opposed tests follow the existing Original or Ind Resources chat setting",
 });
 
 test("unadapted opposed-test details remain available to the GM through the original preview", () => {
-  assert.match(source, /hasUnadaptedContent: Boolean\(marginText \|\| source\.querySelector\("\.dice-tooltip"\)\)/);
+  assert.match(source, /const unadaptedElements = \[marginText \? marginElement : null, tooltipElement\]\.filter\(Boolean\)/);
+  assert.match(source, /unadaptedElements: model\.unadaptedElements/);
   assert.match(source, /appendOriginalChatPreview\(card, source/);
 });
