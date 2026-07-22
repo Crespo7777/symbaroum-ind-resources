@@ -1,0 +1,209 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+const source = read("scripts/npc-attack-chat.mjs");
+const settings = read("scripts/settings.mjs");
+const template = read("templates/settings.hbs");
+const css = read("styles/symbaroum-ind-resources.css");
+
+const {
+  compactActorName,
+  canViewNpcDamageDetails,
+  extractDamageFormula,
+  extractMissOutcomeSuffix,
+  isPlayerNpcAttack,
+  parseDamageResult,
+  parseOpposedTest,
+  parseRollValue,
+  stripNpcParenthetical
+} = await import("../scripts/npc-attack-chat.mjs");
+
+test("portrait captions use only the first actor name", () => {
+  assert.equal(compactActorName("Bartolom, Mago da Ordo Mágica"), "Bartolom");
+  assert.equal(compactActorName("Sebastian Valerius"), "Sebastian");
+  assert.equal(compactActorName("Ludo"), "Ludo");
+});
+
+test("NPC parenthetical name details are omitted only from chat presentation", () => {
+  assert.equal(stripNpcParenthetical("Ladrões (tanto quanto os PJs)"), "Ladrões");
+  assert.equal(stripNpcParenthetical("Ludo (Ferido) (Furioso)"), "Ludo");
+  assert.equal(stripNpcParenthetical("Bartolom"), "Bartolom");
+  assert.match(source, /sourceName: attackerName/);
+  assert.match(source, /sourceName: targetName/);
+  assert.match(source, /model\.action = replaceNpcNames\(model\.action, model\)/);
+  assert.match(source, /return replaceNpcNames\(model\.outcome, model\)/);
+});
+
+test("NPC defense test objective uses the values already published by Symbaroum", () => {
+  const parsed = parseOpposedTest("Defesa : (16) ⬅ Persuasivo : (-5)");
+  assert.deepEqual(parsed.attributes, [
+    { label: "Defesa", value: 16 },
+    { label: "Persuasivo", value: -5 }
+  ]);
+  assert.equal(parsed.modifier, 0);
+  assert.equal(parsed.objective, 11);
+  assert.equal(parsed.direction, "←");
+
+  const modified = parseOpposedTest("Defense (12) ← Accurate (-3) Modifier: +1");
+  assert.equal(modified.objective, 10);
+});
+
+test("player attacks against NPCs preserve their opposed-test direction", () => {
+  const parsed = parseOpposedTest("Preciso : (10) ➡ Defesa : (-1)");
+  assert.equal(parsed.objective, 9);
+  assert.equal(parsed.direction, "→");
+  assert.equal(isPlayerNpcAttack({
+    attacker: { actor: { type: "player" } },
+    target: { actor: { type: "monster" } },
+    formula: parsed,
+    resistedDescription: ""
+  }), true);
+});
+
+test("positive NPC modifiers are displayed with an explicit plus sign", () => {
+  assert.match(source, /\$\{attack\.label} \(\$\{signed\(attack\.value\)}\)/);
+  assert.match(source, /return value > 0 \? `\+\$\{value}` : String\(value\)/);
+});
+
+test("objective and roll share one two-column row", () => {
+  assert.match(source, /rollSummary\.className = "tenebre-npc-attack-roll-summary"/);
+  assert.match(source, /rollSummary\.append\([\s\S]*?tenebre-npc-attack-objective[\s\S]*?tenebre-npc-attack-roll/);
+  assert.match(css, /\.tenebre-npc-attack-roll-summary\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+});
+
+test("critical-failure outcome remains complete in the compact card", () => {
+  assert.match(source, /outcome = cleanText\(outcomeNode\?\.textContent\)/);
+  assert.match(source, /tenebre-npc-attack-outcome", displayedOutcome\(model\)/);
+});
+
+test("NPC miss explains the successful defense and preserves special suffixes", () => {
+  assert.equal(extractMissOutcomeSuffix("Ludo erra.", "Ludo", " erra."), "");
+  assert.equal(
+    extractMissOutcomeSuffix("Ludo erra. - Sucesso Crítico : Ataque Livre do Oponente", "Ludo", " erra."),
+    "Sucesso Crítico : Ataque Livre do Oponente"
+  );
+  assert.equal(extractMissOutcomeSuffix("Ludo acerta Bartolom", "Ludo", " erra."), null);
+  assert.match(source, /TENEBRE\.NpcAttackChat\.DefendedMiss/);
+});
+
+test("NPC attack roll and effective damage are extracted from native result text", () => {
+  assert.equal(parseRollValue("Rolagem: 17"), 17);
+  assert.equal(parseRollValue("Roll: 6"), 6);
+  assert.deepEqual(
+    parseDamageResult("Dano: 4 - (1d4)", "Sebastian Valerius suporta dano: 1", "1d6"),
+    { formula: "1d6", rolledDamage: 4, damage: 1, protection: 3 }
+  );
+  assert.deepEqual(
+    parseDamageResult("Dano: 1d8 - 2", "Ludo suporta dano: 5", "1d8", 5),
+    { formula: "1d8", rolledDamage: 7, damage: 5, protection: 2 }
+  );
+  assert.deepEqual(
+    parseDamageResult("Dano: 1d8 - 2", "Ludo suporta dano: 5"),
+    { formula: "1d8", rolledDamage: 7, damage: 5, protection: 2 }
+  );
+  assert.deepEqual(
+    parseDamageResult("Dano: 1d8 - 2", "Ludo suporta dano: 5", "1d8", 5, 7),
+    { formula: "1d8", rolledDamage: 7, damage: 5, protection: 2 }
+  );
+  assert.deepEqual(
+    parseDamageResult(
+      "Dano: 1d8 + 1d6[Amoque] + 1d4[Robusto] - 0",
+      "Keler suporta dano: 10",
+      "1d8",
+      10,
+      4
+    ),
+    {
+      formula: "1d8 + 1d6[Amoque] + 1d4[Robusto]",
+      rolledDamage: 10,
+      damage: 10,
+      protection: 0
+    }
+  );
+});
+
+test("all additional damage dice remain visible with their Symbaroum labels", () => {
+  assert.equal(
+    extractDamageFormula("Dano: 1d8 + 1d6[Amoque] + 1d4[Robusto] - 2", "1d8"),
+    "1d8 + 1d6[Amoque] + 1d4[Robusto]"
+  );
+  assert.equal(extractDamageFormula("Dano: 4 - (1d4)", "1d8"), "1d8");
+  assert.match(source, /damage !== null && armorMatch/);
+});
+
+test("player attacks show NPC protection between rolled and received damage", () => {
+  const damageLine = source.indexOf("tenebre-npc-attack-damage");
+  const protectionLine = source.indexOf("tenebre-npc-attack-protection", damageLine);
+  const receivedLine = source.indexOf("tenebre-npc-attack-received", protectionLine);
+  assert.ok(damageLine >= 0 && protectionLine > damageLine && receivedLine > protectionLine);
+  assert.match(source, /isPlayerAgainstNpc\(model\) && showNpcDetails && model\.protection !== null/);
+  assert.match(source, /TENEBRE\.NpcAttackChat\.Protection/);
+});
+
+test("zero effective damage reports that the NPC was protected by armor", () => {
+  assert.match(source, /isPlayerAgainstNpc\(model\) && model\.damage === 0/);
+  assert.match(source, /TENEBRE\.NpcAttackChat\.ProtectedByArmor/);
+  assert.match(source, /\{name} está protegido pela armadura\./);
+});
+
+test("NPC protection and effective damage can be hidden from players", () => {
+  assert.equal(canViewNpcDamageDetails({ playerAgainstNpc: true, hideNpcDetails: true, isGM: false }), false);
+  assert.equal(canViewNpcDamageDetails({ playerAgainstNpc: true, hideNpcDetails: true, isGM: true }), true);
+  assert.equal(canViewNpcDamageDetails({ playerAgainstNpc: true, hideNpcDetails: false, isGM: false }), true);
+  assert.equal(canViewNpcDamageDetails({ playerAgainstNpc: false, hideNpcDetails: true, isGM: false }), true);
+  assert.match(settings, /register\("hideNpcDetailsInChat", Boolean, false/);
+  assert.match(template, /name="hideNpcDetailsInChat"/);
+  assert.match(source, /hideNpcDetailsInChat/);
+  assert.match(source, /if \(showNpcDetails\)/);
+});
+
+test("compact NPC damage shows the weapon die separately from effective damage", () => {
+  assert.match(source, /weaponDamageDie\(attackerActor, formulaElement\?\.dataset\?\.itemId\)/);
+  assert.match(source, /\.tooltip-part \.part-total/);
+  assert.match(source, /model\.damageFormula} = \$\{model\.damageRoll}/);
+  assert.match(source, /damage:\s*model\.damage/);
+});
+
+test("compact NPC attacks transform only rendered native combat cards", () => {
+  assert.match(source, /Hooks\.on\("renderChatMessageHTML"/);
+  assert.match(source, /\.symbaroum\.chat\.combat/);
+  assert.match(source, /isPlayerNpcAttack\(model\)/);
+  assert.doesNotMatch(source, /ChatMessage(?:\.implementation)?\.create|ChatMessage\.create/);
+});
+
+test("the original native card stays hidden internally and can be restored", () => {
+  assert.match(source, /tenebre-npc-attack-description", model\.resistedDescription/);
+  assert.match(source, /source\.hidden = true/);
+  assert.match(source, /source\.hidden = false/);
+  assert.doesNotMatch(source, /OriginalDetails|createElement\("details"\)/);
+});
+
+test("GM receives a red information control when native attack content is not fully adapted", () => {
+  const preview = read("scripts/chat-original-preview.mjs");
+  assert.match(source, /hasUnadaptedContent/);
+  assert.match(source, /appendOriginalChatPreview\(card, source/);
+  assert.match(preview, /globalThis\.game\?\.user\?\.isGM/);
+  assert.match(preview, /source\.cloneNode\(true\)/);
+  assert.match(preview, /TENEBRE\.ChatOriginal\.Show/);
+  assert.match(css, /\.tenebre-original-chat-info\s*\{[\s\S]*?background:\s*#b52323;/);
+});
+
+test("compact NPC attack setting defaults on and CSS stays namespaced", () => {
+  assert.match(settings, /register\("enableCompactNpcAttackChat", Boolean, true/);
+  assert.match(settings, /settingCategory = "chatMessages"/);
+  assert.match(settings, /settingsChatMessagesMenu/);
+  assert.match(template, /showChatMessages/);
+  assert.match(template, /<select name="enableCompactNpcAttackChat">/);
+  assert.match(template, /value="original"/);
+  assert.match(template, /value="indResources"/);
+  assert.match(css, /\.symbaroum\.chat\.combat\.tenebre-npc-attack-compact/);
+  assert.match(css, /\.tenebre-npc-attack-card\s*\{[\s\S]*?gap:\s*6px;/);
+  assert.match(css, /\.tenebre-npc-attack-participant\s*\{[\s\S]*?gap:\s*0;/);
+  assert.match(css, /\.tenebre-npc-attack-participant figcaption\s*\{[\s\S]*?min-height:\s*1\.1em;[\s\S]*?max-height:\s*2\.2em;/);
+  assert.doesNotMatch(css, /#chat-log|\.chat-sidebar\s+\.chat-scroll/);
+});

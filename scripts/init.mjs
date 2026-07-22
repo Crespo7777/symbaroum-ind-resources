@@ -23,20 +23,23 @@ import { WeaponReadinessService } from "./weapon-readiness.mjs";
 import { WeaponReadinessHudService } from "./weapon-readiness-hud.mjs";
 import { WeaponReadinessVisualService } from "./weapon-readiness-visuals.mjs";
 import { InventoryCleanupService } from "./inventory-cleanup.mjs";
-import { CombatChatPrivacyService } from "./combat-chat-privacy.mjs";
-import { NativeChatPresentationService } from "./native-chat-presentation.mjs";
 import { GmLogService } from "./gm-log-service.mjs";
 import { GmLogUiService } from "./gm-log-ui.mjs";
 import { GroundContainerService } from "./ground-containers.mjs";
 import { ContainerTransferService } from "./container-transfer.mjs";
+import { NpcAttackChatService } from "./npc-attack-chat.mjs";
+import { OpposedTestChatService } from "./opposed-test-chat.mjs";
+import { StatusEffectPickerService } from "./status-effect-picker.mjs";
+import { BerserkerChatService } from "./berserker-chat.mjs";
 
 Hooks.once("init", () => {
   TenebreSettings.register();
   CompatibilityService.register();
   MovementService.register();
   RollPrivacyService.register();
-  CombatChatPrivacyService.register();
-  NativeChatPresentationService.register();
+  NpcAttackChatService.register();
+  OpposedTestChatService.register();
+  BerserkerChatService.register();
   registerKeybindings();
   TokenActionHudIntegration.register();
 
@@ -136,6 +139,7 @@ Hooks.once("ready", async () => {
     gmLog: GmLogService,
     inventoryCleanup: InventoryCleanupService,
     tokenActionHud: TokenActionHudIntegration,
+    statusEffects: StatusEffectPickerService,
     bithir: game.bithirmod,
 
     inspectActorResources,

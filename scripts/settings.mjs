@@ -1,5 +1,6 @@
 import { DEFAULTS, MODULE_ID } from "./constants.mjs";
 import { EncumbranceService } from "./encumbrance.mjs";
+import { StatusEffectPickerService } from "./status-effect-picker.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 let pendingSheetRerender = null;
@@ -45,6 +46,7 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       showEncumbrance: category === "encumbrance",
       showMovement: category === "movement",
       showCombat: category === "combat",
+      showChatMessages: category === "chatMessages",
       showUtilities: category === "utilities",
       movementUnitMetersSelected: settings.movementUnitSystem === "meters",
       movementUnitFeetSelected: settings.movementUnitSystem === "feet",
@@ -73,6 +75,10 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
     syncUtilitiesSettingsVisibility(form);
     form?.querySelector?.('input[name="enableBithirUtilities"]')?.addEventListener("change", () => syncUtilitiesSettingsVisibility(form));
     form?.querySelector?.('input[name="enableGenerateShadow"]')?.addEventListener("change", () => syncUtilitiesSettingsVisibility(form));
+    form?.querySelector?.(".tenebre-install-status-effect-macro")?.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await StatusEffectPickerService.installMacro();
+    });
     form?.querySelector?.(".tenebre-ration-food-select")?.addEventListener("change", (event) => {
       addSelectedRationFood(form, event.currentTarget);
     });
@@ -137,6 +143,8 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "enableMovementEffectModifiers",
       "enableManeuvers",
       "enableRollPrivacy",
+      "enableCompactNpcAttackChat",
+      "hideNpcDetailsInChat",
       "enableWeaponReadiness",
       "showWeaponReadinessButton",
       "showWeaponReadinessTokenIndicator",
@@ -169,11 +177,13 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
       "movementBaseFeet"
     ];
 
-    const strings = ["movementUnitSystem", "nativeChatPresentation"];
+    const strings = ["movementUnitSystem"];
 
     for (const key of booleans) {
       if (canInspectSubmittedFields ? submittedFields.has(key) : key in data) {
-        data[key] = Boolean(data[key]);
+        data[key] = key === "enableCompactNpcAttackChat"
+          ? data[key] === true || data[key] === "indResources"
+          : Boolean(data[key]);
       }
     }
 
@@ -191,10 +201,6 @@ export class TenebreSettingsForm extends HandlebarsApplicationMixin(ApplicationV
 
     if ("movementUnitSystem" in data && !["meters", "feet"].includes(data.movementUnitSystem)) {
       data.movementUnitSystem = "meters";
-    }
-
-    if ("nativeChatPresentation" in data && !["system", "updated"].includes(data.nativeChatPresentation)) {
-      data.nativeChatPresentation = "system";
     }
 
     if (canInspectSubmittedFields && Array.from(submittedFields).some((key) => key.startsWith("extraRationFoods."))) {
@@ -241,6 +247,11 @@ class TenebreCombatSettingsForm extends TenebreSettingsForm {
   static DEFAULT_OPTIONS = categoryOptions("symbaroum-ind-resources-settings-combat", "TENEBRE.Settings.TabCombatButton");
 }
 
+class TenebreChatMessagesSettingsForm extends TenebreSettingsForm {
+  static settingCategory = "chatMessages";
+  static DEFAULT_OPTIONS = categoryOptions("symbaroum-ind-resources-settings-chat-messages", "TENEBRE.Settings.TabChatMessagesButton");
+}
+
 class TenebreUtilitiesSettingsForm extends TenebreSettingsForm {
   static settingCategory = "utilities";
   static DEFAULT_OPTIONS = categoryOptions("symbaroum-ind-resources-settings-utilities", "TENEBRE.Settings.TabUtilitiesButton");
@@ -265,6 +276,7 @@ export class TenebreSettings {
     registerMenu("settingsEncumbranceMenu", "TENEBRE.Settings.TabEncumbrance", "TENEBRE.Settings.TabEncumbranceButton", "TENEBRE.Settings.TabEncumbranceHint", "fas fa-weight-hanging", TenebreEncumbranceSettingsForm);
     registerMenu("settingsMovementMenu", "TENEBRE.Settings.TabMovement", "TENEBRE.Settings.TabMovementButton", "TENEBRE.Settings.TabMovementHint", "fas fa-ruler", TenebreMovementSettingsForm);
     registerMenu("settingsCombatMenu", "TENEBRE.Settings.TabCombat", "TENEBRE.Settings.TabCombatButton", "TENEBRE.Settings.TabCombatHint", "fas fa-dice-d20", TenebreCombatSettingsForm);
+    registerMenu("settingsChatMessagesMenu", "TENEBRE.Settings.TabChatMessages", "TENEBRE.Settings.TabChatMessagesButton", "TENEBRE.Settings.TabChatMessagesHint", "fas fa-comments", TenebreChatMessagesSettingsForm);
     registerMenu("settingsUtilitiesMenu", "TENEBRE.Settings.TabUtilities", "TENEBRE.Settings.TabUtilitiesButton", "TENEBRE.Settings.TabUtilitiesHint", "fas fa-magic", TenebreUtilitiesSettingsForm);
 
     register("enableRations", Boolean, true, "TENEBRE.Settings.EnableRations", "TENEBRE.Settings.EnableRationsHint");
@@ -312,12 +324,8 @@ export class TenebreSettings {
 
     register("enableManeuvers", Boolean, true, "TENEBRE.Settings.EnableManeuvers", "TENEBRE.Settings.EnableManeuversHint");
     register("enableRollPrivacy", Boolean, true, "TENEBRE.Settings.EnableRollPrivacy", "TENEBRE.Settings.EnableRollPrivacyHint");
-    register("nativeChatPresentation", String, "system", "TENEBRE.Settings.NativeChatPresentation", "TENEBRE.Settings.NativeChatPresentationHint", {
-      choices: {
-        system: "TENEBRE.Settings.NativeChatPresentationSystem",
-        updated: "TENEBRE.Settings.NativeChatPresentationUpdated"
-      }
-    });
+    register("enableCompactNpcAttackChat", Boolean, true, "TENEBRE.Settings.ChatMessageStyle", "TENEBRE.Settings.ChatMessageStyleHint");
+    register("hideNpcDetailsInChat", Boolean, false, "TENEBRE.Settings.HideNpcDetailsInChat", "TENEBRE.Settings.HideNpcDetailsInChatHint");
     register("enableWeaponReadiness", Boolean, true, "TENEBRE.Settings.EnableWeaponReadiness", "TENEBRE.Settings.EnableWeaponReadinessHint");
     register("showWeaponReadinessButton", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessButton", "TENEBRE.Settings.ShowWeaponReadinessButtonHint");
     register("showWeaponReadinessTokenIndicator", Boolean, true, "TENEBRE.Settings.ShowWeaponReadinessTokenIndicator", "TENEBRE.Settings.ShowWeaponReadinessTokenIndicatorHint");
@@ -386,9 +394,6 @@ function register(key, type, defaultValue, name, hint, extra = {}) {
 
 function onSettingChanged(key, value) {
   Hooks.callAll(MODULE_ID + ".settingsChanged", key, value);
-  if (key === "nativeChatPresentation") {
-    globalThis.ui?.chat?.render?.({ force: true });
-  }
   const requiresForcedSheetRender = [
     "enableRations",
     "rationUses",

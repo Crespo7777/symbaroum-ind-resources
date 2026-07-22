@@ -224,15 +224,6 @@
       <h2>{{localize "TENEBRE.Settings.CombatGroup"}}</h2>
 
       <label class="tenebre-settings-field">
-        <span>{{localize "TENEBRE.Settings.NativeChatPresentation"}}</span>
-        <select name="nativeChatPresentation">
-          <option value="system" {{#if (eq settings.nativeChatPresentation "system")}}selected{{/if}}>{{localize "TENEBRE.Settings.NativeChatPresentationSystem"}}</option>
-          <option value="updated" {{#if (eq settings.nativeChatPresentation "updated")}}selected{{/if}}>{{localize "TENEBRE.Settings.NativeChatPresentationUpdated"}}</option>
-        </select>
-      </label>
-      <p class="hint">{{localize "TENEBRE.Settings.NativeChatPresentationHint"}}</p>
-
-      <label class="tenebre-settings-field">
         <span>{{localize "TENEBRE.Settings.EnableManeuvers"}}</span>
         <input type="checkbox" name="enableManeuvers" {{checked settings.enableManeuvers}}>
       </label>
@@ -279,9 +270,33 @@
     </section>
   {{/if}}
 
+  {{#if showChatMessages}}
+    <section class="tenebre-settings-section">
+      <h2>{{localize "TENEBRE.Settings.ChatMessagesGroup"}}</h2>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.ChatMessageStyle"}}</span>
+        <select name="enableCompactNpcAttackChat">
+          <option value="original" {{#unless settings.enableCompactNpcAttackChat}}selected{{/unless}}>{{localize "TENEBRE.Settings.ChatMessageStyleOriginal"}}</option>
+          <option value="indResources" {{#if settings.enableCompactNpcAttackChat}}selected{{/if}}>{{localize "TENEBRE.Settings.ChatMessageStyleIndResources"}}</option>
+        </select>
+      </label>
+      <p class="hint">{{localize "TENEBRE.Settings.ChatMessageStyleHint"}}</p>
+      <label class="tenebre-settings-field">
+        <span>{{localize "TENEBRE.Settings.HideNpcDetailsInChat"}}</span>
+        <input type="checkbox" name="hideNpcDetailsInChat" {{checked settings.hideNpcDetailsInChat}}>
+      </label>
+      <p class="hint">{{localize "TENEBRE.Settings.HideNpcDetailsInChatHint"}}</p>
+    </section>
+  {{/if}}
+
   {{#if showUtilities}}
     <section class="tenebre-settings-section">
       <h2>{{localize "TENEBRE.Settings.UtilitiesGroup"}}</h2>
+      <h3>{{localize "TENEBRE.Settings.StatusEffectMacroGroup"}}</h3>
+      <button type="button" class="tenebre-install-status-effect-macro">
+        <i class="fas fa-wand-magic-sparkles"></i> {{localize "TENEBRE.Settings.InstallStatusEffectMacro"}}
+      </button>
+      <p class="hint">{{localize "TENEBRE.Settings.InstallStatusEffectMacroHint"}}</p>
       <h3>{{localize "TENEBRE.Settings.RitualistGroup"}}</h3>
       <label class="tenebre-settings-field">
         <span>{{localize "TENEBRE.Settings.EnableRitualCatalog"}}</span>

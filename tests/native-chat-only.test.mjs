@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+const scriptSource = fs.readdirSync(path.join(root, "scripts"))
+  .filter((name) => name.endsWith(".mjs"))
+  .map((name) => read(path.join("scripts", name)))
+  .join("\n");
 
 const removedArtifacts = [
   "scripts/modern-chat.mjs",
@@ -13,7 +17,10 @@ const removedArtifacts = [
   "docs/chat-ilustrado-paridade.md",
   "assets/icons/Separador.png",
   "assets/icons/illustrated-d20.svg",
-  "assets/icons/illustrated-roll-skull.png"
+  "assets/icons/illustrated-roll-skull.png",
+  "scripts/native-chat-presentation.mjs",
+  "scripts/combat-chat-privacy.mjs",
+  "scripts/combat-chat-utils.mjs"
 ];
 
 test("illustrated chat artifacts remain removed", () => {
@@ -22,12 +29,14 @@ test("illustrated chat artifacts remain removed", () => {
   }
 });
 
-test("bootstrap and public module API do not register the illustrated chat renderer", () => {
+test("removed native chat renderers and replacement publishers stay removed", () => {
   const source = read("scripts/init.mjs");
-  assert.doesNotMatch(source, /ModernChatService|modernChat/);
+  assert.doesNotMatch(source, /ModernChatService|modernChat|NativeChatPresentationService|CombatChatPrivacyService/);
+  assert.doesNotMatch(scriptSource, /tenebre-(?:native|public)-combat|tenebre-native-attack/);
+  assert.doesNotMatch(scriptSource, /publicCombat:\s*true|publicCombatMessageId/);
 });
 
-test("settings UI does not expose removed illustrated chat options", () => {
+test("settings UI does not expose removed native chat presentation options", () => {
   const sources = [
     read("scripts/settings.mjs"),
     read("templates/settings.hbs"),
@@ -35,18 +44,25 @@ test("settings UI does not expose removed illustrated chat options", () => {
     read("languages/en.json")
   ].join("\n");
 
-  assert.doesNotMatch(sources, /enableModernChat|modernChatStyle|showSpecialAmmoInChat|TENEBRE\.ModernChat/);
+  assert.doesNotMatch(sources, /enableModernChat|modernChatStyle|showSpecialAmmoInChat|nativeChatPresentation|TENEBRE\.(?:ModernChat|NativeChat)/);
 });
 
-test("independent native chat integrations remain registered", () => {
+test("module CSS does not target the core chat viewport or restore old native styles", () => {
+  const css = read("styles/symbaroum-ind-resources.css");
+  assert.doesNotMatch(css, /#chat-log|\.chat-sidebar\s+\.chat-scroll/);
+  assert.doesNotMatch(css, /tenebre-native-|tenebre-public-combat/);
+});
+
+test("chat integrations remain registered without replacing native messages", () => {
   const initSource = read("scripts/init.mjs");
   const settingsSource = read("scripts/settings.mjs");
 
   assert.match(initSource, /RollPrivacyService\.register\(\)/);
-  assert.match(initSource, /CombatChatPrivacyService\.register\(\)/);
+  assert.match(initSource, /NpcAttackChatService\.register\(\)/);
   assert.match(initSource, /chatItemUse:\s*ChatItemUseService/);
   assert.match(initSource, /gmLog:\s*GmLogService/);
   assert.match(settingsSource, /register\("enableChatItemUse"/);
   assert.match(settingsSource, /register\("enableRollPrivacy"/);
+  assert.match(settingsSource, /register\("enableCompactNpcAttackChat"/);
   assert.match(settingsSource, /register\("enableGmLog"/);
 });
