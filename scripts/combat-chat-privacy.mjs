@@ -12,6 +12,10 @@ export class CombatChatPrivacyService {
     Hooks.on("createChatMessage", (message) => {
       this.#publishSanitizedCopy(message);
     });
+    Hooks.on("renderChatMessageHTML", (message, html) => {
+      if (!shouldHidePublicCombatCopy(message)) return;
+      hideRenderedMessage(html);
+    });
   }
 
   static #prepareSplit(message, userId) {
@@ -188,6 +192,10 @@ export function responsibleGmId(users = game.users) {
     .sort((left, right) => left.localeCompare(right))[0] ?? "";
 }
 
+export function shouldHidePublicCombatCopy(message, user = game.user) {
+  return Boolean(user?.isGM && message?.flags?.[MODULE_ID]?.combatSplitSourceId);
+}
+
 function allGmIds() {
   return [...(game.users ?? [])]
     .filter((user) => user.isGM)
@@ -198,6 +206,14 @@ function allGmIds() {
 function hasPublishedCopy(splitId) {
   return [...(game.messages ?? [])]
     .some((message) => message?.flags?.[MODULE_ID]?.combatSplitSourceId === splitId);
+}
+
+function hideRenderedMessage(html) {
+  const root = html?.[0] ?? html;
+  if (!root) return;
+  const message = root.matches?.(".chat-message") ? root : root.closest?.(".chat-message") ?? root;
+  message.hidden = true;
+  message.style?.setProperty?.("display", "none", "important");
 }
 
 function isUnambiguouslyPlayerTarget(name) {

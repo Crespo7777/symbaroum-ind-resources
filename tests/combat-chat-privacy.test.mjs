@@ -20,7 +20,8 @@ const {
   CombatChatPrivacyService,
   opposedFormula,
   publicCombatMessageData,
-  responsibleGmId
+  responsibleGmId,
+  shouldHidePublicCombatCopy
 } = await import("../scripts/combat-chat-privacy.mjs");
 const { effectiveRollValue, opposedTargetModifier, protectionFromTotals } = await import("../scripts/combat-chat-utils.mjs");
 
@@ -193,6 +194,28 @@ test("only the responsible GM publishes one public copy for a player attack", as
   });
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(created.length, 1);
+});
+
+test("GM hides the sanitized public copy while players keep seeing it", () => {
+  const publicCopy = {
+    flags: {
+      "symbaroum-ind-resources": {
+        combatSplitSourceId: "split-public"
+      }
+    }
+  };
+  const fullGmCopy = {
+    flags: {
+      "symbaroum-ind-resources": {
+        combatSplitId: "split-public",
+        fullCombatForGm: true
+      }
+    }
+  };
+
+  assert.equal(shouldHidePublicCombatCopy(publicCopy, { isGM: true }), true);
+  assert.equal(shouldHidePublicCombatCopy(publicCopy, { isGM: false }), false);
+  assert.equal(shouldHidePublicCombatCopy(fullGmCopy, { isGM: true }), false);
 });
 
 test("public combat payload omits NPC protection and final applied damage", () => {
